@@ -10,7 +10,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
-  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="stylesheet" href="./css/admin.css">
+  <!-- Supabase JS Client for 100% Online Cloud Operation -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -52,7 +54,7 @@
       </form>
 
       <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid #334155;">
-        <a href="/" style="color: #94a3b8; font-size: 0.82rem; text-decoration: none;">
+        <a href="./" style="color: #94a3b8; font-size: 0.82rem; text-decoration: none;">
           &larr; Kembali ke Website Publik
         </a>
       </div>
@@ -66,7 +68,7 @@
     <!-- SIDEBAR -->
     <aside class="admin-sidebar" id="admin-sidebar">
       <div class="sidebar-header">
-        <a href="/admin" class="sidebar-brand">
+        <a href="./admin.html" class="sidebar-brand">
           <i class="fa-solid fa-briefcase" style="color: #818cf8;"></i>
           <span>KerjaHub</span>
           <span class="brand-badge">ADMIN</span>
@@ -109,7 +111,7 @@
       <header class="admin-header">
         <div class="page-title-box">
           <h1 id="admin-page-title">Dashboard Lowongan</h1>
-          <p id="admin-page-sub">Kelola poster dan sinkronisasi database Supabase.</p>
+          <p id="admin-page-sub">Kelola poster online & database Supabase Cloud.</p>
         </div>
 
         <div class="admin-top-actions">
@@ -119,11 +121,11 @@
 
           <div style="display: flex; align-items: center; gap: 10px; margin-left: 10px;">
             <div style="width: 38px; height: 38px; border-radius: 50%; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-weight: 700;">
-              <i class="fa-solid fa-shield"></i>
+              <i class="fa-solid fa-cloud"></i>
             </div>
             <div>
-              <div style="font-size: 0.88rem; font-weight: 700;">Admin Resmi</div>
-              <div style="font-size: 0.72rem; color: #10b981; font-weight: 600;">● Terautentikasi</div>
+              <div style="font-size: 0.88rem; font-weight: 700;">Admin Supabase</div>
+              <div style="font-size: 0.72rem; color: #10b981; font-weight: 600;">● Online Cloud</div>
             </div>
           </div>
         </div>
@@ -195,7 +197,7 @@
             <div class="panel-header">
               <div class="panel-title">
                 <i class="fa-solid fa-cloud-arrow-up" style="color: var(--admin-primary);"></i>
-                Upload Poster Desain & Rincian Lowongan Kerja
+                Upload Poster Desain & Rincian Lowongan Kerja (Online Cloud)
               </div>
             </div>
 
@@ -208,7 +210,7 @@
                     <i class="fa-solid fa-image"></i> Upload Gambar / Flyer Desain Poster Lowongan <span class="req">*</span>
                   </label>
                   <p class="form-hint" style="margin-bottom: 16px;">
-                    Pilih gambar flyer poster (JPG, PNG, atau WEBP). Gambar ini otomatis tersimpan ke cloud dan ditampilkan dalam resolusi tajam di website.
+                    Pilih gambar flyer poster (JPG, PNG, atau WEBP). Gambar otomatis diproses dan disimpan ke cloud Supabase secara online.
                   </p>
 
                   <div class="upload-preview-container">
@@ -363,7 +365,7 @@
                 <!-- SUBMIT -->
                 <div style="margin-top: 26px; display: flex; gap: 14px;">
                   <button type="submit" class="btn-table" style="width: auto; padding: 12px 30px; background: var(--admin-primary); color: white; border: none; font-weight: 700; font-size: 1rem;">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload & Publikasikan Poster
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload & Simpan ke Supabase Cloud
                   </button>
                   <button type="reset" class="btn-table" style="width: auto; padding: 12px 20px;">
                     Reset Form
@@ -381,7 +383,7 @@
         <section id="section-manage-jobs" style="display: none;">
           <div class="panel">
             <div class="panel-header">
-              <div class="panel-title"><i class="fa-solid fa-briefcase"></i> Daftar Semua Lowongan & Poster</div>
+              <div class="panel-title"><i class="fa-solid fa-briefcase"></i> Daftar Semua Lowongan & Poster (Supabase Cloud)</div>
               <button class="btn-table" style="width: auto; padding: 6px 14px;" onclick="loadAdminJobs()">
                 <i class="fa-solid fa-rotate"></i> Refresh
               </button>
@@ -543,6 +545,6 @@
     </div>
   </div>
 
-  <script src="/js/admin.js"></script>
+  <script src="./js/admin.js"></script>
 </body>
 </html>

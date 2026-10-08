@@ -1,6 +1,131 @@
 // ==============================================================
-// KerjaHub - Public Portal JavaScript (Focus: Job Sharing & Posters)
+// KerjaHub - Public Portal JavaScript (Supabase Cloud & Static Ready)
 // ==============================================================
+
+const SUPABASE_URL = 'https://nptmawuukuysqzqakwej.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT';
+let sbClient = null;
+
+if (window.supabase && typeof window.supabase.createClient === 'function') {
+  try {
+    sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  } catch (e) {
+    console.warn('Supabase client init error:', e);
+  }
+}
+
+// Fallback initial jobs with posters (used if Supabase is offline or table empty)
+const DEFAULT_JOBS = [
+  {
+    id: 1,
+    title: 'Senior UI/UX Designer',
+    company_name: 'Synergy Tech Global',
+    category: 'Design & Kreatif',
+    job_type: 'Remote',
+    location: 'Jakarta / Remote',
+    salary_display: 'Rp 15.000.000 - Rp 25.000.000 / bln',
+    experience_level: 'Senior (5+ Tahun)',
+    poster_image: './uploads/sample_uiux.jpg',
+    description: 'Synergy Tech sedang mencari Senior UI/UX Designer untuk memimpin strategi desain produk digital generasi berikutnya. Anda akan merancang antarmuka elegan, prototipe interaktif, dan berkolaborasi erat dengan tim engineering.',
+    requirements: [
+      'Pengalaman minimal 5 tahun di bidang UI/UX Design untuk platform web & mobile',
+      'Portofolio kuat yang menunjukkan proses design thinking dan UI visual modern',
+      'Mahir menggunakan Figma, Design Systems, dan interactive prototyping',
+      'Pemahaman kuat mengenai usability testing dan user journey mapping',
+      'Kemampuan komunikasi dan kepemimpinan yang baik'
+    ],
+    responsibilities: [
+      'Memimpin dan merumuskan arah desain UI/UX produk utama',
+      'Membuat wireframe, interactive high-fidelity prototype di Figma',
+      'Mengembangkan dan memelihara Design System bersama tim front-end',
+      'Melakukan riset dan wawancara pengguna untuk validasi fitur baru'
+    ],
+    benefits: [
+      'Kerja 100% Remote dengan jam fleksibel',
+      'Asuransi Kesehatan Swasta Kelas 1 & BPJS',
+      'Tunjangan perangkat MacBook Pro & monitor 4K',
+      'Budget pembelajaran & sertifikasi tahunan'
+    ],
+    contact_type: 'whatsapp',
+    contact_value: '081234567890',
+    deadline: '2026-11-30',
+    status: 'active',
+    is_featured: true,
+    views_count: 142,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 2,
+    title: 'Full Stack Web Developer (Node.js & React)',
+    company_name: 'Tech Innovations Lab',
+    category: 'Teknologi & IT',
+    job_type: 'Hybrid',
+    location: 'Jakarta Selatan (SCBD)',
+    salary_display: 'Rp 18.000.000 - Rp 28.000.000 / bln',
+    experience_level: '3-5 Tahun',
+    poster_image: './uploads/sample_fullstack.jpg',
+    description: 'Kami mengundang Full Stack Developer berbakat untuk membangun arsitektur sistem enterprise yang cepat, terukur, dan aman. Mengembangkan REST API modern dan antarmuka responsif.',
+    requirements: [
+      'Pengalaman kerja minimal 3 tahun menggunakan Node.js dan React / Next.js',
+      'Fasih bekerja dengan database relasional dan konsep RESTful API modern',
+      'Pemahaman solid mengenai Clean Architecture dan version control (Git)',
+      'Berpengalaman dengan cloud deployment dan containerization (Docker)'
+    ],
+    responsibilities: [
+      'Merancang arsitektur backend scalable dan antarmuka web modern',
+      'Mengoptimasi performa dan keamanan aplikasi web',
+      'Bekerjasama dalam tim sprint agile mingguan'
+    ],
+    benefits: [
+      'Sistem kerja Hybrid fleksibel (2 hari kantor, 3 hari WFH)',
+      'Gaji kompetitif + THR + Bonus kuartalan',
+      'Makan siang gratis & snack bar sepuasnya di kantor SCBD',
+      'Asuransi kesehatan lengkap termasuk keluarga'
+    ],
+    contact_type: 'email',
+    contact_value: 'careers@techinnovations.com',
+    deadline: '2026-11-25',
+    status: 'active',
+    is_featured: true,
+    views_count: 298,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 3,
+    title: 'Digital Marketing & Social Media Strategist',
+    company_name: 'Creative Sparks Agency',
+    category: 'Marketing & Penjualan',
+    job_type: 'Full Time',
+    location: 'Bandung, Jawa Barat',
+    salary_display: 'Rp 9.000.000 - Rp 14.000.000 / bln',
+    experience_level: '1-3 Tahun',
+    poster_image: './uploads/sample_marketing.jpg',
+    description: 'Creative Sparks mencari Digital Marketing Specialist yang kreatif dan analitis untuk memimpin kampanye multi-channel, paid ads (Meta & TikTok), serta konten viral.',
+    requirements: [
+      'Pengalaman minimal 2 tahun dalam digital marketing dan social media ads',
+      'Terbukti sukses mengelola Meta Ads (Facebook/Instagram) dan TikTok Ads',
+      'Kreatif dalam menyusun copywriting iklan yang engaging',
+      'Menguasai tren media sosial terkini (Reels, TikTok, Shorts)'
+    ],
+    responsibilities: [
+      'Merencanakan dan mengeksekusi kampanye pemasaran digital bulanan',
+      'Mengoptimalkan performa iklan berbayar (paid ads) untuk ROI maksimal',
+      'Membuat strategi konten bersama tim kreatif desain grafis'
+    ],
+    benefits: [
+      'Suasana kerja agensi yang seru, dinamis, tanpa birokrasi kaku',
+      'Tunjangan kuota internet & transportasi',
+      'Bonus performa pencapaian target campaign'
+    ],
+    contact_type: 'link',
+    contact_value: 'https://creativesparks.io/apply',
+    deadline: '2026-11-15',
+    status: 'active',
+    is_featured: false,
+    views_count: 89,
+    created_at: new Date().toISOString()
+  }
+];
 
 let currentJobs = [];
 let activeFilters = {
@@ -43,11 +168,9 @@ function updateThemeIcon(theme) {
 
 // Event Listeners
 function setupEventListeners() {
-  // Theme toggle
   const themeBtn = document.getElementById('theme-toggle-btn');
   if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
-  // Search input & button
   const searchInput = document.getElementById('search-input');
   const searchBtn = document.getElementById('search-btn');
   const searchCategory = document.getElementById('search-category');
@@ -71,7 +194,6 @@ function setupEventListeners() {
     });
   }
 
-  // Quick category tags
   document.querySelectorAll('.tag-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
@@ -82,7 +204,6 @@ function setupEventListeners() {
     });
   });
 
-  // Sidebar filters (Radio buttons)
   document.querySelectorAll('input[name="filter_category"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
       activeFilters.category = e.target.value;
@@ -98,7 +219,6 @@ function setupEventListeners() {
     });
   });
 
-  // Reset filter button
   const resetBtn = document.getElementById('btn-reset-filter');
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
@@ -121,7 +241,6 @@ function setupEventListeners() {
     });
   }
 
-  // Sort dropdown
   const sortSelect = document.getElementById('sort-select');
   if (sortSelect) {
     sortSelect.addEventListener('change', (e) => {
@@ -130,7 +249,6 @@ function setupEventListeners() {
     });
   }
 
-  // Grid/List toggle
   const btnGrid = document.getElementById('view-grid-btn');
   const btnList = document.getElementById('view-list-btn');
   const jobsGrid = document.getElementById('jobs-container');
@@ -149,7 +267,6 @@ function setupEventListeners() {
     });
   }
 
-  // Modal Closers
   setupModalDismiss('job-detail-modal');
   setupModalDismiss('poster-lightbox');
 }
@@ -164,7 +281,7 @@ function setupModalDismiss(modalId) {
   });
 }
 
-// Load Jobs from API
+// Load Jobs: First tries Supabase Cloud, falls back to server API or DEFAULT_JOBS
 async function loadJobs() {
   const container = document.getElementById('jobs-container');
   if (!container) return;
@@ -176,28 +293,94 @@ async function loadJobs() {
     </div>
   `;
 
-  try {
-    const params = new URLSearchParams();
-    if (activeFilters.search) params.append('search', activeFilters.search);
-    if (activeFilters.category && activeFilters.category !== 'Semua') params.append('category', activeFilters.category);
-    if (activeFilters.job_type && activeFilters.job_type !== 'Semua') params.append('job_type', activeFilters.job_type);
-    if (activeFilters.location && activeFilters.location !== 'Semua') params.append('location', activeFilters.location);
-    if (activeFilters.sort) params.append('sort', activeFilters.sort);
+  let jobs = null;
 
-    const res = await fetch(`/api/jobs?${params.toString()}`);
-    const data = await res.json();
+  // 1. Try Supabase Cloud Client directly (works on GitHub Pages!)
+  if (sbClient) {
+    try {
+      let q = sbClient.from('jobs').select('*');
+      q = q.eq('status', 'active');
 
-    if (data.success) {
-      currentJobs = data.data;
-      renderJobs(currentJobs);
-      updateCountDisplay(currentJobs.length);
-    } else {
-      showEmptyState(data.message || 'Gagal memuat lowongan.');
+      if (activeFilters.category && activeFilters.category !== 'Semua') {
+        q = q.eq('category', activeFilters.category);
+      }
+      if (activeFilters.job_type && activeFilters.job_type !== 'Semua') {
+        q = q.eq('job_type', activeFilters.job_type);
+      }
+      if (activeFilters.location && activeFilters.location !== 'Semua') {
+        q = q.ilike('location', `%${activeFilters.location}%`);
+      }
+      if (activeFilters.search) {
+        const s = `%${activeFilters.search}%`;
+        q = q.or(`title.ilike.${s},company_name.ilike.${s},description.ilike.${s},location.ilike.${s}`);
+      }
+      if (activeFilters.sort === 'views') {
+        q = q.order('views_count', { ascending: false });
+      } else {
+        q = q.order('is_featured', { ascending: false }).order('id', { ascending: false });
+      }
+
+      const { data, error } = await q;
+      if (!error && Array.isArray(data) && data.length > 0) {
+        jobs = data;
+      }
+    } catch (e) {
+      console.warn('Supabase browser fetch exception:', e);
     }
-  } catch (err) {
-    console.error(err);
-    showEmptyState('Terjadi kesalahan koneksi saat memuat data lowongan.');
   }
+
+  // 2. Try Local Server API if Supabase didn't yield results
+  if (!jobs) {
+    try {
+      const params = new URLSearchParams();
+      if (activeFilters.search) params.append('search', activeFilters.search);
+      if (activeFilters.category && activeFilters.category !== 'Semua') params.append('category', activeFilters.category);
+      if (activeFilters.job_type && activeFilters.job_type !== 'Semua') params.append('job_type', activeFilters.job_type);
+      if (activeFilters.location && activeFilters.location !== 'Semua') params.append('location', activeFilters.location);
+      if (activeFilters.sort) params.append('sort', activeFilters.sort);
+
+      const res = await fetch(`./api/jobs?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          jobs = data.data;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 3. Fallback to DEFAULT_JOBS filter in memory (Guarantees zero broken state on GitHub Pages!)
+  if (!jobs) {
+    jobs = filterLocalJobs(DEFAULT_JOBS);
+  }
+
+  currentJobs = jobs;
+  renderJobs(currentJobs);
+  updateCountDisplay(currentJobs.length);
+}
+
+function filterLocalJobs(rawList) {
+  let list = [...rawList].filter(j => j.status === 'active');
+
+  if (activeFilters.category && activeFilters.category !== 'Semua') {
+    list = list.filter(j => j.category === activeFilters.category);
+  }
+  if (activeFilters.job_type && activeFilters.job_type !== 'Semua') {
+    list = list.filter(j => j.job_type === activeFilters.job_type);
+  }
+  if (activeFilters.location && activeFilters.location !== 'Semua') {
+    const loc = activeFilters.location.toLowerCase();
+    list = list.filter(j => j.location && j.location.toLowerCase().includes(loc));
+  }
+  if (activeFilters.search) {
+    const s = activeFilters.search.toLowerCase();
+    list = list.filter(j =>
+      (j.title && j.title.toLowerCase().includes(s)) ||
+      (j.company_name && j.company_name.toLowerCase().includes(s)) ||
+      (j.description && j.description.toLowerCase().includes(s))
+    );
+  }
+  return list;
 }
 
 function updateCountDisplay(count) {
@@ -217,7 +400,12 @@ function renderJobs(jobs) {
 
   container.innerHTML = jobs.map(job => {
     const defaultPoster = 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&auto=format&fit=crop&q=80';
-    const posterSrc = job.poster_image ? job.poster_image : defaultPoster;
+    let posterSrc = job.poster_image ? job.poster_image : defaultPoster;
+    // Fix absolute /uploads/ to relative ./uploads/ for GitHub Pages subpath
+    if (posterSrc.startsWith('/uploads/')) {
+      posterSrc = '.' + posterSrc;
+    }
+
     const initial = job.company_name ? job.company_name.charAt(0).toUpperCase() : 'C';
     const timeAgo = formatTimeAgo(job.created_at);
 
@@ -258,7 +446,7 @@ function renderJobs(jobs) {
               <button class="btn btn-outline btn-sm" onclick="openJobDetail(${job.id})">
                 <i class="fa-regular fa-eye"></i> Info Lengkap
               </button>
-              <button class="btn btn-primary btn-sm" onclick="directContact(${job.id})">
+              <button class="btn btn-primary btn-sm" onclick="openJobDetail(${job.id})">
                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Hubungi
               </button>
             </div>
@@ -284,7 +472,7 @@ function showEmptyState(msg) {
   `;
 }
 
-// Lightbox for Poster Image
+// Lightbox
 function openLightbox(imgSrc, title) {
   const lb = document.getElementById('poster-lightbox');
   const lbImg = document.getElementById('lightbox-img');
@@ -299,186 +487,171 @@ function openLightbox(imgSrc, title) {
   }
 }
 
-// Open Job Detail Modal
-async function openJobDetail(jobId) {
+// Open Detail Modal
+function openJobDetail(jobId) {
+  const job = currentJobs.find(j => j.id == jobId);
+  if (!job) return;
+
   const modal = document.getElementById('job-detail-modal');
   const content = document.getElementById('job-detail-content');
   if (!modal || !content) return;
 
+  // Increment views count in Supabase if online
+  if (sbClient) {
+    sbClient.from('jobs').update({ views_count: (job.views_count || 0) + 1 }).eq('id', job.id).then();
+  }
+
+  const defaultPoster = 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&auto=format&fit=crop&q=80';
+  let posterSrc = job.poster_image ? job.poster_image : defaultPoster;
+  if (posterSrc.startsWith('/uploads/')) {
+    posterSrc = '.' + posterSrc;
+  }
+
+  const contactBtnHtml = renderContactButton(job);
+
+  const reqs = Array.isArray(job.requirements) ? job.requirements : (typeof job.requirements === 'string' ? JSON.parse(job.requirements || '[]') : []);
+  const resps = Array.isArray(job.responsibilities) ? job.responsibilities : (typeof job.responsibilities === 'string' ? JSON.parse(job.responsibilities || '[]') : []);
+  const bens = Array.isArray(job.benefits) ? job.benefits : (typeof job.benefits === 'string' ? JSON.parse(job.benefits || '[]') : []);
+
   content.innerHTML = `
-    <div style="padding: 60px; text-align: center;">
-      <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.2rem; color: var(--primary);"></i>
-      <p style="margin-top: 14px; color: var(--text-muted);">Memuat informasi poster & lowongan...</p>
+    <!-- Banner / Poster Highlight -->
+    <div class="modal-hero-banner">
+      <img src="${posterSrc}" alt="${escapeHtml(job.title)}" onerror="this.src='${defaultPoster}'">
+      <div class="modal-banner-overlay">
+        <div class="modal-header-info">
+          <h2>${escapeHtml(job.title)}</h2>
+          <div class="modal-header-meta">
+            <span><i class="fa-solid fa-building"></i> ${escapeHtml(job.company_name)}</span>
+            <span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location)}</span>
+            <span><i class="fa-solid fa-tag"></i> ${escapeHtml(job.category)}</span>
+            <span><i class="fa-regular fa-eye"></i> Dilihat ${(job.views_count || 0) + 1}x</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-body">
+      <div class="detail-grid-layout">
+        <div class="detail-main">
+          <div class="detail-section">
+            <h4><i class="fa-solid fa-file-lines"></i> Keterangan / Deskripsi Posisi</h4>
+            <p style="white-space: pre-line;">${escapeHtml(job.description)}</p>
+          </div>
+
+          ${resps.length > 0 ? `
+            <div class="detail-section">
+              <h4><i class="fa-solid fa-list-check"></i> Tanggung Jawab Utama</h4>
+              <ul class="detail-list">
+                ${resps.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+
+          ${reqs.length > 0 ? `
+            <div class="detail-section">
+              <h4><i class="fa-solid fa-user-check"></i> Kualifikasi & Persyaratan</h4>
+              <ul class="detail-list">
+                ${reqs.map(req => `<li>${escapeHtml(req)}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+
+          ${bens.length > 0 ? `
+            <div class="detail-section">
+              <h4><i class="fa-solid fa-gift"></i> Benefit & Fasilitas</h4>
+              <div class="benefits-pills">
+                ${bens.map(b => `<div class="benefit-tag"><i class="fa-solid fa-check-circle"></i> ${escapeHtml(b)}</div>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="detail-sidebar">
+          ${contactBtnHtml}
+
+          <div class="poster-showcase-box">
+            <p style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
+              <i class="fa-solid fa-image"></i> POSTER REKRUTMEN RESMI
+            </p>
+            <img src="${posterSrc}" alt="Poster Lowongan" onclick="openLightbox('${posterSrc}', '${escapeHtml(job.title)}')">
+            <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: center;">
+              <button class="btn btn-outline btn-sm" onclick="openLightbox('${posterSrc}', '${escapeHtml(job.title)}')">
+                <i class="fa-solid fa-expand"></i> Perbesar
+              </button>
+              <a href="${posterSrc}" target="_blank" download class="btn btn-outline btn-sm">
+                <i class="fa-solid fa-download"></i> Simpan
+              </a>
+            </div>
+          </div>
+
+          <div class="sidebar-card">
+            <div class="sidebar-card-title">Ringkasan Lowongan</div>
+            
+            <div class="info-item">
+              <i class="fa-solid fa-money-bill-wave"></i>
+              <div>
+                <div class="info-label">Gaji Ditawarkan</div>
+                <div class="info-val" style="color: var(--success);">${escapeHtml(job.salary_display || 'Kompetitif')}</div>
+              </div>
+            </div>
+
+            <div class="info-item">
+              <i class="fa-regular fa-clock"></i>
+              <div>
+                <div class="info-label">Tipe Pekerjaan</div>
+                <div class="info-val">${escapeHtml(job.job_type)}</div>
+              </div>
+            </div>
+
+            <div class="info-item">
+              <i class="fa-solid fa-briefcase"></i>
+              <div>
+                <div class="info-label">Pengalaman</div>
+                <div class="info-val">${escapeHtml(job.experience_level || 'Semua Tingkat')}</div>
+              </div>
+            </div>
+
+            <div class="info-item">
+              <i class="fa-solid fa-calendar-xmark"></i>
+              <div>
+                <div class="info-label">Batas Waktu</div>
+                <div class="info-val">${escapeHtml(job.deadline || 'Terbuka Selama Aktif')}</div>
+              </div>
+            </div>
+
+            ${job.contact_value ? `
+              <div class="info-item">
+                <i class="fa-solid fa-address-book"></i>
+                <div>
+                  <div class="info-label">Kontak / Tautan Resmi</div>
+                  <div class="info-val" style="word-break: break-all;">${escapeHtml(job.contact_value)}</div>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="sidebar-card" style="text-align: center;">
+            <div class="sidebar-card-title" style="margin-bottom: 10px;">
+              <i class="fa-solid fa-share-nodes"></i> Bagikan Info Lowongan Ini
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button class="btn btn-sm" style="background: #25d366; color: white; border: none; font-weight: 700;" onclick="shareWhatsApp('${escapeHtml(job.title)}', '${escapeHtml(job.company_name)}')">
+                <i class="fa-brands fa-whatsapp"></i> Bagikan ke WhatsApp
+              </button>
+              <button class="btn btn-outline btn-sm" onclick="copyJobLink(${job.id})">
+                <i class="fa-solid fa-link"></i> Salin Tautan Lowongan
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   `;
+
   modal.classList.add('active');
-
-  try {
-    const res = await fetch(`/api/jobs/${jobId}`);
-    const result = await res.json();
-    if (!result.success || !result.data) {
-      content.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--danger);">Gagal memuat lowongan: ${result.message}</div>`;
-      return;
-    }
-
-    const job = result.data;
-    const defaultPoster = 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&auto=format&fit=crop&q=80';
-    const posterSrc = job.poster_image ? job.poster_image : defaultPoster;
-
-    // Build contact button
-    const contactBtnHtml = renderContactButton(job);
-
-    content.innerHTML = `
-      <!-- Banner / Poster Highlight -->
-      <div class="modal-hero-banner">
-        <img src="${posterSrc}" alt="${escapeHtml(job.title)}" onerror="this.src='${defaultPoster}'">
-        <div class="modal-banner-overlay">
-          <div class="modal-header-info">
-            <h2>${escapeHtml(job.title)}</h2>
-            <div class="modal-header-meta">
-              <span><i class="fa-solid fa-building"></i> ${escapeHtml(job.company_name)}</span>
-              <span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location)}</span>
-              <span><i class="fa-solid fa-tag"></i> ${escapeHtml(job.category)}</span>
-              <span><i class="fa-regular fa-eye"></i> Dilihat ${job.views_count}x</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-body">
-        <div class="detail-grid-layout">
-          <!-- Main Description Column -->
-          <div class="detail-main">
-            <!-- Job Description -->
-            <div class="detail-section">
-              <h4><i class="fa-solid fa-file-lines"></i> Keterangan / Deskripsi Posisi</h4>
-              <p style="white-space: pre-line;">${escapeHtml(job.description)}</p>
-            </div>
-
-            <!-- Responsibilities -->
-            ${job.responsibilities && job.responsibilities.length > 0 ? `
-              <div class="detail-section">
-                <h4><i class="fa-solid fa-list-check"></i> Tanggung Jawab Utama</h4>
-                <ul class="detail-list">
-                  ${job.responsibilities.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
-                </ul>
-              </div>
-            ` : ''}
-
-            <!-- Requirements -->
-            ${job.requirements && job.requirements.length > 0 ? `
-              <div class="detail-section">
-                <h4><i class="fa-solid fa-user-check"></i> Kualifikasi & Persyaratan</h4>
-                <ul class="detail-list">
-                  ${job.requirements.map(req => `<li>${escapeHtml(req)}</li>`).join('')}
-                </ul>
-              </div>
-            ` : ''}
-
-            <!-- Benefits -->
-            ${job.benefits && job.benefits.length > 0 ? `
-              <div class="detail-section">
-                <h4><i class="fa-solid fa-gift"></i> Benefit & Fasilitas</h4>
-                <div class="benefits-pills">
-                  ${job.benefits.map(b => `<div class="benefit-tag"><i class="fa-solid fa-check-circle"></i> ${escapeHtml(b)}</div>`).join('')}
-                </div>
-              </div>
-            ` : ''}
-          </div>
-
-          <!-- Sidebar Column -->
-          <div class="detail-sidebar">
-            <!-- Direct Apply / Contact Button -->
-            ${contactBtnHtml}
-
-            <!-- Poster Showcase Box -->
-            <div class="poster-showcase-box">
-              <p style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
-                <i class="fa-solid fa-image"></i> POSTER REKRUTMEN RESMI
-              </p>
-              <img src="${posterSrc}" alt="Poster Lowongan" onclick="openLightbox('${posterSrc}', '${escapeHtml(job.title)}')">
-              <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: center;">
-                <button class="btn btn-outline btn-sm" onclick="openLightbox('${posterSrc}', '${escapeHtml(job.title)}')">
-                  <i class="fa-solid fa-expand"></i> Perbesar
-                </button>
-                <a href="${posterSrc}" target="_blank" download class="btn btn-outline btn-sm">
-                  <i class="fa-solid fa-download"></i> Simpan
-                </a>
-              </div>
-            </div>
-
-            <!-- Job Overview Card -->
-            <div class="sidebar-card">
-              <div class="sidebar-card-title">Ringkasan Lowongan</div>
-              
-              <div class="info-item">
-                <i class="fa-solid fa-money-bill-wave"></i>
-                <div>
-                  <div class="info-label">Gaji Ditawarkan</div>
-                  <div class="info-val" style="color: var(--success);">${escapeHtml(job.salary_display || 'Kompetitif')}</div>
-                </div>
-              </div>
-
-              <div class="info-item">
-                <i class="fa-regular fa-clock"></i>
-                <div>
-                  <div class="info-label">Tipe Pekerjaan</div>
-                  <div class="info-val">${escapeHtml(job.job_type)}</div>
-                </div>
-              </div>
-
-              <div class="info-item">
-                <i class="fa-solid fa-briefcase"></i>
-                <div>
-                  <div class="info-label">Pengalaman</div>
-                  <div class="info-val">${escapeHtml(job.experience_level || 'Semua Tingkat')}</div>
-                </div>
-              </div>
-
-              <div class="info-item">
-                <i class="fa-solid fa-calendar-xmark"></i>
-                <div>
-                  <div class="info-label">Batas Waktu</div>
-                  <div class="info-val">${escapeHtml(job.deadline || 'Terbuka Selama Aktif')}</div>
-                </div>
-              </div>
-
-              ${job.contact_value ? `
-                <div class="info-item">
-                  <i class="fa-solid fa-address-book"></i>
-                  <div>
-                    <div class="info-label">Kontak / Tautan Resmi</div>
-                    <div class="info-val" style="word-break: break-all;">${escapeHtml(job.contact_value)}</div>
-                  </div>
-                </div>
-              ` : ''}
-            </div>
-
-            <!-- Share Buttons (CORE FOCUS: SHARING) -->
-            <div class="sidebar-card" style="text-align: center;">
-              <div class="sidebar-card-title" style="margin-bottom: 10px;">
-                <i class="fa-solid fa-share-nodes"></i> Bagikan Info Lowongan Ini
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 8px;">
-                <button class="btn btn-sm" style="background: #25d366; color: white; border: none; font-weight: 700;" onclick="shareWhatsApp('${escapeHtml(job.title)}', '${escapeHtml(job.company_name)}')">
-                  <i class="fa-brands fa-whatsapp"></i> Bagikan ke WhatsApp
-                </button>
-                <button class="btn btn-outline btn-sm" onclick="copyJobLink(${job.id})">
-                  <i class="fa-solid fa-link"></i> Salin Tautan Lowongan
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  } catch (err) {
-    console.error(err);
-    content.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--danger);">Gagal mengambil rincian lowongan.</div>`;
-  }
 }
 
-// Render Contact / Direct Apply CTA Button
+// Render Contact CTA Button
 function renderContactButton(job) {
   const type = job.contact_type || 'whatsapp';
   const val = job.contact_value || '';
@@ -517,23 +690,15 @@ function renderContactButton(job) {
   `;
 }
 
-// Direct contact helper from card
-function directContact(jobId) {
-  const job = currentJobs.find(j => j.id === jobId);
-  if (job) {
-    openJobDetail(jobId);
-  }
-}
-
 // Sharing helpers
 function shareWhatsApp(title, company) {
-  const url = window.location.origin + '/?job=' + encodeURIComponent(title);
+  const url = window.location.href;
   const text = encodeURIComponent(`📢 *INFO LOWONGAN KERJA*\n\nPosisi: *${title}*\nPerusahaan: *${company || '-'}*\n\nLihat poster dan rincian lengkapnya di:\n${url}`);
   window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
 }
 
 function copyJobLink(id) {
-  const url = `${window.location.origin}/?job=${id}`;
+  const url = window.location.origin + window.location.pathname + `?job=${id}`;
   navigator.clipboard.writeText(url).then(() => {
     showToast('info', 'Tautan info lowongan berhasil disalin ke clipboard!');
   });
