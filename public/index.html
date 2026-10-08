@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KerjaHub - Portal Berbagi Poster Lowongan Kerja</title>
+  <meta name="description" content="Temukan info lowongan kerja dan poster rekrutmen terbaru langsung dari perusahaan terpercaya. Hubungi kontak resmi perekrut tanpa ribet.">
+
+  <!-- Favicon / Fonts / Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar">
+    <div class="container nav-container">
+      <a href="/" class="brand-logo" id="brand-logo-link">
+        <div class="brand-icon">
+          <i class="fa-solid fa-briefcase"></i>
+        </div>
+        <span>KerjaHub<span class="brand-tag">PORTAL</span></span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#lowongan" class="nav-link active">Lowongan Kerja</a></li>
+        <li><a href="#kategori" class="nav-link">Kategori</a></li>
+        <li><a href="#tentang" class="nav-link">Tentang</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <!-- Theme Toggle -->
+        <button class="btn-icon" id="theme-toggle-btn" title="Ganti Mode Gelap / Terang">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="hero">
+    <div class="container hero-content">
+      <div class="hero-pill">
+        <i class="fa-solid fa-bullhorn"></i> Portal Poster Lowongan Kerja & Karir
+      </div>
+      <h1 class="hero-title">
+        Temukan & Bagikan Poster <br>
+        <span class="text-gradient">Lowongan Kerja Terpercaya</span>
+      </h1>
+      <p class="hero-desc">
+        Akses cepat info karir tanpa registrasi. Lihat flyer desain poster, simpan gambarnya, dan langsung hubungi kontak perekrut resmi!
+      </p>
+
+      <!-- SEARCH BAR -->
+      <div class="search-wrapper">
+        <div class="search-field">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="search-input" placeholder="Cari posisi pekerjaan, keahlian, atau nama perusahaan...">
+        </div>
+        <div class="search-divider"></div>
+        <div class="search-field" style="max-width: 200px;">
+          <i class="fa-solid fa-layer-group"></i>
+          <select id="search-category">
+            <option value="Semua">Semua Kategori</option>
+            <option value="Teknologi & IT">Teknologi & IT</option>
+            <option value="Design & Kreatif">Design & Kreatif</option>
+            <option value="Marketing & Penjualan">Marketing & Penjualan</option>
+            <option value="Manajemen Produk">Manajemen Produk</option>
+            <option value="Data & AI">Data & AI</option>
+            <option value="Administrasi & Keuangan">Administrasi</option>
+          </select>
+        </div>
+        <div class="search-divider"></div>
+        <div class="search-field" style="max-width: 180px;">
+          <i class="fa-solid fa-location-dot"></i>
+          <select id="search-location">
+            <option value="Semua">Semua Lokasi</option>
+            <option value="Jakarta">Jakarta</option>
+            <option value="Bandung">Bandung</option>
+            <option value="Surabaya">Surabaya</option>
+            <option value="Remote">Remote (WFH)</option>
+            <option value="Hybrid">Hybrid</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="search-btn">
+          <i class="fa-solid fa-magnifying-glass"></i> Cari Lowongan
+        </button>
+      </div>
+
+      <!-- Quick Category Chips -->
+      <div class="quick-tags" id="kategori">
+        <span class="quick-label">Kategori Cepat:</span>
+        <button class="tag-btn active" data-category="Semua">Semua</button>
+        <button class="tag-btn" data-category="Teknologi & IT"><i class="fa-solid fa-code"></i> Teknologi & IT</button>
+        <button class="tag-btn" data-category="Design & Kreatif"><i class="fa-solid fa-pen-nib"></i> Design & Kreatif</button>
+        <button class="tag-btn" data-category="Marketing & Penjualan"><i class="fa-solid fa-bullhorn"></i> Marketing</button>
+        <button class="tag-btn" data-category="Remote"><i class="fa-solid fa-house-laptop"></i> Remote (WFH)</button>
+      </div>
+
+      <!-- Stats Ribbon -->
+      <div class="stats-ribbon">
+        <div class="stat-item">
+          <div class="stat-icon blue"><i class="fa-solid fa-image"></i></div>
+          <div>
+            <div class="stat-number">100%</div>
+            <div class="stat-text">Poster Desain Resmi</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon teal"><i class="fa-solid fa-shield-halved"></i></div>
+          <div>
+            <div class="stat-number">Aman</div>
+            <div class="stat-text">Tanpa Isi Data Pribadi</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon amber"><i class="fa-brands fa-whatsapp"></i></div>
+          <div>
+            <div class="stat-number">Langsung</div>
+            <div class="stat-text">Hubungi Kontak Perekrut</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon purple"><i class="fa-solid fa-share-nodes"></i></div>
+          <div>
+            <div class="stat-number">Mudah</div>
+            <div class="stat-text">Bagikan Info ke Teman</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN JOB LISTINGS SECTION -->
+  <main class="main-section" id="lowongan">
+    <div class="container">
+      <div class="content-layout">
+        
+        <!-- SIDEBAR FILTER -->
+        <aside class="filter-sidebar">
+          <div class="sidebar-header">
+            <span class="sidebar-title"><i class="fa-solid fa-filter"></i> Filter Lowongan</span>
+            <button class="filter-reset" id="btn-reset-filter">Reset Filter</button>
+          </div>
+
+          <!-- Filter: Kategori -->
+          <div class="filter-group">
+            <div class="filter-group-title">Kategori Bidang</div>
+            <div class="filter-options">
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_category" value="Semua" checked>
+                <span>Semua Kategori</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_category" value="Teknologi & IT">
+                <span>Teknologi & IT</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_category" value="Design & Kreatif">
+                <span>Design & Kreatif</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_category" value="Marketing & Penjualan">
+                <span>Marketing & Penjualan</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_category" value="Manajemen Produk">
+                <span>Manajemen Produk</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_category" value="Data & AI">
+                <span>Data & AI</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Filter: Tipe Pekerjaan -->
+          <div class="filter-group">
+            <div class="filter-group-title">Tipe Pekerjaan</div>
+            <div class="filter-options">
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_type" value="Semua" checked>
+                <span>Semua Tipe</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_type" value="Full Time">
+                <span>Full Time</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_type" value="Remote">
+                <span>Remote (WFH)</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_type" value="Hybrid">
+                <span>Hybrid</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_type" value="Part Time">
+                <span>Part Time</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_type" value="Freelance">
+                <span>Freelance</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_type" value="Internship">
+                <span>Magang / Internship</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Info Box for Job Seekers -->
+          <div style="margin-top: 24px; padding: 18px; background: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+              <i class="fa-solid fa-circle-info" style="color: var(--primary);"></i> Tips Untuk Pelamar
+            </div>
+            <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.5;">
+              Simpan poster rekrutmen atau klik tombol hubungi untuk langsung terhubung ke kontak resmi HRD / perekrut via WhatsApp atau tautan resmi perusahaan.
+            </p>
+          </div>
+        </aside>
+
+        <!-- JOB LISTINGS FEED -->
+        <div class="listings-area">
+          <div class="listings-topbar">
+            <div class="results-count">
+              Menampilkan <span id="results-count-num">0</span> Info Lowongan
+            </div>
+
+            <div class="topbar-controls">
+              <select class="sort-select" id="sort-select">
+                <option value="newest">Terbaru</option>
+                <option value="views">Paling Banyak Dilihat</option>
+              </select>
+
+              <div class="view-toggles">
+                <button class="view-btn active" id="view-grid-btn" title="Tampilan Grid"><i class="fa-solid fa-table-cells-large"></i></button>
+                <button class="view-btn" id="view-list-btn" title="Tampilan List"><i class="fa-solid fa-list"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Jobs Container -->
+          <div class="jobs-grid" id="jobs-container">
+            <!-- Rendered by JavaScript -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- JOB DETAIL MODAL (DETAIL & DIRECT ACTION) -->
+  <div class="modal-overlay" id="job-detail-modal">
+    <div class="modal-container">
+      <button class="modal-close-btn" title="Tutup Modal"><i class="fa-solid fa-xmark"></i></button>
+      <div id="job-detail-content">
+        <!-- Rendered by JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- POSTER FULLSCREEN LIGHTBOX -->
+  <div class="lightbox-overlay" id="poster-lightbox">
+    <div class="lightbox-content">
+      <button class="modal-close-btn lightbox-close-btn" style="top: -16px; right: -16px;" title="Tutup Lightbox">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <img id="lightbox-img" src="" alt="Desain Poster Lowongan">
+      <div class="lightbox-bar">
+        <span id="lightbox-title" style="color: white; font-weight: 700; font-size: 0.95rem;">Poster Lowongan</span>
+        <a id="lightbox-download" href="#" target="_blank" download class="btn btn-primary btn-sm">
+          <i class="fa-solid fa-download"></i> Buka Gambar Penuh
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- FOOTER -->
+  <footer class="footer" id="tentang">
+    <div class="container">
+      <div class="footer-content">
+        <div>
+          <a href="/" class="brand-logo" style="margin-bottom: 8px;">
+            <div class="brand-icon"><i class="fa-solid fa-briefcase"></i></div>
+            <span>KerjaHub</span>
+          </a>
+          <p style="font-size: 0.85rem; color: var(--text-muted); max-width: 420px;">
+            Portal berbagi info dan poster lowongan kerja terkini. Menghubungkan pelamar dengan perekrut langsung secara aman dan transparan.
+          </p>
+        </div>
+        <ul class="footer-links">
+          <li><a href="#lowongan">Daftar Lowongan</a></li>
+          <li><a href="#kategori">Kategori</a></li>
+          <li><a href="#tentang">Tentang Portal</a></li>
+        </ul>
+      </div>
+      <div class="footer-bottom">
+        &copy; 2026 KerjaHub - Portal Berbagi Lowongan Kerja.
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
