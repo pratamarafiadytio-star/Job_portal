@@ -159,11 +159,11 @@ const storage = {
   getJobs({ search, category, job_type, location, status, sort } = {}) {
     let jobs = getAllJobs();
 
-    // Filter by status (default is active)
+    // Filter by status (default includes active, expired, and closed so locked jobs show to visitors)
     if (status && status !== 'all') {
       jobs = jobs.filter(j => j.status === status);
     } else if (!status) {
-      jobs = jobs.filter(j => j.status === 'active');
+      jobs = jobs.filter(j => j.status === 'active' || j.status === 'expired' || j.status === 'closed');
     }
 
     if (category && category !== 'Semua') {
@@ -223,6 +223,15 @@ const storage = {
     const jobs = getAllJobs();
     const nextId = jobs.length > 0 ? Math.max(...jobs.map(j => j.id || 0)) + 1 : 1;
 
+    const wa = jobData.whatsapp || (jobData.contact_type === 'whatsapp' ? jobData.contact_value : '');
+    const email = jobData.email || (jobData.contact_type === 'email' ? jobData.contact_value : '');
+    const web = jobData.website_url || jobData.website || (jobData.contact_type === 'link' ? jobData.contact_value : '');
+
+    let contactVal = jobData.contact_value || '';
+    if (!contactVal && (wa || email || web)) {
+      contactVal = JSON.stringify({ whatsapp: wa, email, website: web });
+    }
+
     const newJob = {
       id: nextId,
       title: jobData.title || '',
@@ -237,8 +246,11 @@ const storage = {
       requirements: Array.isArray(jobData.requirements) ? jobData.requirements : [],
       responsibilities: Array.isArray(jobData.responsibilities) ? jobData.responsibilities : [],
       benefits: Array.isArray(jobData.benefits) ? jobData.benefits : [],
-      contact_type: jobData.contact_type || 'whatsapp', // 'whatsapp', 'email', 'link'
-      contact_value: jobData.contact_value || '',
+      whatsapp: wa,
+      email: email,
+      website_url: web,
+      contact_type: jobData.contact_type || (wa ? 'whatsapp' : (email ? 'email' : 'link')),
+      contact_value: contactVal,
       deadline: jobData.deadline || '',
       status: jobData.status || 'active',
       is_featured: jobData.is_featured ? 1 : 0,
@@ -280,13 +292,13 @@ const storage = {
     return false;
   },
 
-  // Toggle status (active/closed)
+  // Toggle status (active/expired/closed)
   toggleStatus(id, newStatus) {
     const jobs = getAllJobs();
     const job = jobs.find(j => j.id === parseInt(id));
     if (!job) return null;
 
-    job.status = newStatus || (job.status === 'active' ? 'closed' : 'active');
+    job.status = newStatus || (job.status === 'active' ? 'expired' : 'active');
     job.updated_at = new Date().toISOString();
     saveAllJobs(jobs);
     return job;
@@ -297,7 +309,7 @@ const storage = {
     const jobs = getAllJobs();
     const totalJobs = jobs.length;
     const activeJobs = jobs.filter(j => j.status === 'active').length;
-    const closedJobs = jobs.filter(j => j.status === 'closed').length;
+    const closedJobs = jobs.filter(j => j.status === 'closed' || j.status === 'expired').length;
     const totalViews = jobs.reduce((acc, j) => acc + (j.views_count || 0), 0);
 
     const categoriesCount = {};

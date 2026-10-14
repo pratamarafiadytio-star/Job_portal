@@ -3,75 +3,75 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel - KerjaHub (Area Terbatas)</title>
+  <title>Admin Dashboard & Upload Poster - KerjaHub</title>
   
+  <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <link rel="stylesheet" href="./css/admin.css">
-  <!-- Supabase JS Client for 100% Online Cloud Operation -->
+  <!-- Supabase JS Client for Online Cloud Operation -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
   <!-- ============================================================== -->
-  <!-- SECURE ADMIN LOGIN SCREEN (GATEKEEPER) -->
+  <!-- ADMIN AUTH GATEKEEPER (LOGIN SCREEN)                           -->
   <!-- ============================================================== -->
-  <div id="admin-login-screen" style="position: fixed; inset: 0; z-index: 9999; background: #0f172a; display: flex; align-items: center; justify-content: center; padding: 20px;">
-    <div style="background: #1e293b; border: 1px solid #334155; border-radius: 16px; width: 100%; max-width: 420px; padding: 36px 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); text-align: center; color: white;">
-      
-      <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #4f46e5, #06b6d4); border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);">
-        <i class="fa-solid fa-lock"></i>
+  <div id="admin-login-modal" class="auth-gate-wrapper">
+    <div class="auth-gate-card">
+      <div class="auth-gate-header">
+        <div class="auth-logo-badge">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h2>Admin Portal KerjaHub</h2>
+        <p>Akses khusus administrator untuk mengunggah poster lowongan dan mengelola data Cloud.</p>
       </div>
 
-      <h2 style="font-family: var(--font-heading); font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;">
-        Panel Admin KerjaHub
-      </h2>
-      <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 24px;">
-        Area terbatas khusus pengelola portal. Masukkan kata sandi keamanan untuk melanjutkan.
-      </p>
-
       <form id="admin-login-form">
-        <div style="margin-bottom: 20px; text-align: left;">
-          <label style="display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; color: #cbd5e1;">Kata Sandi Admin</label>
-          <div style="position: relative;">
-            <input type="password" id="admin-password-input" class="form-input" style="background: #0f172a; border-color: #334155; color: white; padding-right: 40px;" placeholder="Masukkan password admin..." required>
-            <button type="button" id="btn-toggle-password" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer;">
+        <div class="form-group">
+          <label class="form-label" for="admin-password-input">Kata Sandi Administrator</label>
+          <div class="password-input-group">
+            <input type="password" id="admin-password-input" class="form-input" placeholder="Masukkan password admin..." required autocomplete="current-password">
+            <button type="button" class="btn-toggle-pass" id="btn-toggle-password" title="Lihat password">
               <i class="fa-solid fa-eye"></i>
             </button>
           </div>
         </div>
 
-        <div id="login-error-alert" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 18px; text-align: left;">
-          <i class="fa-solid fa-circle-exclamation"></i> <span id="login-error-text">Password admin salah!</span>
+        <div id="login-error-alert" class="login-alert-error" style="display: none;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span id="login-error-text">Kata sandi admin salah!</span>
         </div>
 
-        <button type="submit" id="btn-submit-login" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border: none;">
-          <i class="fa-solid fa-shield-halved"></i> Masuk ke Panel Admin
+        <button type="submit" class="btn-login-submit" id="btn-submit-login">
+          <i class="fa-solid fa-right-to-bracket"></i> Masuk ke Panel Admin
         </button>
       </form>
 
-      <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid #334155;">
-        <a href="./" style="color: #94a3b8; font-size: 0.82rem; text-decoration: none;">
-          &larr; Kembali ke Website Publik
-        </a>
+      <div class="auth-gate-footer">
+        <a href="./" class="back-link"><i class="fa-solid fa-arrow-left"></i> Kembali ke Website Publik</a>
       </div>
     </div>
   </div>
 
   <!-- ============================================================== -->
-  <!-- MAIN ADMIN DASHBOARD & UPLOAD AREA (UNLOCKED AFTER AUTH) -->
+  <!-- MAIN ADMIN DASHBOARD & UPLOAD AREA (UNLOCKED AFTER AUTH)       -->
   <!-- ============================================================== -->
   <div id="admin-dashboard-app" style="display: none; width: 100%;">
     <!-- SIDEBAR -->
     <aside class="admin-sidebar" id="admin-sidebar">
       <div class="sidebar-header">
         <a href="./admin.html" class="sidebar-brand">
-          <i class="fa-solid fa-briefcase" style="color: #818cf8;"></i>
-          <span>KerjaHub</span>
-          <span class="brand-badge">ADMIN</span>
+          <div class="brand-glow-circle">
+            <i class="fa-solid fa-briefcase"></i>
+          </div>
+          <div class="brand-text-block">
+            <span class="brand-title">KerjaHub</span>
+            <span class="brand-badge">ADMIN SUITE</span>
+          </div>
         </a>
       </div>
 
@@ -94,10 +94,56 @@
             <span>Daftar Lowongan</span>
           </a>
         </li>
+        <li class="menu-item">
+          <a href="#sosmed-generator">
+            <i class="fa-solid fa-wand-magic-sparkles" style="color: #a78bfa;"></i>
+            <span>Scout Loker Sosmed</span>
+            <span class="menu-pill-sparkle">BARU</span>
+          </a>
+        </li>
       </ul>
 
+      <!-- SIDEBAR DECORATIVE WIDGET (Corak Estetik Modern Anti-Ngantuk) -->
+      <div class="sidebar-decorative-wrap">
+        <div class="sidebar-corak-card">
+          <div class="corak-mesh-glow"></div>
+          <div class="corak-header">
+            <div class="live-pulse-box">
+              <span class="pulse-dot"></span>
+              <span class="pulse-wave"></span>
+            </div>
+            <span class="corak-title">Supabase Cloud</span>
+            <span class="corak-tag">ACTIVE</span>
+          </div>
+          <p class="corak-sub">Realtime Database & Multi-channel Contact Engine Aktif.</p>
+          <div class="corak-badges">
+            <span class="corak-pill"><i class="fa-solid fa-lock"></i> Fitur Lock Siap</span>
+            <span class="corak-pill"><i class="fa-brands fa-whatsapp"></i> Multi-WA Ready</span>
+          </div>
+          <div class="corak-tip">
+            <i class="fa-solid fa-lightbulb" style="color: #fbbf24;"></i>
+            <span>Kunci lowongan expired agar pelamar tahu posisi sudah ditutup.</span>
+          </div>
+        </div>
+
+        <!-- SVG Tech Geometric Pattern Accent -->
+        <div class="sidebar-svg-watermark">
+          <svg viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 50 Q 50 10, 100 50 T 200 50" stroke="rgba(129, 140, 248, 0.15)" stroke-width="2" fill="none"/>
+            <path d="M0 35 Q 50 -5, 100 35 T 200 35" stroke="rgba(168, 85, 247, 0.12)" stroke-width="2" fill="none"/>
+            <circle cx="20" cy="40" r="3" fill="rgba(129, 140, 248, 0.25)"/>
+            <circle cx="100" cy="30" r="2.5" fill="rgba(168, 85, 247, 0.25)"/>
+            <circle cx="180" cy="45" r="3.5" fill="rgba(16, 185, 129, 0.25)"/>
+          </svg>
+        </div>
+      </div>
+
       <div class="sidebar-footer">
-        <button id="btn-admin-logout" class="btn-public-site" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); cursor: pointer;">
+        <a href="./" target="_blank" class="btn-public-site" style="margin-bottom: 8px;">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          <span>Lihat Website Publik</span>
+        </a>
+        <button id="btn-admin-logout" class="btn-logout-sidebar">
           <i class="fa-solid fa-right-from-bracket"></i>
           <span>Keluar (Logout)</span>
         </button>
@@ -111,21 +157,24 @@
       <header class="admin-header">
         <div class="page-title-box">
           <h1 id="admin-page-title">Dashboard Lowongan</h1>
-          <p id="admin-page-sub">Kelola poster online & database Supabase Cloud.</p>
+          <p id="admin-page-sub">Kelola poster online, multi-kontak rekruter & database Supabase Cloud.</p>
         </div>
 
         <div class="admin-top-actions">
-          <a href="#upload-job" class="btn-table" style="width: auto; padding: 8px 18px; background: var(--admin-primary); color: white; border: none; font-weight: 700; gap: 8px;" onclick="document.querySelector('a[href=\'#upload-job\']').click()">
+          <a href="#sosmed-generator" class="btn-header-action scout-btn" onclick="document.querySelector('a[href=\'#sosmed-generator\']').click()">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Scout Sosmed
+          </a>
+          <a href="#upload-job" class="btn-header-action upload-btn" onclick="document.querySelector('a[href=\'#upload-job\']').click()">
             <i class="fa-solid fa-cloud-arrow-up"></i> Upload Poster Baru
           </a>
 
-          <div style="display: flex; align-items: center; gap: 10px; margin-left: 10px;">
-            <div style="width: 38px; height: 38px; border-radius: 50%; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-weight: 700;">
-              <i class="fa-solid fa-cloud"></i>
+          <div class="admin-profile-pill">
+            <div class="profile-avatar">
+              <i class="fa-solid fa-user-shield"></i>
             </div>
-            <div>
-              <div style="font-size: 0.88rem; font-weight: 700;">Admin Supabase</div>
-              <div style="font-size: 0.72rem; color: #10b981; font-weight: 600;">● Online Cloud</div>
+            <div class="profile-info">
+              <div class="profile-name">Admin Supabase</div>
+              <div class="profile-status"><span class="status-dot"></span> Online Cloud</div>
             </div>
           </div>
         </div>
@@ -135,11 +184,11 @@
       <div class="admin-body">
 
         <!-- ========================================== -->
-        <!-- SECTION 1: DASHBOARD -->
+        <!-- SECTION 1: DASHBOARD                      -->
         <!-- ========================================== -->
         <section id="section-dashboard">
           <!-- STATS CARDS -->
-          <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-icon indigo"><i class="fa-solid fa-briefcase"></i></div>
               <div>
@@ -151,15 +200,42 @@
               <div class="stat-icon green"><i class="fa-solid fa-circle-check"></i></div>
               <div>
                 <div class="stat-value" id="stat-active-jobs">0</div>
-                <div class="stat-label">Lowongan Status Aktif</div>
+                <div class="stat-label">Lowongan Aktif (Terbuka)</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon amber"><i class="fa-solid fa-lock"></i></div>
+              <div>
+                <div class="stat-value" id="stat-closed-jobs">0</div>
+                <div class="stat-label">Lowongan Expired / Dikunci</div>
               </div>
             </div>
             <div class="stat-card">
               <div class="stat-icon blue"><i class="fa-solid fa-eye"></i></div>
               <div>
                 <div class="stat-value" id="stat-total-views">0</div>
-                <div class="stat-label">Total Dilihat (Views)</div>
+                <div class="stat-label">Total Kunjungan / Views</div>
               </div>
+            </div>
+          </div>
+
+          <!-- QUICK SHORTCUT HERO BANNER -->
+          <div class="admin-quick-hero">
+            <div class="quick-hero-content">
+              <span class="quick-hero-badge"><i class="fa-solid fa-bolt"></i> Fitur Terbaru Tersedia</span>
+              <h2>Multi-Kontak Rekruter & Scout Loker Sosmed</h2>
+              <p>Sekarang Anda dapat memasukkan Nomor WhatsApp, Email HRD, dan Link Website sekaligus dalam setiap lowongan, serta generate link postingan loker dari LinkedIn, IG, dan FB secara otomatis.</p>
+              <div class="quick-hero-actions">
+                <button type="button" class="btn btn-primary" onclick="document.querySelector('a[href=\'#sosmed-generator\']').click()">
+                  <i class="fa-solid fa-wand-magic-sparkles"></i> Buka Scout Loker Sosmed
+                </button>
+                <button type="button" class="btn btn-outline-light" onclick="document.querySelector('a[href=\'#upload-job\']').click()">
+                  <i class="fa-solid fa-plus"></i> Upload Poster Baru
+                </button>
+              </div>
+            </div>
+            <div class="quick-hero-graphic">
+              <i class="fa-solid fa-robot"></i>
             </div>
           </div>
 
@@ -167,7 +243,7 @@
           <div class="panel">
             <div class="panel-header">
               <div class="panel-title"><i class="fa-solid fa-clock-rotate-left"></i> Lowongan Terakhir Diunggah</div>
-              <a href="#manage-jobs" onclick="document.querySelector('a[href=\'#manage-jobs\']').click()" style="font-size: 0.82rem; color: var(--admin-primary); text-decoration: none; font-weight: 600;">Lihat Semua &rarr;</a>
+              <a href="#manage-jobs" onclick="document.querySelector('a[href=\'#manage-jobs\']').click()" class="panel-link">Lihat Semua di Daftar Lowongan &rarr;</a>
             </div>
             <div class="table-responsive">
               <table class="admin-table">
@@ -178,11 +254,11 @@
                     <th>Tipe</th>
                     <th>Status</th>
                     <th>Total Dilihat</th>
-                    <th>Tanggal</th>
+                    <th>Aksi Cepat</th>
                   </tr>
                 </thead>
-                <tbody id="dashboard-recent-jobs">
-                  <!-- JS injected -->
+                <tbody id="dashboard-recent-tbody">
+                  <!-- JS Injected -->
                 </tbody>
               </table>
             </div>
@@ -190,186 +266,220 @@
         </section>
 
         <!-- ========================================== -->
-        <!-- SECTION 2: UPLOAD LOWONGAN BARU -->
+        <!-- SECTION 2: UPLOAD POSTER BARU (BEAUTIFIED) -->
         <!-- ========================================== -->
         <section id="section-upload-job" style="display: none;">
-          <div class="panel">
-            <div class="panel-header">
-              <div class="panel-title">
-                <i class="fa-solid fa-cloud-arrow-up" style="color: var(--admin-primary);"></i>
-                Upload Poster Desain & Rincian Lowongan Kerja (Online Cloud)
+          <div class="panel form-panel-container">
+            <div class="panel-header" style="background: linear-gradient(to right, #ffffff, #f8fafc);">
+              <div>
+                <div class="panel-title"><i class="fa-solid fa-file-circle-plus" style="color: var(--admin-primary);"></i> Unggah Poster & Publikasi Lowongan Baru</div>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px;">Lengkapi formulir terstruktur di bawah. Saluran WhatsApp, Email, dan Link dapat diisi masing-masing.</p>
               </div>
             </div>
-
             <div class="panel-body">
               <form id="form-upload-job" enctype="multipart/form-data">
 
-                <!-- POSTER DESIGN UPLOAD (HIGHLIGHT FEATURE) -->
-                <div class="form-group full-width" style="margin-bottom: 28px; background: #f8fafc; padding: 22px; border-radius: var(--radius-lg); border: 1px solid var(--admin-border);">
-                  <label class="form-label" style="font-size: 1.05rem; color: var(--admin-primary); margin-bottom: 4px;">
-                    <i class="fa-solid fa-image"></i> Upload Gambar / Flyer Desain Poster Lowongan <span class="req">*</span>
-                  </label>
-                  <p class="form-hint" style="margin-bottom: 16px;">
-                    Pilih gambar flyer poster (JPG, PNG, atau WEBP). Gambar otomatis diproses dan disimpan ke cloud Supabase secara online.
-                  </p>
-
-                  <div class="upload-preview-container">
-                    <div class="upload-dropzone" id="poster-dropzone">
-                      <input type="file" name="poster_image" id="poster-file-input" accept="image/*">
-                      <div class="dropzone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
-                      <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 4px;">Tarik & Lepas File Poster di Sini</div>
-                      <div class="form-hint">Atau klik untuk memilih gambar flyer dari komputer</div>
+                <!-- KELOMPOK 1: INFORMASI UTAMA PEKERJAAN -->
+                <div class="form-section-card">
+                  <div class="section-card-header">
+                    <span class="section-badge"><i class="fa-solid fa-briefcase"></i> 1. Informasi Utama Pekerjaan</span>
+                  </div>
+                  <div class="form-grid-2">
+                    <div class="form-group">
+                      <label class="form-label">Judul Posisi Pekerjaan <span class="req">*</span></label>
+                      <input type="text" name="title" class="form-input" placeholder="Contoh: Senior UI/UX Designer atau Full Stack Developer" required>
                     </div>
 
-                    <div class="preview-thumb-box" id="poster-preview-box">
-                      <img id="poster-preview-img" src="" alt="Pratinjau Poster" style="display: none;">
-                      <div id="poster-preview-placeholder" class="preview-placeholder">
-                        <i class="fa-regular fa-image" style="font-size: 2.2rem; color: #cbd5e1; margin-bottom: 6px;"></i><br>
-                        Pratinjau poster muncul di sini
+                    <div class="form-group">
+                      <label class="form-label">Nama Perusahaan / Bisnis <span class="req">*</span></label>
+                      <input type="text" name="company_name" class="form-input" placeholder="Contoh: PT Teknologi Inovasi Bangsa" required>
+                    </div>
+                  </div>
+
+                  <div class="form-grid-3">
+                    <div class="form-group">
+                      <label class="form-label">Kategori Bidang <span class="req">*</span></label>
+                      <select name="category" class="form-select" required>
+                        <option value="Teknologi & IT">Teknologi & IT</option>
+                        <option value="Design & Kreatif">Design & Kreatif</option>
+                        <option value="Marketing & Penjualan">Marketing & Penjualan</option>
+                        <option value="Manajemen Produk">Manajemen Produk</option>
+                        <option value="Data & AI">Data & AI</option>
+                        <option value="Administrasi & Keuangan">Administrasi & Keuangan</option>
+                        <option value="Operasional">Operasional</option>
+                        <option value="Lainnya">Lainnya</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Tipe Pekerjaan <span class="req">*</span></label>
+                      <select name="job_type" class="form-select" required>
+                        <option value="Full Time">Full Time</option>
+                        <option value="Remote">Remote (WFH)</option>
+                        <option value="Hybrid">Hybrid</option>
+                        <option value="Part Time">Part Time</option>
+                        <option value="Freelance">Freelance</option>
+                        <option value="Internship">Magang / Internship</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Lokasi Kerja <span class="req">*</span></label>
+                      <input type="text" name="location" class="form-input" placeholder="Contoh: Jakarta Selatan (SCBD) atau Remote" required>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- KELOMPOK 2: KOMPENSASI & PENGALAMAN -->
+                <div class="form-section-card">
+                  <div class="section-card-header">
+                    <span class="section-badge"><i class="fa-solid fa-money-bill-wave"></i> 2. Kompensasi & Batas Waktu</span>
+                  </div>
+                  <div class="form-grid-3">
+                    <div class="form-group">
+                      <label class="form-label">Gaji Ditampilkan (Teks Ringkas)</label>
+                      <input type="text" name="salary_display" class="form-input" placeholder="Contoh: Rp 12.000.000 - Rp 18.000.000 / bln">
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Tingkat Pengalaman</label>
+                      <select name="experience_level" class="form-select">
+                        <option value="Semua Tingkat">Semua Tingkat / Fresh Graduate</option>
+                        <option value="Fresh Graduate">Fresh Graduate</option>
+                        <option value="1-3 Tahun">1 - 3 Tahun</option>
+                        <option value="3-5 Tahun">3 - 5 Tahun</option>
+                        <option value="Senior (5+ Tahun)">Senior (5+ Tahun)</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Batas Waktu Lamaran</label>
+                      <input type="date" name="deadline" class="form-input">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- KELOMPOK 3: SALURAN KONTAK REKRUTER (3 KOLOM TERPISAH) -->
+                <div class="form-section-card highlight-contact-section">
+                  <div class="section-card-header" style="justify-content: space-between;">
+                    <span class="section-badge" style="background: rgba(16, 185, 129, 0.12); color: #059669; border-color: rgba(16, 185, 129, 0.25);">
+                      <i class="fa-solid fa-address-book"></i> 3. Saluran Kontak & Pendaftaran Resmi
+                    </span>
+                    <span style="font-size: 0.78rem; color: #059669; font-weight: 600;">
+                      <i class="fa-solid fa-circle-check"></i> Bisa isi 1, 2, atau ketiganya sekaligus!
+                    </span>
+                  </div>
+                  <p class="form-hint" style="margin-bottom: 16px; color: #475569;">
+                    Isi kolom sesuai kontak yang tersedia. Setiap kolom yang diisi akan otomatis dibuatkan tombol aksi interaktif (Chat WA langsung, Kirim Email, atau Buka Website) di halaman modal pengunjung.
+                  </p>
+
+                  <div class="form-grid-3">
+                    <!-- WhatsApp Column -->
+                    <div class="form-group contact-field-card wa-accent">
+                      <label class="form-label">
+                        <i class="fa-brands fa-whatsapp" style="color: #10b981; font-size: 1.15rem;"></i> Nomor WhatsApp Rekruter
+                      </label>
+                      <input type="text" name="whatsapp" class="form-input" placeholder="Contoh: 089503222835 atau +62895...">
+                      <div class="form-hint">Pelamar langsung terhubung via WhatsApp Web & Mobile dengan template pesan lamaran.</div>
+                    </div>
+
+                    <!-- Email Column -->
+                    <div class="form-group contact-field-card email-accent">
+                      <label class="form-label">
+                        <i class="fa-solid fa-envelope" style="color: #6366f1; font-size: 1.05rem;"></i> Email HRD / Rekruter
+                      </label>
+                      <input type="email" name="email" class="form-input" placeholder="Contoh: careers@perusahaan.com">
+                      <div class="form-hint">Pelamar dapat mengirim resume dan portofolio resmi langsung ke inbox rekruter.</div>
+                    </div>
+
+                    <!-- Website Link Column -->
+                    <div class="form-group contact-field-card link-accent">
+                      <label class="form-label">
+                        <i class="fa-solid fa-globe" style="color: #0284c7; font-size: 1.05rem;"></i> Tautan / Link Website Resmi
+                      </label>
+                      <input type="url" name="website" class="form-input" placeholder="Contoh: https://perusahaan.com/karir">
+                      <div class="form-hint">Tautan ke portal karir perusahaan, form pendaftaran, atau Google Form.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- KELOMPOK 4: POSTER FLYER REKRUTMEN -->
+                <div class="form-section-card">
+                  <div class="section-card-header">
+                    <span class="section-badge"><i class="fa-solid fa-image"></i> 4. Poster Flyer Rekrutmen Resmi</span>
+                  </div>
+                  
+                  <div class="poster-upload-dropzone" id="poster-dropzone">
+                    <input type="file" id="poster-file-input" name="poster_image" accept="image/jpeg,image/png,image/webp,image/jpg" style="display: none;">
+                    
+                    <div class="dropzone-content" id="dropzone-placeholder">
+                      <div class="dropzone-icon">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
                       </div>
-                      <button type="button" class="btn-remove-preview" id="btn-remove-poster-preview" style="display: none;" title="Hapus Gambar">
+                      <div class="dropzone-text">
+                        <h4>Seret & Lepas Gambar Poster di sini, atau <span class="highlight">Pilih Berkas</span></h4>
+                        <p>Format didukung: JPG, PNG, WEBP (Maksimal 15 MB). Pastikan teks pada flyer terbaca jelas.</p>
+                      </div>
+                    </div>
+
+                    <div class="poster-preview-wrapper" id="poster-preview-wrapper" style="display: none;">
+                      <img id="poster-img-preview" src="" alt="Pratinjau Poster">
+                      <button type="button" class="btn-remove-preview" id="btn-remove-poster-preview" title="Hapus Gambar">
                         <i class="fa-solid fa-xmark"></i>
                       </button>
                     </div>
                   </div>
                 </div>
 
-                <!-- INFORMASI DASAR -->
-                <div class="form-grid-2">
-                  <div class="form-group">
-                    <label class="form-label">Judul Posisi Pekerjaan <span class="req">*</span></label>
-                    <input type="text" name="title" class="form-input" placeholder="Contoh: Senior Graphic Designer" required>
+                <!-- KELOMPOK 5: DESKRIPSI & KUALIFIKASI -->
+                <div class="form-section-card">
+                  <div class="section-card-header">
+                    <span class="section-badge"><i class="fa-solid fa-file-lines"></i> 5. Deskripsi & Kualifikasi Detail</span>
                   </div>
 
-                  <div class="form-group">
-                    <label class="form-label">Nama Perusahaan / Bisnis <span class="req">*</span></label>
-                    <input type="text" name="company_name" class="form-input" placeholder="Contoh: Studio Kreatif Nusantara" required>
+                  <div class="form-group full-width">
+                    <label class="form-label">Keterangan / Ringkasan Posisi <span class="req">*</span></label>
+                    <textarea name="description" class="form-textarea" rows="4" placeholder="Tuliskan gambaran pekerjaan, visi tim, dan poin utama peran yang dicari..." required></textarea>
                   </div>
-                </div>
-
-                <div class="form-grid-3">
-                  <div class="form-group">
-                    <label class="form-label">Kategori Bidang <span class="req">*</span></label>
-                    <select name="category" class="form-select" required>
-                      <option value="Teknologi & IT">Teknologi & IT</option>
-                      <option value="Design & Kreatif">Design & Kreatif</option>
-                      <option value="Marketing & Penjualan">Marketing & Penjualan</option>
-                      <option value="Manajemen Produk">Manajemen Produk</option>
-                      <option value="Data & AI">Data & AI</option>
-                      <option value="Administrasi & Keuangan">Administrasi & Keuangan</option>
-                      <option value="Operasional">Operasional</option>
-                      <option value="Lainnya">Lainnya</option>
-                    </select>
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label">Tipe Pekerjaan <span class="req">*</span></label>
-                    <select name="job_type" class="form-select" required>
-                      <option value="Full Time">Full Time</option>
-                      <option value="Remote">Remote (WFH)</option>
-                      <option value="Hybrid">Hybrid</option>
-                      <option value="Part Time">Part Time</option>
-                      <option value="Freelance">Freelance</option>
-                      <option value="Internship">Magang / Internship</option>
-                    </select>
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label">Lokasi Kerja <span class="req">*</span></label>
-                    <input type="text" name="location" class="form-input" placeholder="Contoh: Jakarta Selatan / Remote" required>
-                  </div>
-                </div>
-
-                <div class="form-grid-3">
-                  <div class="form-group">
-                    <label class="form-label">Gaji Ditampilkan (Teks)</label>
-                    <input type="text" name="salary_display" class="form-input" placeholder="Contoh: Rp 8.000.000 - Rp 12.000.000 / bln">
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label">Tingkat Pengalaman</label>
-                    <select name="experience_level" class="form-select">
-                      <option value="Semua Tingkat">Semua Tingkat / Fresh Graduate</option>
-                      <option value="1-3 Tahun">1-3 Tahun</option>
-                      <option value="3-5 Tahun">3-5 Tahun</option>
-                      <option value="Senior (5+ Tahun)">Senior (5+ Tahun)</option>
-                    </select>
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label">Batas Waktu Lamaran</label>
-                    <input type="date" name="deadline" class="form-input">
-                  </div>
-                </div>
-
-                <!-- CARA MELAMAR / KONTAK LANGSUNG -->
-                <div style="background: #eef2ff; border: 1px solid #c7d2fe; padding: 18px; border-radius: var(--radius-md); margin-bottom: 22px;">
-                  <label class="form-label" style="color: var(--admin-primary); margin-bottom: 4px;">
-                    <i class="fa-solid fa-address-book"></i> Kontak Perekrut / Cara Melamar Langsung
-                  </label>
-                  <p class="form-hint" style="margin-bottom: 12px; color: #4338ca;">
-                    Pengunjung tidak perlu mengisi formulir data diri di web ini. Mereka akan langsung diarahkan ke kontak atau tautan resmi di bawah.
-                  </p>
 
                   <div class="form-grid-2">
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label">Tipe Kontak</label>
-                      <select name="contact_type" class="form-select">
-                        <option value="whatsapp">WhatsApp Langsung (Nomor WA)</option>
-                        <option value="email">Email HRD / Rekruter</option>
-                        <option value="link">Tautan / Link Website Resmi Perusahaan</option>
-                      </select>
+                    <div class="form-group">
+                      <label class="form-label">Tanggung Jawab Utama (Pisahkan per baris)</label>
+                      <textarea name="responsibilities" class="form-textarea" rows="4" placeholder="Merancang desain user interface mobile & web&#10;Melakukan usability testing bersama user&#10;Membuat interactive prototype di Figma"></textarea>
+                      <div class="form-hint">Setiap baris baru akan menjadi poin checklist tersendiri.</div>
                     </div>
 
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label">Nomor WA / Email / URL Link</label>
-                      <input type="text" name="contact_value" class="form-input" placeholder="Contoh: 08123456789 atau hr@perusahaan.com atau https://link.com">
+                    <div class="form-group">
+                      <label class="form-label">Kualifikasi / Persyaratan (Pisahkan per baris)</label>
+                      <textarea name="requirements" class="form-textarea" rows="4" placeholder="Pengalaman minimal 2 tahun di bidang relevan&#10;Menguasai Figma & Design System&#10;Kemampuan komunikasi yang baik"></textarea>
+                      <div class="form-hint">Setiap baris akan menjadi indikator evaluasi kecocokan pelamar.</div>
                     </div>
                   </div>
-                </div>
 
-                <!-- DESKRIPSI -->
-                <div class="form-group full-width">
-                  <label class="form-label">Keterangan / Deskripsi Posisi <span class="req">*</span></label>
-                  <textarea name="description" class="form-textarea" rows="4" placeholder="Tuliskan gambaran pekerjaan, peran, dan keterangan yang relevan..." required></textarea>
-                </div>
-
-                <!-- TANGGUNG JAWAB & KUALIFIKASI -->
-                <div class="form-grid-2">
-                  <div class="form-group">
-                    <label class="form-label">Tanggung Jawab Utama (Pisahkan per baris)</label>
-                    <textarea name="responsibilities" class="form-textarea" rows="4" placeholder="Membuat desain visual branding&#10;Menyusun konten promosi digital&#10;Kolaborasi dengan tim marketing"></textarea>
-                    <div class="form-hint">Setiap baris baru akan menjadi poin checklist tersendiri.</div>
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label">Kualifikasi / Persyaratan (Pisahkan per baris)</label>
-                    <textarea name="requirements" class="form-textarea" rows="4" placeholder="Menguasai Adobe Illustrator & Photoshop&#10;Pengalaman minimal 1 tahun&#10;Disiplin dan komunikatif"></textarea>
-                    <div class="form-hint">Setiap baris baru akan menjadi poin checklist tersendiri.</div>
+                  <div class="form-group full-width">
+                    <label class="form-label">Benefit & Fasilitas (Pisahkan per baris)</label>
+                    <textarea name="benefits" class="form-textarea" rows="3" placeholder="Gaji kompetitif + THR + Bonus kuartalan&#10;Kerja Remote Fleksibel&#10;Tunjangan Laptop & Internet"></textarea>
                   </div>
                 </div>
 
-                <!-- BENEFIT -->
-                <div class="form-group full-width">
-                  <label class="form-label">Benefit & Fasilitas (Pisahkan per baris)</label>
-                  <textarea name="benefits" class="form-textarea" rows="3" placeholder="Gaji pokok + Bonus project&#10;Jam kerja fleksibel&#10;Makan siang gratis"></textarea>
-                </div>
-
-                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
-                  <input type="checkbox" name="is_featured" value="1" id="is_featured_cb" style="width: 18px; height: 18px; accent-color: var(--admin-primary);">
-                  <label for="is_featured_cb" style="font-weight: 600; font-size: 0.9rem; cursor: pointer;">
-                    Tandai sebagai Lowongan Unggulan (Tampil di atas dengan badge emas)
+                <!-- UNGGULAN & SUBMIT -->
+                <div class="form-footer-bar">
+                  <label class="featured-toggle-label" for="is_featured_cb">
+                    <input type="checkbox" name="is_featured" value="1" id="is_featured_cb" class="custom-checkbox">
+                    <span>
+                      <strong>Tandai sebagai Lowongan Unggulan (Featured)</strong>
+                      <small>Akan ditampilkan di urutan teratas dengan badge bintang emas premium.</small>
+                    </span>
                   </label>
-                </div>
 
-                <!-- SUBMIT -->
-                <div style="margin-top: 26px; display: flex; gap: 14px;">
-                  <button type="submit" class="btn-table" style="width: auto; padding: 12px 30px; background: var(--admin-primary); color: white; border: none; font-weight: 700; font-size: 1rem;">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload & Simpan ke Supabase Cloud
-                  </button>
-                  <button type="reset" class="btn-table" style="width: auto; padding: 12px 20px;">
-                    Reset Form
-                  </button>
+                  <div class="action-btn-group">
+                    <button type="reset" class="btn btn-secondary">
+                      <i class="fa-solid fa-rotate-left"></i> Reset Form
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-submit-glow">
+                      <i class="fa-solid fa-cloud-arrow-up"></i> Publikasikan ke Supabase Cloud
+                    </button>
+                  </div>
                 </div>
 
               </form>
@@ -378,29 +488,34 @@
         </section>
 
         <!-- ========================================== -->
-        <!-- SECTION 3: KELOLA LOWONGAN -->
+        <!-- SECTION 3: DAFTAR LOWONGAN (LOCK/EXPIRED)  -->
         <!-- ========================================== -->
         <section id="section-manage-jobs" style="display: none;">
           <div class="panel">
-            <div class="panel-header">
-              <div class="panel-title"><i class="fa-solid fa-briefcase"></i> Daftar Semua Lowongan & Poster (Supabase Cloud)</div>
-              <button class="btn-table" style="width: auto; padding: 6px 14px;" onclick="loadAdminJobs()">
-                <i class="fa-solid fa-rotate"></i> Refresh
-              </button>
+            <div class="panel-header" style="flex-wrap: wrap; gap: 12px;">
+              <div>
+                <div class="panel-title"><i class="fa-solid fa-briefcase" style="color: var(--admin-primary);"></i> Daftar Semua Lowongan (Supabase Cloud)</div>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px;">Kelola status lowongan. Anda dapat mengunci (lock/expired) lowongan agar tidak lagi menerima lamaran tetapi tetap tampil di portal user.</p>
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <button class="btn btn-sm btn-outline" onclick="loadAdminJobs()">
+                  <i class="fa-solid fa-rotate"></i> Refresh Tabel
+                </button>
+              </div>
             </div>
 
             <div class="table-responsive">
               <table class="admin-table">
                 <thead>
                   <tr>
-                    <th style="min-width: 260px;">Poster & Posisi</th>
+                    <th style="min-width: 250px;">Poster & Posisi</th>
                     <th>Kategori</th>
                     <th>Tipe</th>
-                    <th>Kontak / Tautan</th>
-                    <th>Status</th>
+                    <th>Kontak Tersedia</th>
+                    <th>Status Lowongan</th>
                     <th>Views</th>
                     <th>Tanggal</th>
-                    <th>Aksi</th>
+                    <th style="min-width: 130px;">Aksi</th>
                   </tr>
                 </thead>
                 <tbody id="admin-jobs-tbody">
@@ -411,16 +526,129 @@
           </div>
         </section>
 
+        <!-- ========================================== -->
+        <!-- SECTION 4: SCOUT LOKER SOSMED (NEW!)       -->
+        <!-- ========================================== -->
+        <section id="section-sosmed-generator" style="display: none;">
+          <div class="panel">
+            <div class="panel-header" style="background: linear-gradient(135deg, rgba(79,70,229,0.06), rgba(168,85,247,0.08));">
+              <div>
+                <div class="panel-title">
+                  <i class="fa-solid fa-wand-magic-sparkles" style="color: #7c3aed;"></i> Generator & Pencari Loker Sosmed (LinkedIn, Instagram, Facebook)
+                </div>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px;">
+                  Cari dan kumpulkan link postingan lowongan kerja dari media sosial dalam sekali running tanpa perlu membuka medsos satu per satu!
+                </p>
+              </div>
+            </div>
+
+            <div class="panel-body">
+              <!-- CONTROLS -->
+              <div class="scout-controls-card">
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label"><i class="fa-solid fa-magnifying-glass"></i> Posisi / Kata Kunci Lowongan</label>
+                    <input type="text" id="scout-keyword" class="form-input" placeholder="Contoh: Graphic Designer, Frontend Developer, Admin, Social Media...">
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label"><i class="fa-solid fa-location-dot"></i> Lokasi / Filter Wilayah</label>
+                    <input type="text" id="scout-location" class="form-input" placeholder="Contoh: Jakarta, Indonesia, Remote, Bandung...">
+                  </div>
+                </div>
+
+                <!-- PLATFORM SELECTOR -->
+                <div class="scout-platforms-bar">
+                  <div class="platforms-label">
+                    <i class="fa-solid fa-share-nodes"></i> Pilih Sumber Media Sosial:
+                  </div>
+
+                  <div class="platforms-pills-row">
+                    <label class="platform-toggle-pill active" id="pill-linkedin">
+                      <input type="checkbox" id="check-scout-linkedin" checked>
+                      <i class="fa-brands fa-linkedin" style="color: #0a66c2;"></i>
+                      <span>LinkedIn</span>
+                    </label>
+
+                    <label class="platform-toggle-pill active" id="pill-instagram">
+                      <input type="checkbox" id="check-scout-instagram" checked>
+                      <i class="fa-brands fa-instagram" style="color: #e1306c;"></i>
+                      <span>Instagram</span>
+                    </label>
+
+                    <label class="platform-toggle-pill active" id="pill-facebook">
+                      <input type="checkbox" id="check-scout-facebook" checked>
+                      <i class="fa-brands fa-facebook" style="color: #1877f2;"></i>
+                      <span>Facebook</span>
+                    </label>
+
+                    <button type="button" class="btn-select-all-platforms" id="btn-toggle-all-platforms">
+                      <i class="fa-solid fa-check-double"></i> Pilih Semua
+                    </button>
+                  </div>
+                </div>
+
+                <div style="margin-top: 18px; display: flex; gap: 12px;">
+                  <button type="button" class="btn btn-primary btn-scout-run" id="btn-run-scout">
+                    <i class="fa-solid fa-bolt"></i> Generate & Cari Semua Postingan Loker
+                  </button>
+                </div>
+              </div>
+
+              <!-- RESULTS CONTAINER -->
+              <div id="scout-results-area" style="display: none; margin-top: 28px;">
+                
+                <!-- SUMMARY & BULK ACTIONS -->
+                <div class="scout-results-header">
+                  <div class="results-stats-left">
+                    <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Siap Digunakan</span>
+                    <h3 id="scout-results-summary-title">Menemukan Postingan Loker untuk "Graphic Designer"</h3>
+                    <p id="scout-results-summary-sub">Klik link untuk membuka postingan asli atau klik "Jadikan Draft" untuk otomatis mengisi form upload poster.</p>
+                  </div>
+                  
+                  <div class="results-actions-right">
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-open-all-links" title="Buka semua search link di tab baru">
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Semua Tautan Sekaligus
+                    </button>
+                  </div>
+                </div>
+
+                <!-- QUICK SEARCH LINKS HUB -->
+                <div class="quick-links-hub">
+                  <div class="hub-title"><i class="fa-solid fa-compass"></i> Tautan Pencarian Langsung Media Sosial:</div>
+                  <div class="hub-links-grid" id="scout-deep-links-container">
+                    <!-- JS Injected Deep Links -->
+                  </div>
+                </div>
+
+                <!-- GENERATED POSTINGS CARDS -->
+                <div class="scout-postings-grid" id="scout-postings-container">
+                  <!-- JS Injected Post Cards -->
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        </section>
+
       </div>
     </main>
   </div>
 
-  <!-- MODAL EDIT JOB -->
+  <!-- ============================================================== -->
+  <!-- MODAL EDIT JOB (WITH 3 CONTACT FIELDS & LOCK/EXPIRED STATUS)  -->
+  <!-- ============================================================== -->
   <div class="admin-modal-overlay" id="edit-job-modal">
     <div class="admin-modal-box">
       <div class="admin-modal-header">
-        <h3 style="font-family: var(--font-heading); font-size: 1.2rem; font-weight: 700;">Edit Keterangan Lowongan</h3>
-        <button class="btn-table" onclick="closeEditModal()"><i class="fa-solid fa-xmark"></i></button>
+        <div>
+          <h3 style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; color: #1e1b4b;">
+            <i class="fa-solid fa-pen-to-square" style="color: var(--admin-primary); margin-right: 6px;"></i> Edit Keterangan Lowongan
+          </h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">Perbarui posisi, multi-saluran kontak, atau kunci (lock) lowongan jika sudah tidak aktif.</p>
+        </div>
+        <button class="btn-table" onclick="closeEditModal()" style="border-radius: 50%;"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <div class="admin-modal-body">
@@ -448,6 +676,7 @@
                 <option value="Manajemen Produk">Manajemen Produk</option>
                 <option value="Data & AI">Data & AI</option>
                 <option value="Administrasi & Keuangan">Administrasi & Keuangan</option>
+                <option value="Operasional">Operasional</option>
                 <option value="Lainnya">Lainnya</option>
               </select>
             </div>
@@ -478,26 +707,32 @@
               <input type="text" name="experience_level" class="form-input">
             </div>
             <div class="form-group">
-              <label class="form-label">Status</label>
-              <select name="status" class="form-select">
-                <option value="active">Active</option>
-                <option value="closed">Closed</option>
+              <label class="form-label"><i class="fa-solid fa-lock" style="color: #6366f1;"></i> Status Lowongan</label>
+              <select name="status" class="form-select" style="font-weight: 700;">
+                <option value="active">🟢 Active (Buka Lamaran)</option>
+                <option value="expired">🔒 Expired / Terkunci (Tutup Lamaran)</option>
               </select>
             </div>
           </div>
 
-          <div class="form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Tipe Kontak</label>
-              <select name="contact_type" class="form-select">
-                <option value="whatsapp">WhatsApp</option>
-                <option value="email">Email</option>
-                <option value="link">Link Website</option>
-              </select>
+          <!-- 3 KOLOM KONTAK REKRUTER TERPISAH DI MODAL EDIT -->
+          <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+            <div style="font-size: 0.85rem; font-weight: 700; color: #1e293b; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-address-book" style="color: var(--admin-primary);"></i> Saluran Kontak Rekruter (Bisa diisi masing-masing)
             </div>
-            <div class="form-group">
-              <label class="form-label">Kontak / Tautan Resmi</label>
-              <input type="text" name="contact_value" class="form-input">
+            <div class="form-grid-3">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label"><i class="fa-brands fa-whatsapp" style="color: #10b981;"></i> WhatsApp</label>
+                <input type="text" name="whatsapp" class="form-input" placeholder="089503222835">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label"><i class="fa-solid fa-envelope" style="color: #6366f1;"></i> Email HRD</label>
+                <input type="email" name="email" class="form-input" placeholder="hr@perusahaan.com">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label"><i class="fa-solid fa-globe" style="color: #0284c7;"></i> Link Website</label>
+                <input type="url" name="website" class="form-input" placeholder="https://link.com">
+              </div>
             </div>
           </div>
 
@@ -505,16 +740,16 @@
           <div class="form-group" style="background:#f8fafc; padding:14px; border-radius:var(--radius-md); border:1px solid var(--admin-border);">
             <label class="form-label">Ganti Poster Flyer (Opsional)</label>
             <div style="display:flex; gap:16px; align-items:center;">
-              <img id="edit-current-poster-preview" src="" style="width:65px; height:85px; object-fit:cover; border-radius:4px; border:1px solid #cbd5e1;">
+              <img id="edit-current-poster-preview" src="" style="width:65px; height:85px; object-fit:cover; border-radius:6px; border:1px solid #cbd5e1;">
               <div>
                 <input type="file" name="poster_image" class="form-input" accept="image/*">
-                <div class="form-hint">Pilih gambar baru jika ingin mengganti poster rekrutmen saat ini.</div>
+                <div class="form-hint">Pilih gambar baru jika ingin mengganti poster flyer lowongan ini.</div>
               </div>
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Deskripsi</label>
+            <label class="form-label">Deskripsi Lengkap Posisi</label>
             <textarea name="description" class="form-textarea" rows="4" required></textarea>
           </div>
 
@@ -530,14 +765,14 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Benefit (Per baris)</label>
+            <label class="form-label">Benefit & Fasilitas (Per baris)</label>
             <textarea name="benefits" class="form-textarea" rows="3"></textarea>
           </div>
 
-          <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
-            <button type="button" class="btn-table" style="width:auto; padding:10px 18px;" onclick="closeEditModal()">Batal</button>
-            <button type="submit" class="btn-table" style="width:auto; padding:10px 24px; background:var(--admin-primary); color:white; border:none; font-weight:700;">
-              Simpan Perubahan
+          <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px; padding-top: 14px; border-top: 1px solid var(--admin-border);">
+            <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Batal</button>
+            <button type="submit" class="btn btn-primary" style="padding: 10px 26px;">
+              <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan
             </button>
           </div>
         </form>

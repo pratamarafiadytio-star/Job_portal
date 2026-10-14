@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KerjaHub - Portal Berbagi Poster Lowongan Kerja</title>
-  <meta name="description" content="Temukan info lowongan kerja dan poster rekrutmen terbaru langsung dari perusahaan terpercaya. Hubungi kontak resmi perekrut tanpa ribet.">
+  <title>KerjaHub - Portal Publikasi Poster Lowongan Kerja & Karir</title>
+  <meta name="description" content="Temukan poster rekrutmen resmi dan informasi lowongan kerja terkini. Hubungi langsung pihak perekrut resmi via WhatsApp dan Email secara cepat dan terpercaya.">
 
   <!-- Favicon / Fonts / Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,8 +13,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <link rel="stylesheet" href="./css/style.css">
-  <!-- Supabase JS Client for 100% Online Cloud Operation -->
+  <!-- Supabase JS Client for Online Cloud Operation -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- PDF.js for Client-Side CV Text Extraction & Matching -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
 
@@ -30,11 +32,15 @@
 
       <ul class="nav-links">
         <li><a href="#lowongan" class="nav-link active">Lowongan Kerja</a></li>
-        <li><a href="#kategori" class="nav-link">Kategori</a></li>
-        <li><a href="#tentang" class="nav-link">Tentang</a></li>
+        <li><a href="#cv-matcher-section" class="nav-link" style="color: var(--primary); font-weight: 700;"><i class="fa-solid fa-wand-magic-sparkles"></i> Cek Cocok CV</a></li>
+        <li><a href="#kategori-section" class="nav-link">Kategori Populer</a></li>
+        <li><a href="#panduan-pelamar" class="nav-link">Panduan Pelamar</a></li>
       </ul>
 
       <div class="nav-actions">
+        <a href="#cv-matcher-section" class="btn btn-outline btn-sm" id="nav-btn-cv" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border-color: var(--primary); color: var(--primary);">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Upload CV
+        </a>
         <!-- Theme Toggle -->
         <button class="btn-icon" id="theme-toggle-btn" title="Ganti Mode Gelap / Terang">
           <i class="fa-solid fa-moon"></i>
@@ -47,90 +53,158 @@
   <section class="hero">
     <div class="container hero-content">
       <div class="hero-pill">
-        <i class="fa-solid fa-bullhorn"></i> Portal Poster Lowongan Kerja & Karir Online
+        <i class="fa-solid fa-bullhorn"></i> Portal Publikasi Poster Rekrutmen & Karir Terpercaya
       </div>
       <h1 class="hero-title">
-        Temukan & Bagikan Poster <br>
-        <span class="text-gradient">Lowongan Kerja Terpercaya</span>
+        Temukan Poster & Info Karir <br>
+        <span class="text-gradient">Cepat, Transparan, Langsung ke Perekrut</span>
       </h1>
       <p class="hero-desc">
-        Akses cepat info karir tanpa registrasi. Lihat flyer desain poster, simpan gambarnya, dan langsung hubungi kontak perekrut resmi!
+        Akses ratusan poster rekrutmen resmi dari berbagai perusahaan. Periksa deskripsi posisi, unduh flyer pengumuman, dan hubungi kontak HRD resmi secara langsung.
       </p>
 
-      <!-- SEARCH BAR -->
+      <!-- SEARCH BAR WITH CUSTOM DROPDOWNS -->
       <div class="search-wrapper">
-        <div class="search-field">
-          <i class="fa-solid fa-magnifying-glass"></i>
-          <input type="text" id="search-input" placeholder="Cari posisi pekerjaan, keahlian, atau nama perusahaan...">
+        <div class="search-field" style="flex: 2;">
+          <div class="search-field-input-wrapper">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="search-input" placeholder="Cari posisi pekerjaan, keahlian, atau nama perusahaan..." autocomplete="off">
+            <button type="button" class="search-clear-btn" id="btn-clear-search" title="Hapus pencarian">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
         </div>
         <div class="search-divider"></div>
-        <div class="search-field" style="max-width: 200px;">
-          <i class="fa-solid fa-layer-group"></i>
-          <select id="search-category">
-            <option value="Semua">Semua Kategori</option>
-            <option value="Teknologi & IT">Teknologi & IT</option>
-            <option value="Design & Kreatif">Design & Kreatif</option>
-            <option value="Marketing & Penjualan">Marketing & Penjualan</option>
-            <option value="Manajemen Produk">Manajemen Produk</option>
-            <option value="Data & AI">Data & AI</option>
-            <option value="Administrasi & Keuangan">Administrasi</option>
-          </select>
+        <div class="search-field" style="flex: 1.4; min-width: 225px;">
+          <div class="custom-dropdown" id="dropdown-category">
+            <button type="button" class="dropdown-trigger" id="dropdown-category-btn">
+              <div class="dropdown-trigger-content">
+                <i class="fa-solid fa-layer-group dropdown-trigger-icon"></i>
+                <span class="dropdown-selected-text" id="selected-category-text">Semua Kategori</span>
+              </div>
+              <i class="fa-solid fa-chevron-down dropdown-chevron"></i>
+            </button>
+            <div class="dropdown-menu" id="dropdown-category-menu">
+              <div class="dropdown-item active" data-value="Semua">
+                <div class="dropdown-item-left"><i class="fa-solid fa-layer-group"></i><span>Semua Kategori</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+              <div class="dropdown-item" data-value="Teknologi & IT">
+                <div class="dropdown-item-left"><i class="fa-solid fa-code"></i><span>Teknologi & IT</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+              <div class="dropdown-item" data-value="Design & Kreatif">
+                <div class="dropdown-item-left"><i class="fa-solid fa-pen-nib"></i><span>Design & Kreatif</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+              <div class="dropdown-item" data-value="Marketing & Penjualan">
+                <div class="dropdown-item-left"><i class="fa-solid fa-bullhorn"></i><span>Marketing & Penjualan</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+              <div class="dropdown-item" data-value="Manajemen Produk">
+                <div class="dropdown-item-left"><i class="fa-solid fa-box-archive"></i><span>Manajemen Produk</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+              <div class="dropdown-item" data-value="Data & AI">
+                <div class="dropdown-item-left"><i class="fa-solid fa-microchip"></i><span>Data & AI</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+              <div class="dropdown-item" data-value="Administrasi & Keuangan">
+                <div class="dropdown-item-left"><i class="fa-solid fa-file-invoice-dollar"></i><span>Administrasi & Keuangan</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+            </div>
+            <input type="hidden" id="search-category" value="Semua">
+          </div>
         </div>
         <div class="search-divider"></div>
-        <div class="search-field" style="max-width: 180px;">
-          <i class="fa-solid fa-location-dot"></i>
-          <select id="search-location">
-            <option value="Semua">Semua Lokasi</option>
-            <option value="Jakarta">Jakarta</option>
-            <option value="Bandung">Bandung</option>
-            <option value="Surabaya">Surabaya</option>
-            <option value="Remote">Remote (WFH)</option>
-            <option value="Hybrid">Hybrid</option>
-          </select>
+        <div class="search-field" style="flex: 1.1; min-width: 185px;">
+          <div class="custom-dropdown" id="dropdown-location">
+            <button type="button" class="dropdown-trigger" id="dropdown-location-btn">
+              <div class="dropdown-trigger-content">
+                <i class="fa-solid fa-location-dot dropdown-trigger-icon"></i>
+                <span class="dropdown-selected-text" id="selected-location-text">Semua Lokasi</span>
+              </div>
+              <i class="fa-solid fa-chevron-down dropdown-chevron"></i>
+            </button>
+            <div class="dropdown-menu" id="dropdown-location-menu">
+              <div class="dropdown-item active" data-value="Semua">
+                <div class="dropdown-item-left"><i class="fa-solid fa-globe"></i><span>Semua Lokasi</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+              <div class="dropdown-item" data-value="Jakarta">
+                <div class="dropdown-item-left"><i class="fa-solid fa-city"></i><span>Jakarta</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+              <div class="dropdown-item" data-value="Bandung">
+                <div class="dropdown-item-left"><i class="fa-solid fa-city"></i><span>Bandung</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+              <div class="dropdown-item" data-value="Surabaya">
+                <div class="dropdown-item-left"><i class="fa-solid fa-city"></i><span>Surabaya</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+              <div class="dropdown-item" data-value="Yogyakarta">
+                <div class="dropdown-item-left"><i class="fa-solid fa-city"></i><span>Yogyakarta</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+              <div class="dropdown-item" data-value="Remote">
+                <div class="dropdown-item-left"><i class="fa-solid fa-laptop-code"></i><span>Remote (WFH)</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+              <div class="dropdown-item" data-value="Hybrid">
+                <div class="dropdown-item-left"><i class="fa-solid fa-building-user"></i><span>Hybrid</span></div>
+                <i class="fa-solid fa-check dropdown-check"></i>
+              </div>
+            </div>
+            <input type="hidden" id="search-location" value="Semua">
+          </div>
         </div>
         <button class="btn btn-primary" id="search-btn">
           <i class="fa-solid fa-magnifying-glass"></i> Cari Lowongan
         </button>
       </div>
 
-      <!-- Quick Category Chips -->
-      <div class="quick-tags" id="kategori">
-        <span class="quick-label">Kategori Cepat:</span>
-        <button class="tag-btn active" data-category="Semua">Semua</button>
-        <button class="tag-btn" data-category="Teknologi & IT"><i class="fa-solid fa-code"></i> Teknologi & IT</button>
-        <button class="tag-btn" data-category="Design & Kreatif"><i class="fa-solid fa-pen-nib"></i> Design & Kreatif</button>
-        <button class="tag-btn" data-category="Marketing & Penjualan"><i class="fa-solid fa-bullhorn"></i> Marketing</button>
-        <button class="tag-btn" data-category="Remote"><i class="fa-solid fa-house-laptop"></i> Remote (WFH)</button>
+      <!-- TRENDING SEARCH CHIPS -->
+      <div class="trending-keywords" id="kategori-section">
+        <span class="trending-label"><i class="fa-solid fa-arrow-trend-up"></i> Topik Pencarian Populer:</span>
+        <button class="chip-keyword" data-keyword="React"><i class="fa-brands fa-react"></i> React / Web Development</button>
+        <button class="chip-keyword" data-keyword="UI/UX"><i class="fa-solid fa-pen-nib"></i> UI/UX Design</button>
+        <button class="chip-keyword" data-keyword="Marketing"><i class="fa-solid fa-chart-line"></i> Digital Marketing</button>
+        <button class="chip-keyword" data-keyword="Graphic Designer"><i class="fa-solid fa-palette"></i> Graphic Designer</button>
+        <button class="chip-keyword" data-keyword="AI"><i class="fa-solid fa-microchip"></i> AI Specialist</button>
+        <button class="chip-keyword" data-keyword="Remote"><i class="fa-solid fa-laptop-code"></i> Remote (WFH)</button>
+        <button class="chip-keyword" data-keyword="Fresh Graduate"><i class="fa-solid fa-graduation-cap"></i> Fresh Graduate</button>
       </div>
 
-      <!-- Stats Ribbon -->
+      <!-- STATS RIBBON -->
       <div class="stats-ribbon">
         <div class="stat-item">
-          <div class="stat-icon blue"><i class="fa-solid fa-image"></i></div>
+          <div class="stat-icon blue"><i class="fa-solid fa-file-image"></i></div>
           <div>
             <div class="stat-number">100%</div>
-            <div class="stat-text">Poster Desain Resmi</div>
+            <div class="stat-text">Poster Rekrutmen Resmi</div>
           </div>
         </div>
         <div class="stat-item">
-          <div class="stat-icon teal"><i class="fa-solid fa-shield-halved"></i></div>
+          <div class="stat-icon teal"><i class="fa-solid fa-user-shield"></i></div>
           <div>
             <div class="stat-number">Aman</div>
-            <div class="stat-text">Tanpa Isi Data Pribadi</div>
+            <div class="stat-text">Tanpa Registrasi Akun</div>
           </div>
         </div>
         <div class="stat-item">
-          <div class="stat-icon amber"><i class="fa-brands fa-whatsapp"></i></div>
+          <div class="stat-icon amber"><i class="fa-solid fa-handshake"></i></div>
           <div>
-            <div class="stat-number">Langsung</div>
-            <div class="stat-text">Hubungi Kontak Perekrut</div>
+            <div class="stat-number">Terverifikasi</div>
+            <div class="stat-text">Kontak Langsung Perekrut</div>
           </div>
         </div>
         <div class="stat-item">
-          <div class="stat-icon purple"><i class="fa-solid fa-share-nodes"></i></div>
+          <div class="stat-icon purple"><i class="fa-brands fa-whatsapp"></i></div>
           <div>
-            <div class="stat-number">Mudah</div>
-            <div class="stat-text">Bagikan Info ke Teman</div>
+            <div class="stat-number">Respons Cepat</div>
+            <div class="stat-text">Terhubung via WhatsApp & Email</div>
           </div>
         </div>
       </div>
@@ -140,16 +214,94 @@
   <!-- MAIN JOB LISTINGS SECTION -->
   <main class="main-section" id="lowongan">
     <div class="container">
+
+      <!-- SMART AI CV MATCHER COMPONENT -->
+      <section class="cv-matcher-card" id="cv-matcher-section">
+        <div class="cv-matcher-badge">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Fitur Rekomendasi Cerdas KerjaHub AI
+        </div>
+        <h2 class="cv-matcher-title">Upload CV & Cek Lowongan Paling Cocok dengan Profilmu</h2>
+        <p class="cv-matcher-desc">
+          Unggah berkas CV Anda (PDF, DOCX, TXT) atau tempel ringkasan pengalaman dan skill Anda. Sistem AI KerjaHub akan memindai keahlian Anda dan menyortir seluruh lowongan yang paling relevan secara instan.
+        </p>
+
+        <div class="cv-upload-box">
+          <input type="file" id="cv-file-input" accept=".pdf,.doc,.docx,.txt" style="display: none;">
+          <div class="cv-dropzone" id="cv-dropzone" title="Klik atau seret file CV ke sini">
+            <div class="cv-drop-icon">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+            </div>
+            <div class="cv-drop-text">
+              <strong id="cv-drop-title">Pilih Berkas CV Anda (PDF, DOCX, TXT)</strong>
+              <span id="cv-drop-subtitle">Klik di sini untuk menjelajah dokumen atau seret & lepas berkas langsung ke area ini</span>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-browse-cv">
+              <i class="fa-solid fa-folder-open"></i> Pilih Dokumen
+            </button>
+          </div>
+
+          <div class="cv-or-divider">
+            <span>atau tempel teks CV / keahlian Anda secara langsung</span>
+          </div>
+
+          <div class="cv-paste-row">
+            <textarea class="cv-textarea" id="cv-paste-input" rows="3" placeholder="Contoh: Web Developer berpengalaman 2 tahun menggunakan React, Node.js, Express, Tailwind CSS, PostgreSQL, REST API, Git..."></textarea>
+            <button type="button" class="btn btn-primary" id="btn-analyze-cv" style="white-space: nowrap; align-self: flex-end; padding: 12px 20px;">
+              <i class="fa-solid fa-magnifying-glass-chart"></i> Analisis & Cocokkan
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic Matching Status Bar (Visible when analyzed) -->
+        <div class="cv-match-status-bar" id="cv-match-status-bar" style="display: none;">
+          <div class="match-status-left">
+            <div class="match-pulse-icon">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+              <strong id="cv-match-title">Analisis CV Berhasil!</strong>
+              <p id="cv-match-subtitle">Ditemukan lowongan yang relevan dengan profil dan keahlian Anda.</p>
+            </div>
+          </div>
+          <button type="button" class="btn-reset-cv" id="btn-reset-cv">
+            <i class="fa-solid fa-rotate-left"></i> Reset Filter CV
+          </button>
+        </div>
+      </section>
+
+      <!-- INTERACTIVE TAB NAVIGATION -->
+      <div class="job-tabs-nav" id="job-tabs-container">
+        <button class="job-tab-btn active" data-tab="all">
+          <i class="fa-solid fa-briefcase"></i> Semua Lowongan <span class="job-tab-badge" id="tab-count-all">0</span>
+        </button>
+        <button class="job-tab-btn" data-tab="featured">
+          <i class="fa-solid fa-star"></i> Rekomendasi Unggulan <span class="job-tab-badge" id="tab-count-featured">0</span>
+        </button>
+        <button class="job-tab-btn" data-tab="remote">
+          <i class="fa-solid fa-laptop-code"></i> Remote (WFH) <span class="job-tab-badge" id="tab-count-remote">0</span>
+        </button>
+        <button class="job-tab-btn" data-tab="freshgrad">
+          <i class="fa-solid fa-graduation-cap"></i> Fresh Graduate <span class="job-tab-badge" id="tab-count-freshgrad">0</span>
+        </button>
+      </div>
+
+      <!-- ACTIVE FILTERS BAR -->
+      <div class="active-filters-bar" id="active-filters-bar">
+        <span class="active-filter-title"><i class="fa-solid fa-filter"></i> Filter Aktif:</span>
+        <div id="active-filter-chips" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+        <button type="button" class="btn-clear-all-chips" id="btn-clear-all-chips">Reset Semua Filter</button>
+      </div>
+
       <div class="content-layout">
         
         <!-- SIDEBAR FILTER -->
         <aside class="filter-sidebar">
           <div class="sidebar-header">
-            <span class="sidebar-title"><i class="fa-solid fa-filter"></i> Filter Lowongan</span>
-            <button class="filter-reset" id="btn-reset-filter">Reset Filter</button>
+            <span class="sidebar-title"><i class="fa-solid fa-sliders"></i> Filter Pencarian</span>
+            <button class="filter-reset" id="btn-reset-filter"><i class="fa-solid fa-rotate-left"></i> Reset</button>
           </div>
 
-          <!-- Filter: Kategori -->
+          <!-- Filter: Kategori Bidang -->
           <div class="filter-group">
             <div class="filter-group-title">Kategori Bidang</div>
             <div class="filter-options">
@@ -170,12 +322,12 @@
                 <span>Marketing & Penjualan</span>
               </label>
               <label class="filter-checkbox">
-                <input type="radio" name="filter_category" value="Manajemen Produk">
-                <span>Manajemen Produk</span>
-              </label>
-              <label class="filter-checkbox">
                 <input type="radio" name="filter_category" value="Data & AI">
                 <span>Data & AI</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_category" value="Administrasi & Keuangan">
+                <span>Administrasi & Keuangan</span>
               </label>
             </div>
           </div>
@@ -215,14 +367,54 @@
             </div>
           </div>
 
-          <!-- Info Box for Job Seekers -->
-          <div style="margin-top: 24px; padding: 18px; background: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-            <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
-              <i class="fa-solid fa-circle-info" style="color: var(--primary);"></i> Tips Untuk Pelamar
+          <!-- Filter: Pengalaman Kerja -->
+          <div class="filter-group">
+            <div class="filter-group-title">Level Pengalaman</div>
+            <div class="filter-options">
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_experience" value="Semua" checked>
+                <span>Semua Level</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_experience" value="Fresh Graduate">
+                <span>Fresh Graduate / Pemula</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_experience" value="1-3 Tahun">
+                <span>1 - 3 Tahun</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_experience" value="3-5 Tahun">
+                <span>3 - 5 Tahun</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_experience" value="Senior">
+                <span>Senior (5+ Tahun)</span>
+              </label>
             </div>
-            <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.5;">
-              Simpan poster rekrutmen atau klik tombol hubungi untuk langsung terhubung ke kontak resmi HRD / perekrut via WhatsApp atau tautan resmi perusahaan.
-            </p>
+          </div>
+
+          <!-- Filter: Opsi Gaji -->
+          <div class="filter-group">
+            <div class="filter-group-title">Opsi Kisaran Gaji</div>
+            <div class="filter-options">
+              <label class="filter-checkbox">
+                <input type="checkbox" id="filter_has_salary">
+                <span style="font-weight: 600; color: var(--text-main);"><i class="fa-solid fa-money-bill-wave" style="color: var(--success);"></i> Cantumkan Kisaran Gaji</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Panduan Pelamar Box -->
+          <div id="panduan-pelamar" style="margin-top: 24px; padding: 18px; background: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <div style="font-size: 0.84rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">
+              <i class="fa-solid fa-circle-info" style="color: var(--primary);"></i> Panduan Pelamar Kerja
+            </div>
+            <ul style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.6; padding-left: 18px; margin: 0;">
+              <li>Periksa kualifikasi posisi dan batas waktu rekrutmen.</li>
+              <li>Gunakan <strong>Template Chat Lamaran</strong> resmi saat menghubungi HRD.</li>
+              <li>Siapkan berkas CV dan Portofolio terbaru dalam format PDF.</li>
+            </ul>
           </div>
         </aside>
 
@@ -230,18 +422,38 @@
         <div class="listings-area">
           <div class="listings-topbar">
             <div class="results-count">
-              Menampilkan <span id="results-count-num">0</span> Info Lowongan
+              Menampilkan <span id="results-count-num">0</span> Poster Lowongan
             </div>
 
             <div class="topbar-controls">
-              <select class="sort-select" id="sort-select">
-                <option value="newest">Terbaru</option>
-                <option value="views">Paling Banyak Dilihat</option>
-              </select>
+              <div class="custom-dropdown sort-dropdown" id="dropdown-sort">
+                <button type="button" class="dropdown-trigger sort-trigger" id="dropdown-sort-btn">
+                  <div class="dropdown-trigger-content">
+                    <i class="fa-solid fa-arrow-down-wide-short dropdown-trigger-icon"></i>
+                    <span class="dropdown-selected-text" id="selected-sort-text">Terbaru Ditambahkan</span>
+                  </div>
+                  <i class="fa-solid fa-chevron-down dropdown-chevron"></i>
+                </button>
+                <div class="dropdown-menu sort-menu" id="dropdown-sort-menu">
+                  <div class="dropdown-item active" data-value="newest">
+                    <div class="dropdown-item-left"><i class="fa-regular fa-clock"></i><span>Terbaru Ditambahkan</span></div>
+                    <i class="fa-solid fa-check dropdown-check"></i>
+                  </div>
+                  <div class="dropdown-item" data-value="views">
+                    <div class="dropdown-item-left"><i class="fa-solid fa-fire"></i><span>Paling Banyak Dilihat</span></div>
+                    <i class="fa-solid fa-check dropdown-check"></i>
+                  </div>
+                  <div class="dropdown-item" data-value="featured">
+                    <div class="dropdown-item-left"><i class="fa-solid fa-star"></i><span>Rekomendasi Unggulan</span></div>
+                    <i class="fa-solid fa-check dropdown-check"></i>
+                  </div>
+                </div>
+                <input type="hidden" id="sort-select" value="newest">
+              </div>
 
               <div class="view-toggles">
-                <button class="view-btn active" id="view-grid-btn" title="Tampilan Grid"><i class="fa-solid fa-table-cells-large"></i></button>
-                <button class="view-btn" id="view-list-btn" title="Tampilan List"><i class="fa-solid fa-list"></i></button>
+                <button class="view-btn active" id="view-grid-btn" title="Tampilan Kartu Grid"><i class="fa-solid fa-table-cells-large"></i></button>
+                <button class="view-btn" id="view-list-btn" title="Tampilan Daftar List"><i class="fa-solid fa-list"></i></button>
               </div>
             </div>
           </div>
@@ -294,18 +506,18 @@
             <div class="brand-icon"><i class="fa-solid fa-briefcase"></i></div>
             <span>KerjaHub</span>
           </a>
-          <p style="font-size: 0.85rem; color: var(--text-muted); max-width: 420px;">
-            Portal berbagi info dan poster lowongan kerja terkini. Menghubungkan pelamar dengan perekrut langsung secara aman dan transparan.
+          <p style="font-size: 0.85rem; color: var(--text-muted); max-width: 440px;">
+            Portal publikasi info dan flyer poster lowongan kerja resmi. Menghubungkan pelamar langsung dengan rekruter perusahaan secara transparan dan mudah diakses.
           </p>
         </div>
         <ul class="footer-links">
           <li><a href="#lowongan">Daftar Lowongan</a></li>
-          <li><a href="#kategori">Kategori</a></li>
-          <li><a href="#tentang">Tentang Portal</a></li>
+          <li><a href="#kategori-section">Kategori</a></li>
+          <li><a href="#panduan-pelamar">Panduan Pelamar</a></li>
         </ul>
       </div>
       <div class="footer-bottom">
-        &copy; 2026 KerjaHub - Portal Berbagi Lowongan Kerja Online.
+        &copy; 2026 KerjaHub - Portal Berbagi Poster Lowongan Kerja Resmi.
       </div>
     </div>
   </footer>

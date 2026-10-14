@@ -181,6 +181,10 @@ app.post('/api/jobs', requireAdminAuth, upload.single('poster_image'), async (re
       requirements,
       responsibilities,
       benefits,
+      whatsapp,
+      email,
+      website,
+      website_url,
       contact_type,
       contact_value,
       deadline,
@@ -200,6 +204,15 @@ app.post('/api/jobs', requireAdminAuth, upload.single('poster_image'), async (re
       poster_image = '/uploads/' + req.file.filename;
     }
 
+    const wa = (whatsapp || '').trim();
+    const em = (email || '').trim();
+    const wb = (website_url || website || '').trim();
+
+    let finalContactVal = contact_value ? contact_value.trim() : '';
+    if (!finalContactVal && (wa || em || wb)) {
+      finalContactVal = JSON.stringify({ whatsapp: wa, email: em, website: wb });
+    }
+
     const newJob = await db.addJob({
       title: title.trim(),
       company_name: company_name.trim(),
@@ -213,8 +226,11 @@ app.post('/api/jobs', requireAdminAuth, upload.single('poster_image'), async (re
       requirements: parseList(requirements),
       responsibilities: parseList(responsibilities),
       benefits: parseList(benefits),
-      contact_type: contact_type || 'whatsapp',
-      contact_value: contact_value ? contact_value.trim() : '',
+      whatsapp: wa,
+      email: em,
+      website_url: wb,
+      contact_type: contact_type || (wa ? 'whatsapp' : (em ? 'email' : 'link')),
+      contact_value: finalContactVal,
       deadline: deadline || '',
       status: status || 'active',
       is_featured: is_featured === '1' || is_featured === 1 || is_featured === true || is_featured === 'true'
@@ -254,6 +270,10 @@ app.put('/api/jobs/:id', requireAdminAuth, upload.single('poster_image'), async 
       requirements,
       responsibilities,
       benefits,
+      whatsapp,
+      email,
+      website,
+      website_url,
       contact_type,
       contact_value,
       deadline,
@@ -264,6 +284,15 @@ app.put('/api/jobs/:id', requireAdminAuth, upload.single('poster_image'), async 
     let poster_image = existing.poster_image;
     if (req.file) {
       poster_image = '/uploads/' + req.file.filename;
+    }
+
+    const wa = whatsapp !== undefined ? whatsapp.trim() : (existing.whatsapp || '');
+    const em = email !== undefined ? email.trim() : (existing.email || '');
+    const wb = (website_url !== undefined ? website_url : website) !== undefined ? (website_url || website).trim() : (existing.website_url || '');
+
+    let finalContactVal = contact_value !== undefined ? contact_value.trim() : existing.contact_value;
+    if (whatsapp !== undefined || email !== undefined || website !== undefined || website_url !== undefined) {
+      finalContactVal = JSON.stringify({ whatsapp: wa, email: em, website: wb });
     }
 
     const updated = await db.updateJob(id, {
@@ -279,8 +308,11 @@ app.put('/api/jobs/:id', requireAdminAuth, upload.single('poster_image'), async 
       requirements: requirements !== undefined ? parseList(requirements) : existing.requirements,
       responsibilities: responsibilities !== undefined ? parseList(responsibilities) : existing.responsibilities,
       benefits: benefits !== undefined ? parseList(benefits) : existing.benefits,
-      contact_type: contact_type || existing.contact_type,
-      contact_value: contact_value !== undefined ? contact_value.trim() : existing.contact_value,
+      whatsapp: wa,
+      email: em,
+      website_url: wb,
+      contact_type: contact_type || existing.contact_type || (wa ? 'whatsapp' : (em ? 'email' : 'link')),
+      contact_value: finalContactVal,
       deadline: deadline !== undefined ? deadline : existing.deadline,
       status: status || existing.status,
       is_featured: is_featured !== undefined ? (is_featured === '1' || is_featured === 1 || is_featured === true || is_featured === 'true' ? 1 : 0) : existing.is_featured

@@ -23,11 +23,11 @@ const db = {
     try {
       let query = supabase.from('jobs').select('*');
 
-      // Status filter
+      // Status filter (default includes active, expired, and closed so locked jobs show to visitors)
       if (filters.status && filters.status !== 'all') {
         query = query.eq('status', filters.status);
       } else if (!filters.status) {
-        query = query.eq('status', 'active');
+        query = query.in('status', ['active', 'expired', 'closed']);
       }
 
       if (filters.category && filters.category !== 'Semua') {
@@ -174,7 +174,7 @@ const db = {
       const current = await this.getJobById(id);
       if (!current) return null;
 
-      const nextStatus = newStatus || (current.status === 'active' ? 'closed' : 'active');
+      const nextStatus = newStatus || (current.status === 'active' ? 'expired' : 'active');
       const { data, error } = await supabase.from('jobs').update({ status: nextStatus, updated_at: new Date().toISOString() }).eq('id', id).select().single();
 
       if (error) {
@@ -193,7 +193,7 @@ const db = {
     const jobs = await this.getJobs({ status: 'all' });
     const totalJobs = jobs.length;
     const activeJobs = jobs.filter(j => j.status === 'active').length;
-    const closedJobs = jobs.filter(j => j.status === 'closed').length;
+    const closedJobs = jobs.filter(j => j.status === 'closed' || j.status === 'expired').length;
     const totalViews = jobs.reduce((acc, j) => acc + (j.views_count || 0), 0);
 
     const categoriesCount = {};

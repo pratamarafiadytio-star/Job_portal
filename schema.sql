@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS public.jobs (
     requirements JSONB DEFAULT '[]'::jsonb,
     responsibilities JSONB DEFAULT '[]'::jsonb,
     benefits JSONB DEFAULT '[]'::jsonb,
+    whatsapp TEXT DEFAULT '',
+    email TEXT DEFAULT '',
+    website_url TEXT DEFAULT '',
     contact_type TEXT DEFAULT 'whatsapp',
     contact_value TEXT DEFAULT '',
     deadline TEXT DEFAULT '',
@@ -28,6 +31,11 @@ CREATE TABLE IF NOT EXISTS public.jobs (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Script Migrasi Tambahan jika tabel sudah terlanjur ada:
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS whatsapp TEXT DEFAULT '';
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS email TEXT DEFAULT '';
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS website_url TEXT DEFAULT '';
 
 -- 2. Buat Index untuk pencarian dan filter cepat
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON public.jobs (status);
