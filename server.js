@@ -60,6 +60,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// URL Normalizer: Rewrite /public/api/* to /api/* so relative fetches from /public/admin.html work seamlessly
+app.use((req, res, next) => {
+  if (req.url.startsWith('/public/api/')) {
+    req.url = req.url.replace(/^\/public\/api\//, '/api/');
+  }
+  next();
+});
+
 // Middlewares
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
@@ -930,12 +938,20 @@ app.use((err, req, res, next) => {
   next();
 });
 
+// 404 handler for API routes (always return JSON, never HTML)
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/public/api')) {
+    return res.status(404).json({ success: false, message: `Endpoint ${req.method} ${req.path} tidak ditemukan.` });
+  }
+  next();
+});
+
 // Express page fallback middleware
 app.use((req, res) => {
-  if (req.path.startsWith('/admin')) {
+  if (req.path.startsWith('/admin') || req.path.startsWith('/public/admin')) {
     return res.sendFile(path.join(__dirname, 'public', 'admin.html'));
   }
-  if (req.path.startsWith('/cek-cv')) {
+  if (req.path.startsWith('/cek-cv') || req.path.startsWith('/public/cek-cv')) {
     return res.sendFile(path.join(__dirname, 'public', 'cek-cv.html'));
   }
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

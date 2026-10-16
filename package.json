@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "tunnel": "npx -y cloudflared tunnel --url http://localhost:5000",
+    "pages:dev": "npx wrangler pages dev public"
   },
   "keywords": [],
   "author": "",

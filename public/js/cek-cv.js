@@ -50,16 +50,39 @@ function updateThemeIcon(theme) {
   }
 }
 
+function getApiEndpoint(endpoint) {
+  if (!endpoint) return '';
+  const clean = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+  const pathname = window.location.pathname;
+  if (pathname.includes('/job_portal/')) {
+    return `/job_portal${clean}`;
+  }
+  return clean;
+}
+
+async function safeFetchJson(url, options = {}) {
+  try {
+    const res = await fetch(url, options);
+    let data = null;
+    try {
+      const text = await res.text();
+      if (text && text.trim()) data = JSON.parse(text);
+    } catch (e) {}
+    return { ok: res.ok, status: res.status, data, res };
+  } catch (err) {
+    return { ok: false, status: 0, data: null, error: err };
+  }
+}
+
 // Load Jobs from API
 async function loadAllJobs() {
   try {
-    const res = await fetch('./api/jobs');
-    const json = await res.json();
-    if (json.success && json.data) {
+    const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
+    if (ok && json && json.success && Array.isArray(json.data)) {
       allJobs = json.data;
     }
   } catch (err) {
-    console.error('Failed to load jobs:', err);
+    console.warn('Failed to load jobs for CV check:', err);
   }
 }
 

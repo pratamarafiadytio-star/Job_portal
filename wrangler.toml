@@ -1,0 +1,9 @@
+name = "job-portal"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "public"
+
+[vars]
+SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co"
+SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT"
+ADMIN_PASSWORD = "admin_supersecret_portal_2026"
+SESSION_SECRET = "super_secret_session_key_job_portal_2026"

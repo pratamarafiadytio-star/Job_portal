@@ -4,19 +4,57 @@
 // Professional Corporate Presentation (No Emojis & Clean Icons)
 // ==============================================================
 
+const SUPABASE_FALLBACK_URL = "https://nptmawuukuysqzqakwej.supabase.co";
+const SUPABASE_FALLBACK_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
+
 let sbClient = null;
 
-async function initSupabaseClient() {
+function getApiEndpoint(endpoint) {
+  if (!endpoint) return '';
+  const clean = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+  const pathname = window.location.pathname;
+  if (pathname.includes('/job_portal/')) {
+    return `/job_portal${clean}`;
+  }
+  return clean;
+}
+
+async function safeFetchJson(url, options = {}) {
   try {
-    const res = await fetch('./api/config');
-    if (res.ok) {
-      const cfg = await res.json();
-      if (cfg.supabaseUrl && cfg.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function') {
-        sbClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+    const res = await fetch(url, options);
+    let data = null;
+    try {
+      const text = await res.text();
+      if (text && text.trim()) {
+        data = JSON.parse(text);
       }
+    } catch (parseErr) {}
+    return { ok: res.ok, status: res.status, data, res };
+  } catch (netErr) {
+    return { ok: false, status: 0, data: null, error: netErr };
+  }
+}
+
+async function initSupabaseClient() {
+  let url = SUPABASE_FALLBACK_URL;
+  let key = SUPABASE_FALLBACK_KEY;
+
+  try {
+    const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
+    if (ok && data && data.supabaseUrl && data.supabaseKey) {
+      url = data.supabaseUrl;
+      key = data.supabaseKey;
     }
   } catch (err) {
-    console.warn('Config fetch error:', err);
+    console.warn('Config fetch warning:', err);
+  }
+
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
+    try {
+      sbClient = window.supabase.createClient(url, key);
+    } catch (e) {
+      console.warn('Supabase createClient error:', e);
+    }
   }
 }
 
@@ -521,9 +559,8 @@ function setupCustomDropdowns() {
 // Dynamically Load Master Data into Filters
 async function loadMasterDataFilters() {
   try {
-    const res = await fetch('./api/master-data');
-    const json = await res.json();
-    if (!json.success || !json.data) return;
+    const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/master-data'));
+    if (!ok || !json || !json.success || !json.data) return;
 
     const data = json.data;
 
@@ -787,12 +824,9 @@ async function loadJobs() {
   // 2. Try Local Express Server API
   if (!jobs) {
     try {
-      const res = await fetch('./api/jobs');
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          jobs = json.data;
-        }
+      const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
+      if (ok && json && json.success && Array.isArray(json.data) && json.data.length > 0) {
+        jobs = json.data;
       }
     } catch (e) {}
   }
