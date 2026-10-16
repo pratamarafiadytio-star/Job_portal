@@ -61,6 +61,9 @@
   <!-- MAIN ADMIN DASHBOARD & UPLOAD AREA (UNLOCKED AFTER AUTH)       -->
   <!-- ============================================================== -->
   <div id="admin-dashboard-app" style="display: none; width: 100%;">
+    <!-- SIDEBAR BACKDROP FOR MOBILE -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
     <!-- SIDEBAR -->
     <aside class="admin-sidebar" id="admin-sidebar">
       <div class="sidebar-header">
@@ -73,6 +76,9 @@
             <span class="brand-badge">ADMIN SUITE</span>
           </div>
         </a>
+        <button type="button" class="btn-sidebar-close-mobile" id="btn-close-sidebar-mobile" title="Tutup Menu Navigasi">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
 
       <ul class="sidebar-menu">
@@ -99,6 +105,12 @@
             <i class="fa-solid fa-wand-magic-sparkles" style="color: #a78bfa;"></i>
             <span>Scout Loker Sosmed</span>
             <span class="menu-pill-sparkle">BARU</span>
+          </a>
+        </li>
+        <li class="menu-item">
+          <a href="#settings-master">
+            <i class="fa-solid fa-sliders" style="color: #06b6d4;"></i>
+            <span>Master Data & Filter</span>
           </a>
         </li>
       </ul>
@@ -155,6 +167,10 @@
       
       <!-- TOP HEADER -->
       <header class="admin-header">
+        <button type="button" class="btn-sidebar-toggle-mobile" id="btn-toggle-sidebar-mobile" title="Buka Menu Navigasi" aria-label="Buka Menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+
         <div class="page-title-box">
           <h1 id="admin-page-title">Dashboard Lowongan</h1>
           <p id="admin-page-sub">Kelola poster online, multi-kontak rekruter & database Supabase Cloud.</p>
@@ -299,33 +315,21 @@
                   <div class="form-grid-3">
                     <div class="form-group">
                       <label class="form-label">Kategori Bidang <span class="req">*</span></label>
-                      <select name="category" class="form-select" required>
-                        <option value="Teknologi & IT">Teknologi & IT</option>
-                        <option value="Design & Kreatif">Design & Kreatif</option>
-                        <option value="Marketing & Penjualan">Marketing & Penjualan</option>
-                        <option value="Manajemen Produk">Manajemen Produk</option>
-                        <option value="Data & AI">Data & AI</option>
-                        <option value="Administrasi & Keuangan">Administrasi & Keuangan</option>
-                        <option value="Operasional">Operasional</option>
-                        <option value="Lainnya">Lainnya</option>
+                      <select name="category" id="upload-category" class="form-select" required>
+                        <option value="">Memuat kategori...</option>
                       </select>
                     </div>
 
                     <div class="form-group">
                       <label class="form-label">Tipe Pekerjaan <span class="req">*</span></label>
-                      <select name="job_type" class="form-select" required>
-                        <option value="Full Time">Full Time</option>
-                        <option value="Remote">Remote (WFH)</option>
-                        <option value="Hybrid">Hybrid</option>
-                        <option value="Part Time">Part Time</option>
-                        <option value="Freelance">Freelance</option>
-                        <option value="Internship">Magang / Internship</option>
+                      <select name="job_type" id="upload-job_type" class="form-select" required>
+                        <option value="">Memuat tipe pekerjaan...</option>
                       </select>
                     </div>
 
                     <div class="form-group">
                       <label class="form-label">Lokasi Kerja <span class="req">*</span></label>
-                      <input type="text" name="location" class="form-input" placeholder="Contoh: Jakarta Selatan (SCBD) atau Remote" required>
+                      <input type="text" name="location" id="upload-location" list="master-locations-list" class="form-input" placeholder="Contoh: Jakarta Selatan (SCBD) atau Remote" required>
                     </div>
                   </div>
                 </div>
@@ -343,12 +347,8 @@
 
                     <div class="form-group">
                       <label class="form-label">Tingkat Pengalaman</label>
-                      <select name="experience_level" class="form-select">
-                        <option value="Semua Tingkat">Semua Tingkat / Fresh Graduate</option>
-                        <option value="Fresh Graduate">Fresh Graduate</option>
-                        <option value="1-3 Tahun">1 - 3 Tahun</option>
-                        <option value="3-5 Tahun">3 - 5 Tahun</option>
-                        <option value="Senior (5+ Tahun)">Senior (5+ Tahun)</option>
+                      <select name="experience_level" id="upload-experience_level" class="form-select">
+                        <option value="">Memuat pengalaman...</option>
                       </select>
                     </div>
 
@@ -588,6 +588,32 @@
                   </div>
                 </div>
 
+                <!-- GOOGLE DORKING GENERATOR LIVE BOX -->
+                <div class="google-dork-card" style="margin-top: 18px; padding: 16px 18px; background: #ffffff; border: 1.5px solid #e0e7ff; border-radius: 12px; box-shadow: 0 2px 6px rgba(99,102,241,0.05);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span class="badge" style="background: #eef2ff; color: #4f46e5; font-weight: 700; font-size: 0.76rem; border: 1px solid #c7d2fe;">
+                        <i class="fa-brands fa-google"></i> Google Dorking Engine
+                      </span>
+                      <span style="font-size: 0.8rem; color: #64748b; font-weight: 500;">Query Pencarian Otomatis:</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                      <button type="button" class="btn btn-outline btn-xs" id="btn-copy-dork" title="Salin Query Dork ke Clipboard" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 6px;">
+                        <i class="fa-regular fa-copy"></i> Salin Query
+                      </button>
+                      <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-xs" id="btn-open-dork-direct" style="font-size: 0.78rem; padding: 5px 12px; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Google Langsung ↗
+                      </a>
+                    </div>
+                  </div>
+                  <div style="position: relative;">
+                    <input type="text" id="live-dork-query" class="form-input" readonly style="background: #f8fafc; font-family: 'JetBrains Mono', Consolas, Monaco, monospace; font-size: 0.86rem; color: #1e1b4b; cursor: pointer; padding: 10px 14px; border: 1px solid #cbd5e1; font-weight: 600;" value='(site:linkedin.com/posts OR site:instagram.com OR site:facebook.com) "lowongan"'>
+                  </div>
+                  <div style="font-size: 0.75rem; color: #64748b; margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-circle-info" style="color: #6366f1;"></i> Query Google Dorking di atas otomatis dibuat secara real-time berdasarkan platform, posisi/kata kunci, dan lokasi yang dipilih.
+                  </div>
+                </div>
+
                 <div style="margin-top: 18px; display: flex; gap: 12px;">
                   <button type="button" class="btn btn-primary btn-scout-run" id="btn-run-scout">
                     <i class="fa-solid fa-bolt"></i> Generate & Cari Semua Postingan Loker
@@ -632,6 +658,127 @@
           </div>
         </section>
 
+        <!-- ========================================== -->
+        <!-- SECTION 5: MASTER DATA & FILTER SETTINGS   -->
+        <!-- ========================================== -->
+        <section id="section-settings-master" style="display: none;">
+          <div class="panel">
+            <div class="panel-header" style="background: linear-gradient(135deg, rgba(6,182,212,0.06), rgba(99,102,241,0.08));">
+              <div>
+                <div class="panel-title">
+                  <i class="fa-solid fa-sliders" style="color: #06b6d4;"></i> Pengaturan Master Data & Opsi Filter
+                </div>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px;">
+                  Kelola daftar Kategori Bidang, Tipe Pekerjaan, Level Pengalaman, dan Lokasi yang digunakan di formulir lowongan dan filter pencarian website publik.
+                </p>
+              </div>
+              <div>
+                <button type="button" class="btn btn-outline btn-sm" id="btn-reset-master-data" style="color: #ef4444; border-color: rgba(239,68,68,0.3);">
+                  <i class="fa-solid fa-rotate-left"></i> Reset ke Standar
+                </button>
+              </div>
+            </div>
+
+            <div class="panel-body">
+              <div class="master-data-grid">
+                
+                <!-- CARD 1: KATEGORI BIDANG -->
+                <div class="master-card">
+                  <div class="master-card-header">
+                    <div class="master-card-title">
+                      <i class="fa-solid fa-layer-group" style="color: #4f46e5;"></i>
+                      <span>Kategori Bidang</span>
+                    </div>
+                    <span class="badge badge-info" id="count-categories">0 Item</span>
+                  </div>
+                  <p class="master-card-desc">Kategori industri/bidang untuk mengelompokkan lowongan.</p>
+                  
+                  <div class="master-chips-container" id="chips-categories">
+                    <!-- JS Injected Chips -->
+                  </div>
+
+                  <form class="master-add-form" id="form-add-category">
+                    <input type="text" class="form-input" id="input-new-category" placeholder="Tambah kategori baru..." required>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                      <i class="fa-solid fa-plus"></i> Tambah
+                    </button>
+                  </form>
+                </div>
+
+                <!-- CARD 2: TIPE PEKERJAAN -->
+                <div class="master-card">
+                  <div class="master-card-header">
+                    <div class="master-card-title">
+                      <i class="fa-solid fa-briefcase" style="color: #059669;"></i>
+                      <span>Tipe Pekerjaan</span>
+                    </div>
+                    <span class="badge badge-success" id="count-job_types">0 Item</span>
+                  </div>
+                  <p class="master-card-desc">Sistem jam & skema kerja (Full Time, Remote, Freelance, dll).</p>
+                  
+                  <div class="master-chips-container" id="chips-job_types">
+                    <!-- JS Injected Chips -->
+                  </div>
+
+                  <form class="master-add-form" id="form-add-job_type">
+                    <input type="text" class="form-input" id="input-new-job_type" placeholder="Tambah tipe kerja baru..." required>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                      <i class="fa-solid fa-plus"></i> Tambah
+                    </button>
+                  </form>
+                </div>
+
+                <!-- CARD 3: LEVEL PENGALAMAN -->
+                <div class="master-card">
+                  <div class="master-card-header">
+                    <div class="master-card-title">
+                      <i class="fa-solid fa-user-graduate" style="color: #f59e0b;"></i>
+                      <span>Level Pengalaman</span>
+                    </div>
+                    <span class="badge badge-warning" id="count-experience_levels">0 Item</span>
+                  </div>
+                  <p class="master-card-desc">Tingkat senioritas pelamar yang dicari oleh perusahaan.</p>
+                  
+                  <div class="master-chips-container" id="chips-experience_levels">
+                    <!-- JS Injected Chips -->
+                  </div>
+
+                  <form class="master-add-form" id="form-add-experience_level">
+                    <input type="text" class="form-input" id="input-new-experience_level" placeholder="Tambah level (misal: 1-2 Tahun)..." required>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                      <i class="fa-solid fa-plus"></i> Tambah
+                    </button>
+                  </form>
+                </div>
+
+                <!-- CARD 4: LOKASI KERJA -->
+                <div class="master-card">
+                  <div class="master-card-header">
+                    <div class="master-card-title">
+                      <i class="fa-solid fa-location-dot" style="color: #dc2626;"></i>
+                      <span>Lokasi Kerja</span>
+                    </div>
+                    <span class="badge badge-danger" id="count-locations">0 Item</span>
+                  </div>
+                  <p class="master-card-desc">Kota & wilayah penempatan kerja untuk filter pencarian.</p>
+                  
+                  <div class="master-chips-container" id="chips-locations">
+                    <!-- JS Injected Chips -->
+                  </div>
+
+                  <form class="master-add-form" id="form-add-location">
+                    <input type="text" class="form-input" id="input-new-location" placeholder="Tambah kota/wilayah..." required>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                      <i class="fa-solid fa-plus"></i> Tambah
+                    </button>
+                  </form>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </section>
+
       </div>
     </main>
   </div>
@@ -669,31 +816,19 @@
           <div class="form-grid-3">
             <div class="form-group">
               <label class="form-label">Kategori</label>
-              <select name="category" class="form-select">
-                <option value="Teknologi & IT">Teknologi & IT</option>
-                <option value="Design & Kreatif">Design & Kreatif</option>
-                <option value="Marketing & Penjualan">Marketing & Penjualan</option>
-                <option value="Manajemen Produk">Manajemen Produk</option>
-                <option value="Data & AI">Data & AI</option>
-                <option value="Administrasi & Keuangan">Administrasi & Keuangan</option>
-                <option value="Operasional">Operasional</option>
-                <option value="Lainnya">Lainnya</option>
+              <select name="category" id="edit-category" class="form-select">
+                <option value="">Memuat...</option>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Tipe Pekerjaan</label>
-              <select name="job_type" class="form-select">
-                <option value="Full Time">Full Time</option>
-                <option value="Remote">Remote</option>
-                <option value="Hybrid">Hybrid</option>
-                <option value="Part Time">Part Time</option>
-                <option value="Freelance">Freelance</option>
-                <option value="Internship">Internship</option>
+              <select name="job_type" id="edit-job_type" class="form-select">
+                <option value="">Memuat...</option>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Lokasi</label>
-              <input type="text" name="location" class="form-input" required>
+              <input type="text" name="location" id="edit-location" list="master-locations-list" class="form-input" required>
             </div>
           </div>
 
@@ -704,7 +839,9 @@
             </div>
             <div class="form-group">
               <label class="form-label">Pengalaman</label>
-              <input type="text" name="experience_level" class="form-input">
+              <select name="experience_level" id="edit-experience_level" class="form-select">
+                <option value="">Memuat...</option>
+              </select>
             </div>
             <div class="form-group">
               <label class="form-label"><i class="fa-solid fa-lock" style="color: #6366f1;"></i> Status Lowongan</label>

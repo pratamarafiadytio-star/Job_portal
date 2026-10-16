@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cek Kesesuaian CV AI & Rekomendasi Lowongan - KerjaHub</title>
+  <meta name="description"
+    content="Unggah CV Anda dan temukan lowongan pekerjaan yang paling sesuai dengan keahlian dan pengalaman kerja Anda menggunakan teknologi AI KerjaHub.">
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <link rel="stylesheet" href="./css/style.css">
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- PDF.js for CV Parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+  <style>
+    .cv-page-hero {
+      padding: 48px 0 24px;
+      text-align: center;
+      background: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.12), transparent 70%);
+    }
+
+    .cv-page-title {
+      font-family: var(--font-heading);
+      font-size: 2.3rem;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.25;
+      margin: 14px 0 10px;
+    }
+
+    .cv-page-sub {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      max-width: 680px;
+      margin: 0 auto 28px;
+      line-height: 1.6;
+    }
+
+    .cv-upload-container {
+      max-width: 860px;
+      margin: 0 auto 40px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+    }
+
+    .skills-detected-bar {
+      background: rgba(99, 102, 241, 0.06);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      margin: 24px 0;
+    }
+
+    .skills-pills-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .skill-chip {
+      background: var(--primary);
+      color: white;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+    }
+
+    .match-percent-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 800;
+      font-size: 0.85rem;
+    }
+
+    .match-high {
+      background: rgba(16, 185, 129, 0.15);
+      color: #059669;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .match-mid {
+      background: rgba(99, 102, 241, 0.15);
+      color: #4f46e5;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .match-mod {
+      background: rgba(245, 158, 11, 0.15);
+      color: #d97706;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    @media (max-width: 768px) {
+      .cv-upload-container {
+        padding: 20px 16px;
+      }
+      .cv-page-title {
+        font-size: 1.8rem;
+      }
+      .cv-page-sub {
+        font-size: 0.95rem;
+      }
+      .cv-dropzone {
+        padding: 24px 14px !important;
+      }
+      .nav-links {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar">
+    <div class="container nav-container">
+      <a href="./" class="brand-logo" id="brand-logo-link">
+        <div class="brand-icon">
+          <i class="fa-solid fa-briefcase"></i>
+        </div>
+        <span>KerjaHub<span class="brand-tag">PORTAL</span></span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="./#lowongan" class="nav-link"><i class="fa-solid fa-arrow-left"></i> Kembali ke Lowongan</a></li>
+        <li><a href="cek-cv.html" class="nav-link active" style="color: var(--primary); font-weight: 700;"><i
+              class="fa-solid fa-wand-magic-sparkles"></i> Cek CV AI</a></li>
+        <li><a href="./#panduan-pelamar" class="nav-link">Panduan Pelamar</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a href="./#lowongan" class="btn btn-outline btn-sm">
+          <i class="fa-solid fa-magnifying-glass"></i> Cari Loker Lain
+        </a>
+        <!-- Theme Toggle -->
+        <button class="btn-icon" id="theme-toggle-btn" title="Ganti Mode Gelap / Terang">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="cv-page-hero">
+    <div class="container">
+      <div class="cv-matcher-badge"
+        style="display: inline-flex; align-items: center; gap: 8px; background: rgba(99, 102, 241, 0.1); color: var(--primary); padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 0.82rem; border: 1px solid rgba(99, 102, 241, 0.25);">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Fitur Rekomendasi Cerdas KerjaHub AI
+      </div>
+      <h1 class="cv-page-title">
+        Cek Kesesuaian CV & Rekomendasi Lowongan Kerja
+      </h1>
+      <p class="cv-page-sub">
+        Unggah berkas CV Anda (PDF, DOCX, TXT) atau tempel ringkasan keahlian secara instan. Sistem kami akan memindai
+        skill dan mencocokkannya dengan database poster lowongan resmi.
+      </p>
+
+      <!-- UPLOAD & ANALYZE CARD -->
+      <div class="cv-upload-container">
+        <input type="file" id="cv-file-input" accept=".pdf,.doc,.docx,.txt" style="display: none;">
+
+        <div class="cv-dropzone" id="cv-dropzone" title="Klik atau seret file CV ke sini" style="cursor: pointer;">
+          <div class="cv-drop-icon" style="font-size: 2.4rem; color: var(--primary); margin-bottom: 12px;">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+          </div>
+          <div class="cv-drop-text">
+            <strong id="cv-drop-title"
+              style="font-size: 1.1rem; color: var(--text-main); display: block; margin-bottom: 4px;">
+              Pilih Berkas CV Anda (PDF, DOCX, TXT)
+            </strong>
+            <span id="cv-drop-subtitle" style="font-size: 0.84rem; color: var(--text-muted);">
+              Klik di sini untuk menjelajah dokumen atau seret & lepas berkas langsung ke area ini
+            </span>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-browse-cv" style="margin-top: 14px;">
+            <i class="fa-solid fa-folder-open"></i> Jelajah Dokumen
+          </button>
+        </div>
+
+        <div class="cv-or-divider" style="margin: 20px 0; text-align: center; position: relative;">
+          <span
+            style="background: var(--bg-surface); padding: 0 14px; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">
+            atau tempel teks CV / keahlian Anda secara langsung
+          </span>
+        </div>
+
+        <div class="cv-paste-row" style="display: flex; flex-direction: column; gap: 14px;">
+          <textarea class="cv-textarea" id="cv-paste-input" rows="4"
+            placeholder="Contoh teks: Senior Frontend Developer berpengalaman 3 tahun menggunakan React.js, Next.js, Node.js, TypeScript, Tailwind CSS, REST API, Git, dan State Management..."
+            style="width: 100%; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px; font-family: inherit; font-size: 0.9rem; background: var(--bg-surface-alt); color: var(--text-main); resize: vertical;"></textarea>
+
+          <div style="display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
+            <button type="button" class="btn btn-outline" id="btn-reset-cv" style="padding: 12px 20px;">
+              <i class="fa-solid fa-rotate-left"></i> Bersihkan
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-analyze-cv"
+              style="padding: 12px 24px; font-weight: 700;">
+              <i class="fa-solid fa-magnifying-glass-chart"></i> Analisis & Cocokkan Lowongan
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic Matching Status Bar (Visible when analyzed) -->
+        <div class="cv-match-status-bar" id="cv-match-status-bar"
+          style="display: none; margin-top: 24px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-md); padding: 16px; align-items: center; justify-content: space-between; text-align: left;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <i class="fa-solid fa-circle-check" style="color: #059669; font-size: 1.8rem;"></i>
+            <div>
+              <strong id="cv-match-title" style="color: #059669; font-size: 0.95rem; display: block;">Analisis CV
+                Selesai!</strong>
+              <p id="cv-match-subtitle" style="font-size: 0.82rem; color: var(--text-muted); margin: 0;">Seluruh
+                lowongan telah diurutkan berdasarkan skor relevansi keahlian Anda.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detected Skills Bar -->
+        <div class="skills-detected-bar" id="skills-detected-bar" style="display: none; text-align: left;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.84rem; font-weight: 700; color: var(--primary);">
+              <i class="fa-solid fa-tags"></i> Keahlian (Skills) Terdeteksi dari CV Anda:
+            </span>
+            <span id="skills-count-text" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">0
+              Skill</span>
+          </div>
+          <div class="skills-pills-wrap" id="skills-pills-wrap">
+            <!-- JS Injected Skill Chips -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- MATCHED RESULTS SECTION -->
+  <main class="main-section" style="padding-top: 0;">
+    <div class="container">
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2 style="font-family: var(--font-heading); font-size: 1.4rem; font-weight: 800; color: var(--text-main);">
+            <i class="fa-solid fa-list-check" style="color: var(--primary); margin-right: 6px;"></i> Rekomendasi
+            Lowongan untuk Anda
+          </h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;" id="matched-results-count">
+            Menampilkan lowongan resmi terurut berdasarkan kecocokan profil.
+          </p>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <a href="./#lowongan" class="btn btn-outline btn-sm">
+            <i class="fa-solid fa-sliders"></i> Buka Filter Manual Lengkap
+          </a>
+        </div>
+      </div>
+
+      <!-- JOBS GRID -->
+      <div class="jobs-grid" id="matched-jobs-container">
+        <!-- JS Injected Matched Job Cards -->
+        <div
+          style="grid-column: 1 / -1; text-align: center; padding: 48px; background: var(--bg-surface); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">
+          <i class="fa-solid fa-cloud-arrow-up"
+            style="font-size: 2.4rem; color: var(--text-muted); margin-bottom: 12px;"></i>
+          <h3 style="color: var(--text-main); margin-bottom: 6px;">Silakan Unggah CV Anda di Atas</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); max-width: 460px; margin: 0 auto;">
+            Sistem kami akan segera memproses dokumen Anda dan menampilkan rekomendasi pekerjaan dengan persentase
+            kecocokan tertinggi.
+          </p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL DETAIL LOWONGAN (WITH FULL CONTACTS) -->
+  <div class="modal-overlay" id="job-detail-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-box">
+          <span class="badge" id="modal-category">Teknologi</span>
+          <h2 id="modal-title" style="margin-top: 6px;">Senior Frontend Developer</h2>
+          <div class="modal-company" id="modal-company"><i class="fa-solid fa-building"></i> PT Teknologi Indonesia
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeJobDetailModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body" id="modal-content">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- POSTER LIGHTBOX MODAL -->
+  <div class="lightbox-overlay" id="poster-lightbox">
+    <button class="lightbox-close-btn" onclick="closeLightbox()"><i class="fa-solid fa-xmark"></i></button>
+    <div class="lightbox-content">
+      <img id="lightbox-img" src="" alt="Poster Lowongan Penuh">
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div>
+          <a href="./" class="brand-logo" style="margin-bottom: 8px;">
+            <div class="brand-icon"><i class="fa-solid fa-briefcase"></i></div>
+            <span>KerjaHub</span>
+          </a>
+          <p style="font-size: 0.85rem; color: var(--text-muted); max-width: 440px;">
+            Portal publikasi info dan flyer poster lowongan kerja resmi. Menghubungkan pelamar langsung dengan rekruter
+            perusahaan secara transparan dan mudah diakses.
+          </p>
+        </div>
+        <ul class="footer-links">
+          <li><a href="./#lowongan">Daftar Lowongan</a></li>
+          <li><a href="cek-cv.html">Cek CV AI</a></li>
+          <li><a href="./#panduan-pelamar">Panduan Pelamar</a></li>
+        </ul>
+      </div>
+      <div class="footer-bottom">
+        &copy; 2026 KerjaHub - Portal Berbagi Poster Lowongan Kerja Resmi.
+      </div>
+    </div>
+  </footer>
+
+  <script src="./js/cek-cv.js"></script>
+</body>
+
+</html>

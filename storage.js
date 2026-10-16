@@ -7,6 +7,82 @@ if (!fs.existsSync(dataDir)) {
 }
 
 const jobsFilePath = path.join(dataDir, 'jobs.json');
+const masterDataFilePath = path.join(dataDir, 'master_data.json');
+
+const defaultMasterData = {
+  categories: [
+    { id: 1, name: 'Teknologi & IT', icon: 'fa-code' },
+    { id: 2, name: 'Design & Kreatif', icon: 'fa-pen-nib' },
+    { id: 3, name: 'Marketing & Penjualan', icon: 'fa-bullhorn' },
+    { id: 4, name: 'Manajemen Produk', icon: 'fa-box-archive' },
+    { id: 5, name: 'Data & AI', icon: 'fa-microchip' },
+    { id: 6, name: 'Administrasi & Keuangan', icon: 'fa-file-invoice-dollar' },
+    { id: 7, name: 'Operasional', icon: 'fa-gears' },
+    { id: 8, name: 'Lainnya', icon: 'fa-folder' }
+  ],
+  job_types: [
+    { id: 1, name: 'Full Time', icon: 'fa-clock' },
+    { id: 2, name: 'Remote', icon: 'fa-laptop-code' },
+    { id: 3, name: 'Hybrid', icon: 'fa-building-user' },
+    { id: 4, name: 'Part Time', icon: 'fa-business-time' },
+    { id: 5, name: 'Freelance', icon: 'fa-handshake' },
+    { id: 6, name: 'Internship', icon: 'fa-graduation-cap' }
+  ],
+  experience_levels: [
+    { id: 1, name: 'Fresh Graduate', icon: 'fa-user-graduate' },
+    { id: 2, name: '1-3 Tahun', icon: 'fa-user-check' },
+    { id: 3, name: '3-5 Tahun', icon: 'fa-user-tie' },
+    { id: 4, name: 'Senior (5+ Tahun)', icon: 'fa-award' }
+  ],
+  locations: [
+    { id: 1, name: 'Jakarta', icon: 'fa-city' },
+    { id: 2, name: 'Bandung', icon: 'fa-city' },
+    { id: 3, name: 'Surabaya', icon: 'fa-city' },
+    { id: 4, name: 'Yogyakarta', icon: 'fa-city' },
+    { id: 5, name: 'Bali', icon: 'fa-umbrella-beach' },
+    { id: 6, name: 'Medan', icon: 'fa-city' },
+    { id: 7, name: 'Semarang', icon: 'fa-city' },
+    { id: 8, name: 'Remote', icon: 'fa-laptop-code' },
+    { id: 9, name: 'Hybrid', icon: 'fa-building-user' }
+  ]
+};
+
+function normalizeMasterType(type) {
+  if (!type) return 'categories';
+  const t = String(type).toLowerCase().trim();
+  if (t === 'category' || t === 'categories' || t === 'kategori') return 'categories';
+  if (t === 'job_type' || t === 'job_types' || t === 'type' || t === 'types' || t === 'tipe') return 'job_types';
+  if (t === 'experience_level' || t === 'experience_levels' || t === 'experience' || t === 'level' || t === 'pengalaman') return 'experience_levels';
+  if (t === 'location' || t === 'locations' || t === 'lokasi') return 'locations';
+  return 'categories';
+}
+
+function loadMasterData() {
+  if (!fs.existsSync(masterDataFilePath)) {
+    saveMasterData(defaultMasterData);
+    return JSON.parse(JSON.stringify(defaultMasterData));
+  }
+  try {
+    const raw = fs.readFileSync(masterDataFilePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return {
+      categories: parsed.categories || defaultMasterData.categories,
+      job_types: parsed.job_types || defaultMasterData.job_types,
+      experience_levels: parsed.experience_levels || defaultMasterData.experience_levels,
+      locations: parsed.locations || defaultMasterData.locations
+    };
+  } catch (e) {
+    return JSON.parse(JSON.stringify(defaultMasterData));
+  }
+}
+
+function saveMasterData(data) {
+  try {
+    fs.writeFileSync(masterDataFilePath, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Failed to save master data:', e);
+  }
+}
 
 // Default initial jobs with posters
 const defaultJobs = [
@@ -330,6 +406,57 @@ const storage = {
       categories,
       recentJobs: jobs.slice(0, 5)
     };
+  },
+
+  // Master Data Settings CRUD
+  getMasterData() {
+    return loadMasterData();
+  },
+
+  addMasterDataItem({ type, name, icon }) {
+    if (!name || !name.trim()) {
+      throw new Error('Nama item master data tidak boleh kosong!');
+    }
+    const key = normalizeMasterType(type);
+    const data = loadMasterData();
+    const cleanName = name.trim();
+
+    // Prevent duplicates
+    const exists = data[key].some(item => item.name.toLowerCase() === cleanName.toLowerCase());
+    if (exists) {
+      throw new Error(`Item "${cleanName}" sudah ada di dalam data ${key}!`);
+    }
+
+    const newItem = {
+      id: Date.now(),
+      name: cleanName,
+      icon: icon || (key === 'categories' ? 'fa-layer-group' : key === 'job_types' ? 'fa-briefcase' : key === 'experience_levels' ? 'fa-user-clock' : 'fa-location-dot')
+    };
+
+    data[key].push(newItem);
+    saveMasterData(data);
+    return { newItem, allData: data };
+  },
+
+  deleteMasterDataItem({ type, name, id }) {
+    const key = normalizeMasterType(type);
+    const data = loadMasterData();
+
+    if (id !== undefined && id !== null && id !== '') {
+      data[key] = data[key].filter(item => String(item.id) !== String(id));
+    } else if (name) {
+      data[key] = data[key].filter(item => item.name.toLowerCase() !== String(name).trim().toLowerCase());
+    } else {
+      throw new Error('ID atau nama item harus disertakan untuk menghapus!');
+    }
+
+    saveMasterData(data);
+    return { success: true, allData: data };
+  },
+
+  resetMasterData() {
+    saveMasterData(defaultMasterData);
+    return JSON.parse(JSON.stringify(defaultMasterData));
   }
 };
 

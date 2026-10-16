@@ -2,8 +2,8 @@ require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const localStorage = require('./storage');
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://nptmawuukuysqzqakwej.supabase.co';
-const supabaseKey = process.env.SUPABASE_KEY || 'sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT';
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_KEY || '';
 
 let supabase = null;
 if (supabaseUrl && supabaseKey) {
@@ -214,6 +214,61 @@ const db = {
       categories,
       recentJobs: jobs.slice(0, 5)
     };
+  },
+
+  // Master Data Settings
+  async getMasterData() {
+    if (!supabase) return localStorage.getMasterData();
+    try {
+      const { data, error } = await supabase.from('master_data').select('*').order('id', { ascending: true });
+      if (error || !data || data.length === 0) {
+        return localStorage.getMasterData();
+      }
+      return {
+        categories: data.filter(d => d.type === 'category' || d.type === 'categories'),
+        job_types: data.filter(d => d.type === 'job_type' || d.type === 'job_types'),
+        experience_levels: data.filter(d => d.type === 'experience_level' || d.type === 'experience_levels'),
+        locations: data.filter(d => d.type === 'location' || d.type === 'locations')
+      };
+    } catch (err) {
+      return localStorage.getMasterData();
+    }
+  },
+
+  async addMasterDataItem({ type, name, icon }) {
+    const localResult = localStorage.addMasterDataItem({ type, name, icon });
+    if (supabase) {
+      try {
+        await supabase.from('master_data').insert([{
+          type,
+          name: name.trim(),
+          icon: icon || ''
+        }]);
+      } catch (err) {
+        console.warn('⚠️ Supabase master_data insert notice:', err.message);
+      }
+    }
+    return localResult;
+  },
+
+  async deleteMasterDataItem({ type, name, id }) {
+    const localResult = localStorage.deleteMasterDataItem({ type, name, id });
+    if (supabase) {
+      try {
+        if (id) {
+          await supabase.from('master_data').delete().eq('id', id);
+        } else if (name) {
+          await supabase.from('master_data').delete().eq('name', name.trim());
+        }
+      } catch (err) {
+        console.warn('⚠️ Supabase master_data delete notice:', err.message);
+      }
+    }
+    return localResult;
+  },
+
+  async resetMasterData() {
+    return localStorage.resetMasterData();
   }
 };
 

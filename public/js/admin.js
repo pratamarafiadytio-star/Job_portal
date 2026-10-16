@@ -2,29 +2,96 @@
 // KerjaHub - Admin Panel Logic (Enhanced Multi-Contact, Lock System & Social Scout)
 // ==============================================================
 
-const SUPABASE_URL = 'https://nptmawuukuysqzqakwej.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT';
-const ADMIN_SECRET = 'admin_supersecret_portal_2026';
-
 let sbClient = null;
-if (window.supabase && typeof window.supabase.createClient === 'function') {
+
+async function initSupabaseClient() {
   try {
-    sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  } catch (e) {
-    console.warn('Supabase client init error:', e);
+    const res = await fetch('./api/config');
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.supabaseUrl && cfg.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function') {
+        sbClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+      }
+    }
+  } catch (err) {
+    console.warn('Config fetch error:', err);
   }
+}
+
+function getAdminToken() {
+  return sessionStorage.getItem('kerja_admin_token') || '';
+}
+
+// ==============================================================
+// GOOGLE DORKING QUERY GENERATOR (Client-Side Real-Time Engine)
+// ==============================================================
+function generateGoogleDorkQuery({ kata_kunci = '', lokasi = '', platforms = [] } = {}) {
+  const platformMap = {
+    linkedin: 'site:linkedin.com/posts',
+    instagram: 'site:instagram.com',
+    facebook: 'site:facebook.com'
+  };
+
+  const rawPlatforms = Array.isArray(platforms)
+    ? platforms
+    : (typeof platforms === 'string' ? platforms.split(',') : []);
+
+  let selectedSites = [];
+  for (const p of rawPlatforms) {
+    const key = String(p).trim().toLowerCase();
+    if (platformMap[key] && !selectedSites.includes(platformMap[key])) {
+      selectedSites.push(platformMap[key]);
+    }
+  }
+
+  // Fallback to all supported platforms if none checked
+  if (selectedSites.length === 0) {
+    selectedSites = [
+      platformMap.linkedin,
+      platformMap.instagram,
+      platformMap.facebook
+    ];
+  }
+
+  // Rule 2: 1 platform -> single site, >1 platform -> (site1 OR site2)
+  const querySite = selectedSites.length === 1
+    ? selectedSites[0]
+    : `(${selectedSites.join(' OR ')})`;
+
+  // Rule 3: Format Query Akhir: [QUERY_SITE] "lowongan" "[KATA_KUNCI]" "[LOKASI]"
+  const cleanKw = (kata_kunci || '').trim();
+  const cleanLoc = (lokasi || '').trim();
+
+  let queryDork = `${querySite} "lowongan"`;
+  if (cleanKw) {
+    queryDork += ` "${cleanKw}"`;
+  }
+  if (cleanLoc) {
+    queryDork += ` "${cleanLoc}"`;
+  }
+
+  // Rule 4: encodeURIComponent
+  const urlGoogle = `https://www.google.com/search?q=${encodeURIComponent(queryDork)}`;
+
+  return {
+    query_dork: queryDork,
+    url_google: urlGoogle
+  };
 }
 
 let adminJobs = [];
 let currentSelectedFileBase64 = '';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await initSupabaseClient();
   setupAuth();
   setupNavigation();
   setupPosterDropzone();
   setupJobFormSubmit();
   setupEditFormSubmit();
   setupSosmedScout();
+  setupMasterData();
+  loadMasterData();
 });
 
 // Helper: Extract contacts object from job
@@ -74,9 +141,28 @@ function setupAuth() {
     });
   }
 
-  const token = sessionStorage.getItem('kerja_admin_auth');
-  if (token === 'authenticated') {
-    unlockDashboard();
+  const storedToken = sessionStorage.getItem('kerja_admin_token');
+  if (storedToken) {
+    fetch('./api/admin/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${storedToken}`
+      },
+      body: JSON.stringify({ token: storedToken })
+    })
+      .then(r => r.json())
+      .then(res => {
+        if (res.success && res.valid) {
+          unlockDashboard();
+        } else {
+          sessionStorage.removeItem('kerja_admin_token');
+          showLoginScreen();
+        }
+      })
+      .catch(() => {
+        unlockDashboard();
+      });
   } else {
     showLoginScreen();
   }
@@ -92,9 +178,6 @@ function setupAuth() {
       submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memverifikasi...';
       if (errorAlert) errorAlert.style.display = 'none';
 
-      let isAuthenticated = false;
-
-      // 1. Try local server login
       try {
         const res = await fetch('./api/admin/login', {
           method: 'POST',
@@ -102,23 +185,18 @@ function setupAuth() {
           body: JSON.stringify({ password })
         });
         const result = await res.json();
-        if (result.success) {
-          isAuthenticated = true;
+        if (res.ok && result.success && result.token) {
           sessionStorage.setItem('kerja_admin_token', result.token);
+          unlockDashboard();
+        } else {
+          if (errorAlert) {
+            errorText.textContent = result.message || 'Kata sandi admin salah! Silakan coba lagi.';
+            errorAlert.style.display = 'flex';
+          }
         }
-      } catch (err) {}
-
-      // 2. Direct password verification
-      if (!isAuthenticated && (password === ADMIN_SECRET || password === 'admin#secret_portal_2026!')) {
-        isAuthenticated = true;
-      }
-
-      if (isAuthenticated) {
-        sessionStorage.setItem('kerja_admin_auth', 'authenticated');
-        unlockDashboard();
-      } else {
+      } catch (err) {
         if (errorAlert) {
-          errorText.textContent = 'Kata sandi admin salah! Silakan coba lagi.';
+          errorText.textContent = 'Gagal menghubungi server: ' + err.message;
           errorAlert.style.display = 'flex';
         }
       }
@@ -129,8 +207,20 @@ function setupAuth() {
   }
 
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      sessionStorage.removeItem('kerja_admin_auth');
+    logoutBtn.addEventListener('click', async () => {
+      const token = sessionStorage.getItem('kerja_admin_token');
+      if (token) {
+        try {
+          await fetch('./api/admin/logout', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ token })
+          });
+        } catch (e) {}
+      }
       sessionStorage.removeItem('kerja_admin_token');
       showLoginScreen();
     });
@@ -158,6 +248,25 @@ function unlockDashboard() {
 // -------------------------------------------------------------
 function setupNavigation() {
   const menuLinks = document.querySelectorAll('.sidebar-menu .menu-item a');
+  const toggleMobileBtn = document.getElementById('btn-toggle-sidebar-mobile');
+  const closeMobileBtn = document.getElementById('btn-close-sidebar-mobile');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  const sidebar = document.getElementById('admin-sidebar');
+
+  function openSidebar() {
+    if (sidebar) sidebar.classList.add('open');
+    if (backdrop) backdrop.classList.add('active');
+  }
+
+  function closeSidebar() {
+    if (sidebar) sidebar.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('active');
+  }
+
+  if (toggleMobileBtn) toggleMobileBtn.addEventListener('click', openSidebar);
+  if (closeMobileBtn) closeMobileBtn.addEventListener('click', closeSidebar);
+  if (backdrop) backdrop.addEventListener('click', closeSidebar);
+
   menuLinks.forEach(link => {
     link.addEventListener('click', (e) => {
       const targetId = link.getAttribute('href');
@@ -168,13 +277,16 @@ function setupNavigation() {
 
         const sectionName = targetId.replace('#', '');
         switchSection(sectionName);
+        if (window.innerWidth <= 860) {
+          closeSidebar();
+        }
       }
     });
   });
 }
 
 function switchSection(sectionName) {
-  const sections = ['dashboard', 'upload-job', 'manage-jobs', 'sosmed-generator'];
+  const sections = ['dashboard', 'upload-job', 'manage-jobs', 'sosmed-generator', 'settings-master'];
   sections.forEach(sec => {
     const el = document.getElementById(`section-${sec}`);
     if (el) el.style.display = (sec === sectionName) ? 'block' : 'none';
@@ -197,6 +309,10 @@ function switchSection(sectionName) {
   } else if (sectionName === 'sosmed-generator') {
     if (titleEl) titleEl.textContent = 'Scout & Generator Loker Sosmed';
     if (subEl) subEl.textContent = 'Cari dan generate materi postingan lowongan kerja dari LinkedIn, IG, dan FB.';
+  } else if (sectionName === 'settings-master') {
+    if (titleEl) titleEl.textContent = 'Pengaturan Master Data & Filter';
+    if (subEl) subEl.textContent = 'Kelola Kategori Bidang, Tipe Pekerjaan, Level Pengalaman, dan Lokasi.';
+    loadMasterData();
   }
 }
 
@@ -408,7 +524,10 @@ async function loadDashboardData() {
 
   if (!stats) {
     try {
-      const res = await fetch('./api/admin/stats');
+      const token = getAdminToken();
+      const res = await fetch('./api/admin/stats', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       if (res.ok) {
         const r = await res.json();
         if (r.success) stats = r.data;
@@ -767,7 +886,38 @@ function setupSosmedScout() {
   const pillFb = document.getElementById('pill-facebook');
   const btnOpenAll = document.getElementById('btn-open-all-links');
 
-  // Toggle active class on label clicks
+  // Scout & Google Dork Elements
+  const inputKw = document.getElementById('scout-keyword');
+  const inputLoc = document.getElementById('scout-location');
+  const liveDorkQuery = document.getElementById('live-dork-query');
+  const btnOpenDork = document.getElementById('btn-open-dork-direct');
+  const btnCopyDork = document.getElementById('btn-copy-dork');
+
+  function getSelectedPlatforms() {
+    const plats = [];
+    if (checkLi && checkLi.checked) plats.push('linkedin');
+    if (checkIg && checkIg.checked) plats.push('instagram');
+    if (checkFb && checkFb.checked) plats.push('facebook');
+    return plats;
+  }
+
+  function refreshLiveDork() {
+    const kw = (inputKw?.value || '').trim();
+    const loc = (inputLoc?.value || '').trim();
+    const plats = getSelectedPlatforms();
+
+    const dork = generateGoogleDorkQuery({
+      kata_kunci: kw,
+      lokasi: loc,
+      platforms: plats
+    });
+
+    if (liveDorkQuery) liveDorkQuery.value = dork.query_dork;
+    if (btnOpenDork) btnOpenDork.href = dork.url_google;
+    return dork;
+  }
+
+  // Toggle active class on label clicks & refresh live dork
   [
     { check: checkLi, pill: pillLi },
     { check: checkIg, pill: pillIg },
@@ -776,9 +926,37 @@ function setupSosmedScout() {
     if (item.check && item.pill) {
       item.check.addEventListener('change', () => {
         item.pill.classList.toggle('active', item.check.checked);
+        refreshLiveDork();
       });
     }
   });
+
+  // Live input typing listeners
+  if (inputKw) inputKw.addEventListener('input', refreshLiveDork);
+  if (inputLoc) inputLoc.addEventListener('input', refreshLiveDork);
+
+  // Copy query to clipboard button
+  if (btnCopyDork) {
+    btnCopyDork.addEventListener('click', async () => {
+      const q = liveDorkQuery?.value || '';
+      if (!q) return;
+      try {
+        await navigator.clipboard.writeText(q);
+        const orig = btnCopyDork.innerHTML;
+        btnCopyDork.innerHTML = '<i class="fa-solid fa-check" style="color: #10b981;"></i> Tersalin!';
+        setTimeout(() => {
+          btnCopyDork.innerHTML = orig;
+        }, 2000);
+      } catch (e) {
+        // Fallback for older browsers
+        if (liveDorkQuery) {
+          liveDorkQuery.select();
+          document.execCommand('copy');
+          alert('Query Google Dork berhasil disalin!');
+        }
+      }
+    });
+  }
 
   // Toggle Select All
   if (btnToggleAll) {
@@ -793,19 +971,20 @@ function setupSosmedScout() {
       pillLi.classList.toggle('active', targetState);
       pillIg.classList.toggle('active', targetState);
       pillFb.classList.toggle('active', targetState);
+
+      refreshLiveDork();
     });
   }
+
+  // Initialize live dork on page load
+  refreshLiveDork();
 
   // Run Scout Generator
   if (btnRun) {
     btnRun.addEventListener('click', () => {
-      const keyword = (document.getElementById('scout-keyword')?.value || '').trim() || 'Software Engineer';
-      const location = (document.getElementById('scout-location')?.value || '').trim() || 'Indonesia';
-
-      const platforms = [];
-      if (checkLi && checkLi.checked) platforms.push('linkedin');
-      if (checkIg && checkIg.checked) platforms.push('instagram');
-      if (checkFb && checkFb.checked) platforms.push('facebook');
+      const keyword = (inputKw?.value || '').trim() || 'Software Engineer';
+      const location = (inputLoc?.value || '').trim() || 'Indonesia';
+      const platforms = getSelectedPlatforms();
 
       if (platforms.length === 0) {
         alert('Harap pilih minimal satu media sosial (LinkedIn, Instagram, atau Facebook)!');
@@ -828,7 +1007,7 @@ function setupSosmedScout() {
   }
 }
 
-function runSosmedScoutGenerator(keyword, location, platforms) {
+async function runSosmedScoutGenerator(keyword, location, platforms) {
   const resultsArea = document.getElementById('scout-results-area');
   const titleEl = document.getElementById('scout-results-summary-title');
   const deepLinksContainer = document.getElementById('scout-deep-links-container');
@@ -837,15 +1016,14 @@ function runSosmedScoutGenerator(keyword, location, platforms) {
   if (!resultsArea || !deepLinksContainer || !postingsContainer) return;
 
   resultsArea.style.display = 'block';
-  if (titleEl) titleEl.textContent = `Hasil Postingan Loker untuk "${keyword}" di ${location}`;
+  if (titleEl) titleEl.textContent = `Mencari Postingan Real-Time: "${keyword}" di ${location}...`;
 
-  // Generate deep search links
+  // Deep search shortcut links
   const encKw = encodeURIComponent(keyword);
   const encLoc = encodeURIComponent(location);
   const cleanTag = keyword.toLowerCase().replace(/[^a-z0-9]/g, '');
 
   const deepLinks = [];
-
   if (platforms.includes('linkedin')) {
     deepLinks.push({
       platform: 'LinkedIn',
@@ -897,16 +1075,15 @@ function runSosmedScoutGenerator(keyword, location, platforms) {
     });
   }
 
-  // Google Social Multi-Dorks (Instant aggregator of all social media recruitments)
+  const dorkObj = generateGoogleDorkQuery({ kata_kunci: keyword, lokasi: location, platforms });
   deepLinks.push({
     platform: 'Multi-Sosmed',
-    icon: 'fa-solid fa-globe',
+    icon: 'fa-brands fa-google',
     color: '#4f46e5',
-    label: 'Google Dork: Postingan Semua Sosmed',
-    url: `https://www.google.com/search?q=${encodeURIComponent(`(site:linkedin.com/posts OR site:instagram.com OR site:facebook.com) "lowongan" "${keyword}" ${location}`)}`
+    label: `Google Dork (${platforms.map(p => p.toUpperCase()).join(' & ')})`,
+    url: dorkObj.url_google
   });
 
-  // Render deep links
   deepLinksContainer.innerHTML = deepLinks.map(link => `
     <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="deep-link-item">
       <div class="platform-info">
@@ -917,114 +1094,85 @@ function runSosmedScoutGenerator(keyword, location, platforms) {
     </a>
   `).join('');
 
-  // Generate realistic, rich job postings tailored to the keywords
-  const sampleCompanies = [
-    'Nusantara Tech Group', 'Creative Digital Studio', 'Dinamika Global Solusi',
-    'Artha Media Pratama', 'Inovasi Cipta Mandiri', 'Ventura Karir Indonesia'
-  ];
-
-  const generatedPosts = [];
-
-  platforms.forEach((plat, pIndex) => {
-    for (let i = 1; i <= 2; i++) {
-      const comp = sampleCompanies[(pIndex * 2 + i) % sampleCompanies.length];
-      const salaryGuess = i === 1 ? 'Rp 8.000.000 - Rp 14.000.000 / bln' : 'Kompetitif (Sesuai Pengalaman)';
-      const jobTypeGuess = i === 1 ? 'Full Time' : 'Remote';
-
-      let platIcon = 'fa-brands fa-linkedin';
-      let platClass = 'linkedin';
-      let sourceName = `@${comp.toLowerCase().replace(/[^a-z]/g, '_')}`;
-      let postUrl = '';
-
-      if (plat === 'linkedin') {
-        platIcon = 'fa-brands fa-linkedin';
-        platClass = 'linkedin';
-        sourceName = `${comp} • LinkedIn Recruitment`;
-        postUrl = `https://www.linkedin.com/jobs/search/?keywords=${encKw}&location=${encLoc}`;
-      } else if (plat === 'instagram') {
-        platIcon = 'fa-brands fa-instagram';
-        platClass = 'instagram';
-        sourceName = `@loker_${keyword.toLowerCase().replace(/[^a-z]/g, '')}_id • Instagram Post`;
-        postUrl = `https://www.instagram.com/explore/tags/loker${cleanTag}/`;
-      } else {
-        platIcon = 'fa-brands fa-facebook';
-        platClass = 'facebook';
-        sourceName = `Komunitas Loker ${location} • Facebook Group`;
-        postUrl = `https://www.facebook.com/search/posts/?q=${encodeURIComponent('loker ' + keyword)}`;
-      }
-
-      const postData = {
-        title: `${keyword} (${jobTypeGuess})`,
-        company: comp,
-        category: getCategoryForKeyword(keyword),
-        job_type: jobTypeGuess,
-        location: location,
-        salary: salaryGuess,
-        platform: plat,
-        platformLabel: plat.toUpperCase(),
-        platformClass: platClass,
-        platformIcon: platIcon,
-        sourceName,
-        url: postUrl,
-        timeAgo: `${i * 3 + pIndex} jam yang lalu`,
-        description: `Dibutuhkan segera posisi ${keyword} untuk bergabung bersama ${comp} wilayah ${location}. Memiliki semangat belajar tinggi, komunikatif, dan siap bekerja secara profesional. Segera kirimkan CV atau hubungi kontak terlampir.`,
-        requirements: [
-          `Pengalaman kerja minimal 1-2 tahun di bidang ${keyword}`,
-          `Menguasai tool & keahlian pendukung relevan`,
-          `Mampu berkoordinasi dalam tim dan memiliki disiplin tinggi`
-        ],
-        responsibilities: [
-          `Menjalankan tugas utama operasional untuk posisi ${keyword}`,
-          `Melakukan evaluasi performa dan berkolaborasi bersama tim`,
-          `Menjaga kualitas hasil kerja sesuai standar perusahaan`
-        ],
-        benefits: [
-          `Gaji pokok + Tunjangan kinerja`,
-          `Jam kerja teratur & fleksibel`,
-          `BPJS Ketenagakerjaan & Kesehatan`
-        ],
-        whatsapp: '08' + Math.floor(1000000000 + Math.random() * 9000000000),
-        email: `recruitment@${comp.toLowerCase().replace(/[^a-z]/g, '')}.com`
-      };
-
-      generatedPosts.push(postData);
-    }
-  });
-
-  // Store globally so draft button can read it
-  window._scoutPostings = generatedPosts;
-
-  postingsContainer.innerHTML = generatedPosts.map((post, idx) => `
-    <div class="scout-card">
-      <div class="scout-card-header">
-        <span class="platform-badge ${post.platformClass}">
-          <i class="${post.platformIcon}"></i> ${post.platformLabel}
-        </span>
-        <span style="font-size: 0.72rem; color: #94a3b8;"><i class="fa-regular fa-clock"></i> ${post.timeAgo}</span>
-      </div>
-
-      <div class="scout-card-title">${escapeHtml(post.title)}</div>
-      <div class="scout-card-source"><i class="fa-solid fa-building"></i> ${escapeHtml(post.sourceName)}</div>
-
-      <p class="scout-card-snippet">${escapeHtml(post.description)}</p>
-
-      <div style="font-size: 0.76rem; color: #059669; font-weight: 700; margin-bottom: 12px;">
-        <i class="fa-solid fa-money-bill-wave"></i> ${post.salary} • <i class="fa-solid fa-location-dot"></i> ${escapeHtml(post.location)}
-      </div>
-
-      <div class="scout-card-actions">
-        <a href="${post.url}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="flex: 1;">
-          <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Asli
-        </a>
-        <button type="button" class="btn btn-primary btn-sm" onclick="applyScoutDraftToUploadForm(${idx})" style="flex: 1.3;">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> Jadikan Draft
-        </button>
-      </div>
+  // Show loading state
+  postingsContainer.innerHTML = `
+    <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
+      <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2.2rem; color: #6366f1; margin-bottom: 14px;"></i>
+      <h4 style="font-family: var(--font-heading); color: #1e293b; margin-bottom: 6px;">Mengambil Postingan Asli & Real-Time...</h4>
+      <p style="font-size: 0.84rem; color: #64748b;">Memindai lowongan aktif di LinkedIn, Instagram, dan Facebook untuk "${escapeHtml(keyword)}" di ${escapeHtml(location)}.</p>
     </div>
-  `).join('');
-
-  // Scroll to results smoothly
+  `;
   resultsArea.scrollIntoView({ behavior: 'smooth' });
+
+  // Call real-time scout API
+  try {
+    const token = getAdminToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch(`./api/admin/scout-jobs?keyword=${encKw}&location=${encLoc}&platforms=${platforms.join(',')}`, { headers });
+    const json = await res.json();
+
+    if (!json.success || !json.data || json.data.length === 0) {
+      if (titleEl) titleEl.textContent = `Belum Menemukan Postingan Langsung untuk "${keyword}"`;
+      postingsContainer.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 36px 20px; background: #ffffff; border-radius: 12px; border: 1px dashed #cbd5e1;">
+          <i class="fa-solid fa-bullhorn" style="font-size: 2rem; color: #94a3b8; margin-bottom: 12px;"></i>
+          <h4 style="color: #334155; margin-bottom: 6px;">Tidak ada postingan langsung yang sesuai</h4>
+          <p style="font-size: 0.84rem; color: #64748b; max-width: 500px; margin: 0 auto 16px;">
+            Coba gunakan kata kunci yang lebih umum (misal: "Designer", "Admin", "Developer") atau klik salah satu tautan pencarian langsung di atas.
+          </p>
+        </div>
+      `;
+      return;
+    }
+
+    const realPosts = json.data;
+    window._scoutPostings = realPosts;
+
+    if (titleEl) titleEl.textContent = `Ditemukan ${realPosts.length} Postingan Real-Time untuk "${keyword}" di ${location}`;
+
+    postingsContainer.innerHTML = realPosts.map((post, idx) => `
+      <div class="scout-card">
+        <div class="scout-card-header">
+          <span class="platform-badge ${post.platformClass}">
+            <i class="${post.platformIcon}"></i> ${post.platformLabel}
+          </span>
+          <span style="font-size: 0.72rem; color: #059669; font-weight: 700;">
+            <i class="fa-solid fa-circle-check"></i> Postingan Asli
+          </span>
+        </div>
+
+        <div class="scout-card-title">${escapeHtml(post.title)}</div>
+        <div class="scout-card-source"><i class="fa-solid fa-building"></i> ${escapeHtml(post.sourceName || post.company)}</div>
+
+        <p class="scout-card-snippet">${escapeHtml(post.description)}</p>
+
+        <div style="font-size: 0.76rem; color: #059669; font-weight: 700; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
+          <span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(post.location)}</span>
+          ${post.whatsapp ? `<span style="color: #25d366;"><i class="fa-brands fa-whatsapp"></i> ${escapeHtml(post.whatsapp)}</span>` : ''}
+          ${post.email ? `<span style="color: #3b82f6;"><i class="fa-solid fa-envelope"></i> ${escapeHtml(post.email)}</span>` : ''}
+        </div>
+
+        <div class="scout-card-actions">
+          <a href="${post.url}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="flex: 1.2;" title="Buka tautan postingan asli di media sosial">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Postingan Asli
+          </a>
+          <button type="button" class="btn btn-primary btn-sm" onclick="applyScoutDraftToUploadForm(${idx})" style="flex: 1.1;" title="Isi form upload dengan rincian ini">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Jadikan Draft
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    console.error('Scout fetch error:', err);
+    postingsContainer.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 30px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; color: #9f1239;">
+        <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.8rem; margin-bottom: 10px;"></i>
+        <p style="font-weight: 700;">Gagal memuat postingan real-time (${escapeHtml(err.message)})</p>
+        <p style="font-size: 0.8rem;">Gunakan tautan pencarian langsung di atas untuk membuka media sosial secara instan.</p>
+      </div>
+    `;
+  }
 }
 
 // Helper: category guesser
@@ -1047,33 +1195,213 @@ window.applyScoutDraftToUploadForm = function(postIndex) {
   const uploadForm = document.getElementById('form-upload-job');
   if (!uploadForm) return;
 
-  uploadForm.querySelector('[name="title"]').value = post.title;
-  uploadForm.querySelector('[name="company_name"]').value = post.company;
-  uploadForm.querySelector('[name="category"]').value = post.category;
-  uploadForm.querySelector('[name="job_type"]').value = post.job_type;
-  uploadForm.querySelector('[name="location"]').value = post.location;
-  uploadForm.querySelector('[name="salary_display"]').value = post.salary;
-  uploadForm.querySelector('[name="description"]').value = post.description;
-  uploadForm.querySelector('[name="requirements"]').value = post.requirements.join('\n');
-  uploadForm.querySelector('[name="responsibilities"]').value = post.responsibilities.join('\n');
-  uploadForm.querySelector('[name="benefits"]').value = post.benefits.join('\n');
+  uploadForm.querySelector('[name="title"]').value = post.title || '';
+  uploadForm.querySelector('[name="company_name"]').value = post.company || '';
+  uploadForm.querySelector('[name="location"]').value = post.location || '';
+  uploadForm.querySelector('[name="description"]').value = post.description || '';
 
-  // Fill in WhatsApp and Email
-  if (uploadForm.querySelector('[name="whatsapp"]')) {
+  if (post.whatsapp && uploadForm.querySelector('[name="whatsapp"]')) {
     uploadForm.querySelector('[name="whatsapp"]').value = post.whatsapp;
   }
-  if (uploadForm.querySelector('[name="email"]')) {
+  if (post.email && uploadForm.querySelector('[name="email"]')) {
     uploadForm.querySelector('[name="email"]').value = post.email;
   }
-  if (uploadForm.querySelector('[name="website"]')) {
+  if (post.url && uploadForm.querySelector('[name="website"]')) {
     uploadForm.querySelector('[name="website"]').value = post.url;
   }
 
-  // Switch to Upload form view
-  const uploadLink = document.querySelector('a[href="#upload-job"]');
-  if (uploadLink) uploadLink.click();
+  // Set category if matches
+  const catSelect = uploadForm.querySelector('[name="category"]');
+  if (catSelect) {
+    const guessedCat = getCategoryForKeyword(post.title || '');
+    for (let opt of catSelect.options) {
+      if (opt.value === guessedCat || opt.text === guessedCat) {
+        catSelect.value = opt.value;
+        break;
+      }
+    }
+  }
 
-  alert(`Draft "${post.title}" berhasil diisikan ke formulir upload! Silakan pilih file gambar poster rekrutmen dan klik Publikasikan.`);
+  // Switch to upload tab
+  const uploadNav = document.querySelector('a[href="#upload-job"]');
+  if (uploadNav) uploadNav.click();
+
+  alert(`Draf lowongan untuk "${post.title}" berhasil disiapkan di formulir upload! Silakan lampirkan flyer poster dan klik Publikasikan.`);
+};
+
+// -------------------------------------------------------------
+// MASTER DATA MANAGEMENT (Kategori, Tipe, Level, Lokasi)
+// -------------------------------------------------------------
+let currentMasterData = {
+  categories: [],
+  job_types: [],
+  experience_levels: [],
+  locations: []
+};
+
+async function loadMasterData() {
+  try {
+    const res = await fetch('./api/master-data');
+    const json = await res.json();
+    if (json.success && json.data) {
+      currentMasterData = json.data;
+      renderMasterDataChips();
+      populateMasterSelectOptions();
+    }
+  } catch (err) {
+    console.error('Failed to load master data:', err);
+  }
+}
+
+function renderMasterDataChips() {
+  const types = ['categories', 'job_types', 'experience_levels', 'locations'];
+
+  types.forEach(key => {
+    const container = document.getElementById(`chips-${key}`);
+    const countEl = document.getElementById(`count-${key}`);
+    const items = currentMasterData[key] || [];
+
+    if (countEl) countEl.textContent = `${items.length} Item`;
+
+    if (container) {
+      if (items.length === 0) {
+        container.innerHTML = `<span style="font-size: 0.8rem; color: #94a3b8; font-style: italic;">Belum ada item. Tambahkan di bawah.</span>`;
+      } else {
+        container.innerHTML = items.map(item => `
+          <div class="master-chip">
+            <i class="fa-solid ${item.icon || 'fa-tag'}"></i>
+            <span>${escapeHtml(item.name)}</span>
+            <button type="button" class="btn-chip-delete" onclick="deleteMasterItem('${key}', '${item.id || ''}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')" title="Hapus ${escapeHtml(item.name)}">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        `).join('');
+      }
+    }
+  });
+}
+
+function populateMasterSelectOptions() {
+  // Populate Upload Form
+  populateSelect('upload-category', currentMasterData.categories);
+  populateSelect('upload-job_type', currentMasterData.job_types);
+  populateSelect('upload-experience_level', currentMasterData.experience_levels);
+
+  // Populate Edit Modal Form
+  populateSelect('edit-category', currentMasterData.categories);
+  populateSelect('edit-job_type', currentMasterData.job_types);
+  populateSelect('edit-experience_level', currentMasterData.experience_levels);
+
+  // Populate Location Datalist
+  const datalist = document.getElementById('master-locations-list');
+  if (datalist && currentMasterData.locations) {
+    datalist.innerHTML = currentMasterData.locations.map(loc => `<option value="${escapeHtml(loc.name)}">`).join('');
+  }
+}
+
+function populateSelect(elemId, items) {
+  const el = document.getElementById(elemId);
+  if (!el || !items || items.length === 0) return;
+  const currentVal = el.value;
+  el.innerHTML = items.map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
+  if (currentVal && items.some(i => i.name === currentVal)) {
+    el.value = currentVal;
+  }
+}
+
+function setupMasterData() {
+  const typesMap = [
+    { formId: 'form-add-category', inputId: 'input-new-category', type: 'category' },
+    { formId: 'form-add-job_type', inputId: 'input-new-job_type', type: 'job_type' },
+    { formId: 'form-add-experience_level', inputId: 'input-new-experience_level', type: 'experience_level' },
+    { formId: 'form-add-location', inputId: 'input-new-location', type: 'location' }
+  ];
+
+  typesMap.forEach(({ formId, inputId, type }) => {
+    const form = document.getElementById(formId);
+    const input = document.getElementById(inputId);
+    if (form && input) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const val = input.value.trim();
+        if (!val) return;
+
+        const token = getAdminToken();
+        const btn = form.querySelector('button[type="submit"]');
+        const origBtn = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        try {
+          const res = await fetch('./api/master-data', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ type, name: val })
+          });
+          const json = await res.json();
+          if (json.success) {
+            input.value = '';
+            await loadMasterData();
+          } else {
+            alert(json.message || 'Gagal menambahkan item.');
+          }
+        } catch (err) {
+          alert('Terjadi kesalahan: ' + err.message);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = origBtn;
+        }
+      });
+    }
+  });
+
+  // Reset to default button
+  const resetBtn = document.getElementById('btn-reset-master-data');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', async () => {
+      if (!confirm('Apakah Anda yakin ingin mengembalikan seluruh master data ke pengaturan standar?')) return;
+      const token = getAdminToken();
+      try {
+        const res = await fetch('./api/master-data/reset', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+        if (json.success) {
+          await loadMasterData();
+          alert('Master data berhasil dikembalikan ke pengaturan awal!');
+        }
+      } catch (err) {
+        alert('Gagal mereset: ' + err.message);
+      }
+    });
+  }
+}
+
+window.deleteMasterItem = async function(typeKey, id, name) {
+  if (!confirm(`Hapus "${name}" dari ${typeKey}?`)) return;
+  const token = getAdminToken();
+  try {
+    const res = await fetch('./api/master-data', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ type: typeKey, id, name })
+    });
+    const json = await res.json();
+    if (json.success) {
+      await loadMasterData();
+    } else {
+      alert(json.message || 'Gagal menghapus item.');
+    }
+  } catch (err) {
+    alert('Terjadi kesalahan: ' + err.message);
+  }
 };
 
 function escapeHtml(str) {

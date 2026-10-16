@@ -1,0 +1,24 @@
+# ==============================================================
+# KerjaHub Security & Route Configuration (Apache / XAMPP)
+# ==============================================================
+
+# 1. Prevent Directory Browsing
+Options -Indexes
+
+# 2. Block Access to Sensitive System & Config Files
+<FilesMatch "^(\.env|\.git|server\.js|storage\.js|supabase\.js|package\.json|package-lock\.json|schema\.sql|\.gitignore)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# 3. Block Direct Access to Data & Backend directories
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^data/ - [F,L]
+    RewriteRule ^node_modules/ - [F,L]
+</IfModule>

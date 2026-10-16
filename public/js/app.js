@@ -4,15 +4,19 @@
 // Professional Corporate Presentation (No Emojis & Clean Icons)
 // ==============================================================
 
-const SUPABASE_URL = 'https://nptmawuukuysqzqakwej.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT';
 let sbClient = null;
 
-if (window.supabase && typeof window.supabase.createClient === 'function') {
+async function initSupabaseClient() {
   try {
-    sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  } catch (e) {
-    console.warn('Supabase client init error:', e);
+    const res = await fetch('./api/config');
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.supabaseUrl && cfg.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function') {
+        sbClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+      }
+    }
+  } catch (err) {
+    console.warn('Config fetch error:', err);
   }
 }
 
@@ -218,13 +222,15 @@ let activeFilters = {
 let searchDebounceTimer = null;
 
 // Initialize on DOM Ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
+  await initSupabaseClient();
   setupEventListeners();
   setupCustomDropdowns();
   setupModalDismiss('job-detail-modal');
   setupModalDismiss('poster-lightbox');
   setupCvMatcher();
+  loadMasterDataFilters();
   loadJobs();
 });
 
@@ -391,6 +397,27 @@ function setupEventListeners() {
     clearChipsBtn.addEventListener('click', resetAllFilters);
   }
 
+  // Mobile Filter Drawer Toggle & Apply
+  const mobileFilterToggleBtn = document.getElementById('btn-toggle-filter-mobile');
+  const filterSidebar = document.getElementById('filter-sidebar');
+  const mobileApplyBtn = document.getElementById('btn-apply-filter-mobile');
+
+  if (mobileFilterToggleBtn && filterSidebar) {
+    mobileFilterToggleBtn.addEventListener('click', () => {
+      filterSidebar.classList.toggle('open-mobile');
+      mobileFilterToggleBtn.classList.toggle('active');
+    });
+  }
+
+  if (mobileApplyBtn && filterSidebar) {
+    mobileApplyBtn.addEventListener('click', () => {
+      filterSidebar.classList.remove('open-mobile');
+      if (mobileFilterToggleBtn) mobileFilterToggleBtn.classList.remove('active');
+      const lowonganSec = document.getElementById('lowongan');
+      if (lowonganSec) lowonganSec.scrollIntoView({ behavior: 'smooth' });
+    });
+  }
+
   // Sort
   const sortSelect = document.getElementById('sort-select');
   if (sortSelect) {
@@ -429,14 +456,14 @@ function setupCustomDropdowns() {
 
   dropdowns.forEach(dropdown => {
     const trigger = dropdown.querySelector('.dropdown-trigger');
-    const items = dropdown.querySelectorAll('.dropdown-item');
+    const menu = dropdown.querySelector('.dropdown-menu');
     const selectedText = dropdown.querySelector('.dropdown-selected-text');
     const hiddenInput = dropdown.querySelector('input[type="hidden"]');
 
-    if (trigger) {
+    if (trigger && !trigger._bound) {
+      trigger._bound = true;
       trigger.addEventListener('click', (e) => {
         e.stopPropagation();
-        // Close other dropdowns
         dropdowns.forEach(d => {
           if (d !== dropdown) d.classList.remove('open');
         });
@@ -444,24 +471,25 @@ function setupCustomDropdowns() {
       });
     }
 
-    items.forEach(item => {
-      item.addEventListener('click', (e) => {
+    if (menu && !menu._bound) {
+      menu._bound = true;
+      menu.addEventListener('click', (e) => {
+        const item = e.target.closest('.dropdown-item');
+        if (!item) return;
         e.stopPropagation();
+
         const val = item.dataset.value;
         const textSpan = item.querySelector('.dropdown-item-left span') || item.querySelector('span');
         const text = textSpan ? textSpan.textContent.trim() : val;
 
-        // Mark active item
-        items.forEach(i => i.classList.remove('active'));
+        menu.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
         item.classList.add('active');
 
-        // Update display text and hidden input
         if (selectedText) selectedText.textContent = text;
         if (hiddenInput) hiddenInput.value = val;
 
         dropdown.classList.remove('open');
 
-        // Trigger filter actions based on dropdown id
         if (dropdown.id === 'dropdown-category') {
           activeFilters.category = val;
           syncSidebarInputs();
@@ -474,19 +502,160 @@ function setupCustomDropdowns() {
           applyFiltersAndRender();
         }
       });
-    });
-  });
-
-  // Close when clicking outside
-  document.addEventListener('click', () => {
-    dropdowns.forEach(d => d.classList.remove('open'));
-  });
-
-  // Close on Escape
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      dropdowns.forEach(d => d.classList.remove('open'));
     }
+  });
+
+  if (!window._dropdownGlobalBound) {
+    window._dropdownGlobalBound = true;
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('open'));
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('open'));
+      }
+    });
+  }
+}
+
+// Dynamically Load Master Data into Filters
+async function loadMasterDataFilters() {
+  try {
+    const res = await fetch('./api/master-data');
+    const json = await res.json();
+    if (!json.success || !json.data) return;
+
+    const data = json.data;
+
+    // 1. Category Dropdown Menu (#dropdown-category-menu)
+    const catMenu = document.getElementById('dropdown-category-menu');
+    if (catMenu && data.categories) {
+      let catHtml = `
+        <div class="dropdown-item ${activeFilters.category === 'Semua' ? 'active' : ''}" data-value="Semua">
+          <div class="dropdown-item-left"><i class="fa-solid fa-layer-group"></i><span>Semua Kategori</span></div>
+          <i class="fa-solid fa-check dropdown-check"></i>
+        </div>
+      `;
+      data.categories.forEach(c => {
+        catHtml += `
+          <div class="dropdown-item ${activeFilters.category === c.name ? 'active' : ''}" data-value="${escapeHtml(c.name)}">
+            <div class="dropdown-item-left"><i class="fa-solid ${c.icon || 'fa-tag'}"></i><span>${escapeHtml(c.name)}</span></div>
+            <i class="fa-solid fa-check dropdown-check"></i>
+          </div>
+        `;
+      });
+      catMenu.innerHTML = catHtml;
+    }
+
+    // 2. Location Dropdown Menu (#dropdown-location-menu)
+    const locMenu = document.getElementById('dropdown-location-menu');
+    if (locMenu && data.locations) {
+      let locHtml = `
+        <div class="dropdown-item ${activeFilters.location === 'Semua' ? 'active' : ''}" data-value="Semua">
+          <div class="dropdown-item-left"><i class="fa-solid fa-globe"></i><span>Semua Lokasi</span></div>
+          <i class="fa-solid fa-check dropdown-check"></i>
+        </div>
+      `;
+      data.locations.forEach(l => {
+        locHtml += `
+          <div class="dropdown-item ${activeFilters.location === l.name ? 'active' : ''}" data-value="${escapeHtml(l.name)}">
+            <div class="dropdown-item-left"><i class="fa-solid ${l.icon || 'fa-location-dot'}"></i><span>${escapeHtml(l.name)}</span></div>
+            <i class="fa-solid fa-check dropdown-check"></i>
+          </div>
+        `;
+      });
+      locMenu.innerHTML = locHtml;
+    }
+
+    // 3. Sidebar Categories Filter (#sidebar-filter-categories)
+    const sideCat = document.getElementById('sidebar-filter-categories');
+    if (sideCat && data.categories) {
+      let sideCatHtml = `
+        <label class="filter-checkbox">
+          <input type="radio" name="filter_category" value="Semua" ${activeFilters.category === 'Semua' ? 'checked' : ''}>
+          <span>Semua Kategori</span>
+        </label>
+      `;
+      data.categories.forEach(c => {
+        sideCatHtml += `
+          <label class="filter-checkbox">
+            <input type="radio" name="filter_category" value="${escapeHtml(c.name)}" ${activeFilters.category === c.name ? 'checked' : ''}>
+            <span>${escapeHtml(c.name)}</span>
+          </label>
+        `;
+      });
+      sideCat.innerHTML = sideCatHtml;
+    }
+
+    // 4. Sidebar Job Types Filter (#sidebar-filter-job-types)
+    const sideTypes = document.getElementById('sidebar-filter-job-types');
+    if (sideTypes && data.job_types) {
+      let sideTypesHtml = `
+        <label class="filter-checkbox">
+          <input type="radio" name="filter_type" value="Semua" ${activeFilters.job_type === 'Semua' ? 'checked' : ''}>
+          <span>Semua Tipe</span>
+        </label>
+      `;
+      data.job_types.forEach(t => {
+        sideTypesHtml += `
+          <label class="filter-checkbox">
+            <input type="radio" name="filter_type" value="${escapeHtml(t.name)}" ${activeFilters.job_type === t.name ? 'checked' : ''}>
+            <span>${escapeHtml(t.name)}</span>
+          </label>
+        `;
+      });
+      sideTypes.innerHTML = sideTypesHtml;
+    }
+
+    // 5. Sidebar Experience Levels Filter (#sidebar-filter-experience-levels)
+    const sideExp = document.getElementById('sidebar-filter-experience-levels');
+    if (sideExp && data.experience_levels) {
+      let sideExpHtml = `
+        <label class="filter-checkbox">
+          <input type="radio" name="filter_experience" value="Semua" ${activeFilters.experience === 'Semua' ? 'checked' : ''}>
+          <span>Semua Level</span>
+        </label>
+      `;
+      data.experience_levels.forEach(e => {
+        sideExpHtml += `
+          <label class="filter-checkbox">
+            <input type="radio" name="filter_experience" value="${escapeHtml(e.name)}" ${activeFilters.experience === e.name ? 'checked' : ''}>
+            <span>${escapeHtml(e.name)}</span>
+          </label>
+        `;
+      });
+      sideExp.innerHTML = sideExpHtml;
+    }
+
+    setupCustomDropdowns();
+    setupDynamicFilterListeners();
+
+  } catch (err) {
+    console.error('Failed to load master data filters:', err);
+  }
+}
+
+function setupDynamicFilterListeners() {
+  document.querySelectorAll('input[name="filter_category"]').forEach(r => {
+    r.onchange = (e) => {
+      activeFilters.category = e.target.value;
+      syncSidebarInputs();
+      applyFiltersAndRender();
+    };
+  });
+
+  document.querySelectorAll('input[name="filter_type"]').forEach(r => {
+    r.onchange = (e) => {
+      activeFilters.job_type = e.target.value;
+      applyFiltersAndRender();
+    };
+  });
+
+  document.querySelectorAll('input[name="filter_experience"]').forEach(r => {
+    r.onchange = (e) => {
+      activeFilters.experience = e.target.value;
+      applyFiltersAndRender();
+    };
   });
 }
 
@@ -860,6 +1029,8 @@ function renderActiveFilterChips() {
     });
   }
 
+  const mftBadge = document.getElementById('mft-active-badge');
+
   if (chips.length > 0) {
     bar.style.display = 'flex';
     chipsContainer.innerHTML = chips.map((c, idx) => `
@@ -869,10 +1040,18 @@ function renderActiveFilterChips() {
       </div>
     `).join('');
     window._chipActions = chips.map(c => c.action);
+    if (mftBadge) {
+      mftBadge.textContent = `${chips.length} Aktif`;
+      mftBadge.style.color = 'var(--primary)';
+    }
   } else {
     bar.style.display = 'none';
     chipsContainer.innerHTML = '';
     window._chipActions = [];
+    if (mftBadge) {
+      mftBadge.textContent = 'Semua';
+      mftBadge.style.color = 'var(--text-muted)';
+    }
   }
 }
 
@@ -1475,11 +1654,7 @@ window.triggerWhatsAppChat = function(phone, companyName, jobTitle) {
     `Halo Bapak/Ibu HRD ${companyName || 'Perusahaan'},\n\nPerkenalkan saya [Nama Anda]. Saya melihat poster informasi lowongan untuk posisi ${jobTitle || 'Pekerjaan'} yang dipublikasikan melalui KerjaHub.\n\nSaya bermaksud mengajukan lamaran kerja untuk posisi tersebut dan siap melampirkan berkas CV serta Portofolio terbaru saya. Mohon informasi mengenai tahapan seleksi selanjutnya.\n\nTerima kasih.`
   );
 
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  const waUrl = isMobile
-    ? `https://api.whatsapp.com/send?phone=${clean}&text=${textMsg}`
-    : `https://web.whatsapp.com/send?phone=${clean}&text=${textMsg}`;
-
+  const waUrl = `https://api.whatsapp.com/send?phone=${clean}&text=${textMsg}`;
   const win = window.open(waUrl, '_blank', 'noopener,noreferrer');
   if (!win || win.closed || typeof win.closed === 'undefined') {
     // Popup was blocked or desktop protocol, fallback
