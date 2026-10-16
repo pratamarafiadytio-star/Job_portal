@@ -25,7 +25,7 @@ function getAdminToken() {
 // ==============================================================
 // GOOGLE DORKING QUERY GENERATOR (Client-Side Real-Time Engine)
 // ==============================================================
-function generateGoogleDorkQuery({ kata_kunci = '', lokasi = '', platforms = [] } = {}) {
+function generateGoogleDorkQuery({ kata_kunci = '', lokasi = '', platforms = [], timeframe = '7d' } = {}) {
   const platformMap = {
     linkedin: 'site:linkedin.com/posts',
     instagram: 'site:instagram.com',
@@ -62,6 +62,19 @@ function generateGoogleDorkQuery({ kata_kunci = '', lokasi = '', platforms = [] 
   const cleanKw = (kata_kunci || '').trim();
   const cleanLoc = (lokasi || '').trim();
 
+  let timeClause = '';
+  let googleTbs = '';
+  if (timeframe === '24h' || timeframe === '1d') {
+    timeClause = 'when:24h';
+    googleTbs = '&tbs=qdr:d';
+  } else if (timeframe === '7d' || timeframe === 'week') {
+    timeClause = 'when:7d';
+    googleTbs = '&tbs=qdr:w';
+  } else if (timeframe === '30d' || timeframe === 'month') {
+    timeClause = 'when:30d';
+    googleTbs = '&tbs=qdr:m';
+  }
+
   let queryDork = `${querySite} "lowongan"`;
   if (cleanKw) {
     queryDork += ` "${cleanKw}"`;
@@ -69,13 +82,17 @@ function generateGoogleDorkQuery({ kata_kunci = '', lokasi = '', platforms = [] 
   if (cleanLoc) {
     queryDork += ` "${cleanLoc}"`;
   }
+  if (timeClause) {
+    queryDork += ` ${timeClause}`;
+  }
 
-  // Rule 4: encodeURIComponent
-  const urlGoogle = `https://www.google.com/search?q=${encodeURIComponent(queryDork)}`;
+  // Rule 4: encodeURIComponent with Google recency parameter
+  const urlGoogle = `https://www.google.com/search?q=${encodeURIComponent(queryDork)}${googleTbs}`;
 
   return {
     query_dork: queryDork,
-    url_google: urlGoogle
+    url_google: urlGoogle,
+    timeframe: timeframe || '7d'
   };
 }
 
@@ -901,15 +918,22 @@ function setupSosmedScout() {
     return plats;
   }
 
+  function getSelectedTimeframe() {
+    const checkedRadio = document.querySelector('input[name="scout_timeframe"]:checked');
+    return checkedRadio ? checkedRadio.value : '7d';
+  }
+
   function refreshLiveDork() {
     const kw = (inputKw?.value || '').trim();
     const loc = (inputLoc?.value || '').trim();
     const plats = getSelectedPlatforms();
+    const tf = getSelectedTimeframe();
 
     const dork = generateGoogleDorkQuery({
       kata_kunci: kw,
       lokasi: loc,
-      platforms: plats
+      platforms: plats,
+      timeframe: tf
     });
 
     if (liveDorkQuery) liveDorkQuery.value = dork.query_dork;
@@ -931,6 +955,27 @@ function setupSosmedScout() {
     }
   });
 
+  // Timeframe radio change listeners
+  const timeframeRadios = document.querySelectorAll('input[name="scout_timeframe"]');
+  timeframeRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('.timeframe-pill').forEach(pill => {
+        pill.classList.remove('active');
+        pill.style.borderColor = '#cbd5e1';
+        pill.style.background = '#ffffff';
+        pill.style.color = '#475569';
+      });
+      const activePill = document.getElementById(`pill-time-${radio.value}`);
+      if (activePill) {
+        activePill.classList.add('active');
+        activePill.style.borderColor = '#6366f1';
+        activePill.style.background = '#eef2ff';
+        activePill.style.color = '#4338ca';
+      }
+      refreshLiveDork();
+    });
+  });
+
   // Live input typing listeners
   if (inputKw) inputKw.addEventListener('input', refreshLiveDork);
   if (inputLoc) inputLoc.addEventListener('input', refreshLiveDork);
@@ -948,7 +993,6 @@ function setupSosmedScout() {
           btnCopyDork.innerHTML = orig;
         }, 2000);
       } catch (e) {
-        // Fallback for older browsers
         if (liveDorkQuery) {
           liveDorkQuery.select();
           document.execCommand('copy');
@@ -985,13 +1029,14 @@ function setupSosmedScout() {
       const keyword = (inputKw?.value || '').trim() || 'Software Engineer';
       const location = (inputLoc?.value || '').trim() || 'Indonesia';
       const platforms = getSelectedPlatforms();
+      const timeframe = getSelectedTimeframe();
 
       if (platforms.length === 0) {
         alert('Harap pilih minimal satu media sosial (LinkedIn, Instagram, atau Facebook)!');
         return;
       }
 
-      runSosmedScoutGenerator(keyword, location, platforms);
+      runSosmedScoutGenerator(keyword, location, platforms, timeframe);
     });
   }
 
@@ -1007,7 +1052,7 @@ function setupSosmedScout() {
   }
 }
 
-async function runSosmedScoutGenerator(keyword, location, platforms) {
+async function runSosmedScoutGenerator(keyword, location, platforms, timeframe = '7d') {
   const resultsArea = document.getElementById('scout-results-area');
   const titleEl = document.getElementById('scout-results-summary-title');
   const deepLinksContainer = document.getElementById('scout-deep-links-container');
@@ -1016,7 +1061,8 @@ async function runSosmedScoutGenerator(keyword, location, platforms) {
   if (!resultsArea || !deepLinksContainer || !postingsContainer) return;
 
   resultsArea.style.display = 'block';
-  if (titleEl) titleEl.textContent = `Mencari Postingan Real-Time: "${keyword}" di ${location}...`;
+  const tfLabel = timeframe === '24h' ? '24 Jam Terakhir' : (timeframe === '30d' ? '30 Hari Terakhir' : '7 Hari Terakhir');
+  if (titleEl) titleEl.textContent = `Mencari Postingan Terbaru (${tfLabel}): "${keyword}" di ${location}...`;
 
   // Deep search shortcut links
   const encKw = encodeURIComponent(keyword);
@@ -1029,15 +1075,15 @@ async function runSosmedScoutGenerator(keyword, location, platforms) {
       platform: 'LinkedIn',
       icon: 'fa-brands fa-linkedin',
       color: '#0a66c2',
-      label: 'LinkedIn Jobs Search',
-      url: `https://www.linkedin.com/jobs/search/?keywords=${encKw}&location=${encLoc}`
+      label: 'LinkedIn Jobs Search (Terbaru)',
+      url: `https://www.linkedin.com/jobs/search/?keywords=${encKw}&location=${encLoc}&f_TPR=r604800`
     });
     deepLinks.push({
       platform: 'LinkedIn',
       icon: 'fa-brands fa-linkedin',
       color: '#0a66c2',
       label: 'LinkedIn Feed Posts Loker',
-      url: `https://www.linkedin.com/search/results/content/?keywords=${encodeURIComponent(keyword + ' loker ' + location)}&origin=GLOBAL_SEARCH_HEADER&sortBy=%22date_posted%22`
+      url: `https://www.linkedin.com/search/results/content/?keywords=${encodeURIComponent(keyword + ' loker ' + location)}&origin=GLOBAL_SEARCH_HEADER&sortBy=%22date_posted%22&datePosted=%22past-week%22`
     });
   }
 
@@ -1070,17 +1116,17 @@ async function runSosmedScoutGenerator(keyword, location, platforms) {
       platform: 'Facebook',
       icon: 'fa-brands fa-facebook',
       color: '#1877f2',
-      label: 'Facebook Postingan Loker',
-      url: `https://www.facebook.com/search/posts/?q=${encodeURIComponent('loker ' + keyword + ' ' + location)}`
+      label: 'Facebook Postingan Loker Terbaru',
+      url: `https://www.facebook.com/search/posts/?q=${encodeURIComponent('loker ' + keyword + ' ' + location + ' terbaru')}`
     });
   }
 
-  const dorkObj = generateGoogleDorkQuery({ kata_kunci: keyword, lokasi: location, platforms });
+  const dorkObj = generateGoogleDorkQuery({ kata_kunci: keyword, lokasi: location, platforms, timeframe });
   deepLinks.push({
     platform: 'Multi-Sosmed',
     icon: 'fa-brands fa-google',
     color: '#4f46e5',
-    label: `Google Dork (${platforms.map(p => p.toUpperCase()).join(' & ')})`,
+    label: `Google Dork (${platforms.map(p => p.toUpperCase()).join(' & ')}) • ${tfLabel}`,
     url: dorkObj.url_google
   });
 
@@ -1098,8 +1144,8 @@ async function runSosmedScoutGenerator(keyword, location, platforms) {
   postingsContainer.innerHTML = `
     <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
       <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2.2rem; color: #6366f1; margin-bottom: 14px;"></i>
-      <h4 style="font-family: var(--font-heading); color: #1e293b; margin-bottom: 6px;">Mengambil Postingan Asli & Real-Time...</h4>
-      <p style="font-size: 0.84rem; color: #64748b;">Memindai lowongan aktif di LinkedIn, Instagram, dan Facebook untuk "${escapeHtml(keyword)}" di ${escapeHtml(location)}.</p>
+      <h4 style="font-family: var(--font-heading); color: #1e293b; margin-bottom: 6px;">Memindai Postingan Terbaru & Menyingkirkan Lowongan Kedaluwarsa...</h4>
+      <p style="font-size: 0.84rem; color: #64748b;">Memfilter postingan aktif (${tfLabel}) di LinkedIn, Instagram, dan Facebook untuk "${escapeHtml(keyword)}" di ${escapeHtml(location)}.</p>
     </div>
   `;
   resultsArea.scrollIntoView({ behavior: 'smooth' });
@@ -1108,17 +1154,17 @@ async function runSosmedScoutGenerator(keyword, location, platforms) {
   try {
     const token = getAdminToken();
     const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-    const res = await fetch(`./api/admin/scout-jobs?keyword=${encKw}&location=${encLoc}&platforms=${platforms.join(',')}`, { headers });
+    const res = await fetch(`./api/admin/scout-jobs?keyword=${encKw}&location=${encLoc}&platforms=${platforms.join(',')}&timeframe=${encodeURIComponent(timeframe)}`, { headers });
     const json = await res.json();
 
     if (!json.success || !json.data || json.data.length === 0) {
-      if (titleEl) titleEl.textContent = `Belum Menemukan Postingan Langsung untuk "${keyword}"`;
+      if (titleEl) titleEl.textContent = `Belum Menemukan Postingan Baru (${tfLabel}) untuk "${keyword}"`;
       postingsContainer.innerHTML = `
         <div style="grid-column: 1 / -1; text-align: center; padding: 36px 20px; background: #ffffff; border-radius: 12px; border: 1px dashed #cbd5e1;">
-          <i class="fa-solid fa-bullhorn" style="font-size: 2rem; color: #94a3b8; margin-bottom: 12px;"></i>
-          <h4 style="color: #334155; margin-bottom: 6px;">Tidak ada postingan langsung yang sesuai</h4>
-          <p style="font-size: 0.84rem; color: #64748b; max-width: 500px; margin: 0 auto 16px;">
-            Coba gunakan kata kunci yang lebih umum (misal: "Designer", "Admin", "Developer") atau klik salah satu tautan pencarian langsung di atas.
+          <i class="fa-solid fa-clock-rotate-left" style="font-size: 2rem; color: #94a3b8; margin-bottom: 12px;"></i>
+          <h4 style="color: #334155; margin-bottom: 6px;">Tidak ada postingan baru pada rentang ${tfLabel}</h4>
+          <p style="font-size: 0.84rem; color: #64748b; max-width: 520px; margin: 0 auto 16px;">
+            Sistem otomatis menolak postingan lama yang sudah kedaluwarsa. Coba ganti rentang waktu ke "30 Hari Terakhir" atau klik salah satu tautan pencarian langsung di atas.
           </p>
         </div>
       `;
@@ -1128,16 +1174,16 @@ async function runSosmedScoutGenerator(keyword, location, platforms) {
     const realPosts = json.data;
     window._scoutPostings = realPosts;
 
-    if (titleEl) titleEl.textContent = `Ditemukan ${realPosts.length} Postingan Real-Time untuk "${keyword}" di ${location}`;
+    if (titleEl) titleEl.textContent = `Ditemukan ${realPosts.length} Postingan Terbaru (${tfLabel}) untuk "${keyword}" di ${location}`;
 
     postingsContainer.innerHTML = realPosts.map((post, idx) => `
       <div class="scout-card">
-        <div class="scout-card-header">
+        <div class="scout-card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <span class="platform-badge ${post.platformClass}">
             <i class="${post.platformIcon}"></i> ${post.platformLabel}
           </span>
-          <span style="font-size: 0.72rem; color: #059669; font-weight: 700;">
-            <i class="fa-solid fa-circle-check"></i> Postingan Asli
+          <span style="font-size: 0.73rem; background: ${post.badgeColor || '#6366f1'}15; color: ${post.badgeColor || '#4338ca'}; border: 1px solid ${post.badgeColor || '#6366f1'}35; font-weight: 700; padding: 3px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
+            <i class="fa-regular fa-clock"></i> ${escapeHtml(post.timeAgo || 'Baru Saja')}
           </span>
         </div>
 

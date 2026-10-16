@@ -551,9 +551,9 @@ app.post('/api/master-data/reset', requireAdminAuth, async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// GOOGLE DORKING QUERY GENERATOR (Sosmed Job Search)
+// GOOGLE DORKING QUERY GENERATOR (Sosmed Job Search - Recent Postings)
 // -------------------------------------------------------------
-function generateGoogleDorkQuery({ kata_kunci = '', lokasi = '', platforms = [] } = {}) {
+function generateGoogleDorkQuery({ kata_kunci = '', lokasi = '', platforms = [], timeframe = '7d' } = {}) {
   const platformMap = {
     linkedin: 'site:linkedin.com/posts',
     instagram: 'site:instagram.com',
@@ -581,14 +581,25 @@ function generateGoogleDorkQuery({ kata_kunci = '', lokasi = '', platforms = [] 
     ];
   }
 
-  // Rule 2: 1 platform -> single site, >1 platform -> (site1 OR site2)
   const querySite = selectedSites.length === 1
     ? selectedSites[0]
     : `(${selectedSites.join(' OR ')})`;
 
-  // Rule 3: Format Query Akhir: [QUERY_SITE] "lowongan" "[KATA_KUNCI]" "[LOKASI]"
   const cleanKw = (kata_kunci || '').trim();
   const cleanLoc = (lokasi || '').trim();
+
+  let timeClause = '';
+  let googleTbs = '';
+  if (timeframe === '24h' || timeframe === '1d') {
+    timeClause = 'when:24h';
+    googleTbs = '&tbs=qdr:d';
+  } else if (timeframe === '7d' || timeframe === 'week') {
+    timeClause = 'when:7d';
+    googleTbs = '&tbs=qdr:w';
+  } else if (timeframe === '30d' || timeframe === 'month') {
+    timeClause = 'when:30d';
+    googleTbs = '&tbs=qdr:m';
+  }
 
   let queryDork = `${querySite} "lowongan"`;
   if (cleanKw) {
@@ -597,23 +608,123 @@ function generateGoogleDorkQuery({ kata_kunci = '', lokasi = '', platforms = [] 
   if (cleanLoc) {
     queryDork += ` "${cleanLoc}"`;
   }
+  if (timeClause) {
+    queryDork += ` ${timeClause}`;
+  }
 
-  // Rule 4: url_google with encodeURIComponent
-  const urlGoogle = `https://www.google.com/search?q=${encodeURIComponent(queryDork)}`;
+  const urlGoogle = `https://www.google.com/search?q=${encodeURIComponent(queryDork)}${googleTbs}`;
 
   return {
     query_dork: queryDork,
-    url_google: urlGoogle
+    url_google: urlGoogle,
+    timeframe: timeframe || '7d'
+  };
+}
+
+// Helper: thoroughly clean HTML tags & entities from Google RSS snippets
+function cleanHtmlSnippet(raw) {
+  if (!raw) return '';
+  return raw
+    .replace(/&lt;[\s\S]*?&gt;/gi, ' ')
+    .replace(/<[\s\S]*?>/gi, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Helper: Calculate human-readable time-ago and freshness badge
+function formatTimeAgo(pubDateStr) {
+  if (!pubDateStr) return { text: 'Baru saja', isFresh: true, badge: 'Baru', badgeColor: '#10b981', diffDays: 0, timestamp: Date.now() };
+  const pubTime = new Date(pubDateStr).getTime();
+  if (isNaN(pubTime)) return { text: 'Baru saja', isFresh: true, badge: 'Baru', badgeColor: '#10b981', diffDays: 0, timestamp: Date.now() };
+
+  const diffMs = Date.now() - pubTime;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 60) {
+    return {
+      text: diffMins <= 1 ? '1 menit lalu' : `${diffMins} menit lalu`,
+      isFresh: true,
+      badge: 'Baru Saja',
+      badgeColor: '#10b981',
+      diffDays,
+      diffHours,
+      timestamp: pubTime
+    };
+  }
+  if (diffHours < 24) {
+    return {
+      text: `${diffHours} jam lalu`,
+      isFresh: true,
+      badge: 'Hari Ini',
+      badgeColor: '#10b981',
+      diffDays,
+      diffHours,
+      timestamp: pubTime
+    };
+  }
+  if (diffDays === 1) {
+    return {
+      text: '1 hari lalu (Kemarin)',
+      isFresh: true,
+      badge: 'Kemarin',
+      badgeColor: '#059669',
+      diffDays,
+      diffHours,
+      timestamp: pubTime
+    };
+  }
+  if (diffDays < 7) {
+    return {
+      text: `${diffDays} hari lalu (Minggu ini)`,
+      isFresh: true,
+      badge: `${diffDays}h lalu`,
+      badgeColor: '#6366f1',
+      diffDays,
+      diffHours,
+      timestamp: pubTime
+    };
+  }
+  if (diffDays < 30) {
+    return {
+      text: `${diffDays} hari lalu`,
+      isFresh: false,
+      badge: `${Math.floor(diffDays / 7)} mgg lalu`,
+      badgeColor: '#f59e0b',
+      diffDays,
+      diffHours,
+      timestamp: pubTime
+    };
+  }
+  return {
+    text: `${Math.floor(diffDays / 30)} bulan lalu`,
+    isFresh: false,
+    badge: 'Arsip Lama',
+    badgeColor: '#94a3b8',
+    diffDays,
+    diffHours,
+    timestamp: pubTime
   };
 }
 
 // -------------------------------------------------------------
 // HELPER: Fetch Real Social Recruitment Postings (LinkedIn, IG, FB)
+// Strict recency filtering to avoid expired/stale postings
 // -------------------------------------------------------------
-async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', 'instagram', 'facebook']) {
+async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', 'instagram', 'facebook'], timeframe = '7d') {
   const results = [];
   const cleanKw = (keyword || 'Software Engineer').trim();
   const cleanLoc = (location || 'Indonesia').trim();
+
+  const timeClause = (timeframe === 'all') ? '' : `when:${timeframe || '7d'}`;
+  const maxAgeDays = timeframe === '24h' ? 2 : (timeframe === '30d' ? 45 : 14); // 7d default caps at 14 days max
 
   for (const plat of platforms) {
     let siteQuery = '';
@@ -621,7 +732,7 @@ async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', '
     else if (plat === 'instagram') siteQuery = 'site:instagram.com';
     else if (plat === 'facebook') siteQuery = 'site:facebook.com';
 
-    const fullQuery = `${siteQuery} ("lowongan" OR "hiring" OR "loker") ${cleanKw} ${cleanLoc}`;
+    const fullQuery = `${siteQuery} ("lowongan" OR "hiring" OR "loker") "${cleanKw}" ${cleanLoc} ${timeClause}`.trim();
     const feedUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(fullQuery)}&hl=id&gl=ID&ceid=ID:id`;
 
     try {
@@ -634,12 +745,19 @@ async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', '
       const xml = await res.text();
       const items = [...xml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<source[^>]*>([\s\S]*?)<\/source>[\s\S]*?<\/item>/g)];
 
-      for (const m of items.slice(0, 4)) {
-        let rawTitle = m[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+      for (const m of items.slice(0, 8)) {
+        let rawTitle = cleanHtmlSnippet(m[1]);
         const link = m[2];
         const pubDate = m[3];
-        const rawDesc = m[4].replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
+        let rawDesc = cleanHtmlSnippet(m[4]);
         const source = m[5];
+
+        const timeInfo = formatTimeAgo(pubDate);
+
+        // Filter out stale / expired postings
+        if (timeframe !== 'all' && timeInfo.diffDays > maxAgeDays) {
+          continue;
+        }
 
         let comp = source || (plat === 'linkedin' ? 'LinkedIn Recruiter' : plat === 'instagram' ? 'Instagram Loker' : 'Facebook Group');
         let cleanTitle = rawTitle;
@@ -652,6 +770,9 @@ async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', '
           cleanTitle = cleanTitle.replace(/\s+-\s+(LinkedIn|Facebook|Instagram|.*)$/i, '').trim();
           if (cleanTitle.length > 80) cleanTitle = cleanTitle.substring(0, 80) + '...';
         }
+
+        // Clean description of redundant trailing source name
+        rawDesc = rawDesc.replace(/\s+-\s+(LinkedIn|Facebook|Instagram|Google News)$/i, '').trim();
 
         const emailMatch = rawDesc.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
         const waMatch = rawDesc.match(/(\+?62|08)[0-9\-\s]{8,15}/);
@@ -678,7 +799,11 @@ async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', '
           sourceName: `${comp} • ${source || plat.toUpperCase()}`,
           url: link,
           pubDate,
-          timeAgo: 'Baru saja',
+          pubTimestamp: timeInfo.timestamp,
+          timeAgo: timeInfo.text,
+          timeBadge: timeInfo.badge,
+          badgeColor: timeInfo.badgeColor,
+          isFresh: timeInfo.isFresh,
           description: rawDesc.substring(0, 220) + (rawDesc.length > 220 ? '...' : ''),
           whatsapp: waMatch ? waMatch[0].replace(/[\s\-]/g, '') : '',
           email: emailMatch ? emailMatch[1] : '',
@@ -690,10 +815,10 @@ async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', '
     }
   }
 
-  // Fallback: if zero results found, query general RSS so admin always gets real results!
+  // Fallback: if zero results found, query general RSS with recency filter so admin gets real fresh results!
   if (results.length === 0) {
     try {
-      const generalUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(`lowongan ${cleanKw} ${cleanLoc}`)}&hl=id&gl=ID&ceid=ID:id`;
+      const generalUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(`("lowongan" OR "loker") "${cleanKw}" ${cleanLoc} ${timeClause}`.trim())}&hl=id&gl=ID&ceid=ID:id`;
       const res = await fetch(generalUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -702,12 +827,17 @@ async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', '
       if (res.ok) {
         const xml = await res.text();
         const items = [...xml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<source[^>]*>([\s\S]*?)<\/source>[\s\S]*?<\/item>/g)];
-        for (const m of items.slice(0, 6)) {
-          let rawTitle = m[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+        for (const m of items.slice(0, 8)) {
+          let rawTitle = cleanHtmlSnippet(m[1]);
           const link = m[2];
           const pubDate = m[3];
-          const rawDesc = m[4].replace(/<[^>]+>/g, ' ').trim();
+          let rawDesc = cleanHtmlSnippet(m[4]);
           const source = m[5] || 'Portal Loker';
+          const timeInfo = formatTimeAgo(pubDate);
+
+          if (timeframe !== 'all' && timeInfo.diffDays > maxAgeDays) {
+            continue;
+          }
 
           results.push({
             id: 'scout_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
@@ -721,8 +851,12 @@ async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', '
             sourceName: `${source} • Postingan Resmi`,
             url: link,
             pubDate,
-            timeAgo: 'Baru saja',
-            description: rawDesc.substring(0, 220) + '...',
+            pubTimestamp: timeInfo.timestamp,
+            timeAgo: timeInfo.text,
+            timeBadge: timeInfo.badge,
+            badgeColor: timeInfo.badgeColor,
+            isFresh: timeInfo.isFresh,
+            description: rawDesc.substring(0, 220) + (rawDesc.length > 220 ? '...' : ''),
             whatsapp: '',
             email: '',
             salary: 'Kompetitif (Sesuai Pengalaman)'
@@ -732,6 +866,9 @@ async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', '
     } catch (err) {}
   }
 
+  // Sort strictly by timestamp descending (Newest first!)
+  results.sort((a, b) => (b.pubTimestamp || 0) - (a.pubTimestamp || 0));
+
   return results;
 }
 
@@ -740,13 +877,15 @@ async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', '
 // -------------------------------------------------------------
 app.get('/api/admin/scout-jobs', requireAdminAuth, async (req, res) => {
   try {
-    const { keyword, location, platforms } = req.query;
+    const { keyword, location, platforms, timeframe } = req.query;
     const platArray = platforms ? platforms.split(',').map(p => p.trim()).filter(Boolean) : ['linkedin', 'instagram', 'facebook'];
-    const jobs = await fetchRealSocialJobs(keyword, location, platArray);
+    const tf = (timeframe || '7d').trim();
+    const jobs = await fetchRealSocialJobs(keyword, location, platArray, tf);
     res.json({
       success: true,
       keyword: keyword || 'Software Engineer',
       location: location || 'Indonesia',
+      timeframe: tf,
       count: jobs.length,
       data: jobs
     });
@@ -763,8 +902,9 @@ app.all(['/api/admin/generate-dork', '/api/generate-dork'], (req, res) => {
   const kata_kunci = req.body?.kata_kunci || req.body?.keyword || req.query?.kata_kunci || req.query?.keyword || '';
   const lokasi = req.body?.lokasi || req.body?.location || req.query?.lokasi || req.query?.location || '';
   const platforms = req.body?.platforms || req.query?.platforms || ['linkedin', 'instagram', 'facebook'];
+  const timeframe = req.body?.timeframe || req.query?.timeframe || '7d';
 
-  const result = generateGoogleDorkQuery({ kata_kunci, lokasi, platforms });
+  const result = generateGoogleDorkQuery({ kata_kunci, lokasi, platforms, timeframe });
   res.json(result);
 });
 

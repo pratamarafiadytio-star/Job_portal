@@ -588,6 +588,40 @@
                   </div>
                 </div>
 
+                <!-- RECENCY & TIMEFRAME SELECTOR (ANTI-EXPIRED FILTER) -->
+                <div class="scout-timeframe-bar" style="margin-top: 14px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+                    <div style="font-size: 0.82rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                      <i class="fa-solid fa-clock-rotate-left" style="color: #6366f1;"></i> Filter Waktu Postingan (Hanya Lowongan Terbaru):
+                    </div>
+                    <span style="font-size: 0.74rem; color: #059669; font-weight: 600;">
+                      <i class="fa-solid fa-shield-halved"></i> Bebas Lowongan Kedaluwarsa
+                    </span>
+                  </div>
+
+                  <div class="timeframe-pills-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <label class="timeframe-pill active" id="pill-time-7d" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; cursor: pointer; border: 1.5px solid #6366f1; background: #eef2ff; color: #4338ca; transition: all 0.2s;">
+                      <input type="radio" name="scout_timeframe" value="7d" checked style="display: none;">
+                      <i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> 7 Hari Terakhir (Sangat Baru & Masih Buka)
+                    </label>
+
+                    <label class="timeframe-pill" id="pill-time-24h" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; cursor: pointer; border: 1.5px solid #cbd5e1; background: #ffffff; color: #475569; transition: all 0.2s;">
+                      <input type="radio" name="scout_timeframe" value="24h" style="display: none;">
+                      <i class="fa-solid fa-fire" style="color: #ef4444;"></i> 24 Jam Terakhir (Hari Ini)
+                    </label>
+
+                    <label class="timeframe-pill" id="pill-time-30d" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; cursor: pointer; border: 1.5px solid #cbd5e1; background: #ffffff; color: #475569; transition: all 0.2s;">
+                      <input type="radio" name="scout_timeframe" value="30d" style="display: none;">
+                      <i class="fa-solid fa-calendar-days" style="color: #3b82f6;"></i> 30 Hari Terakhir (Bulan Ini)
+                    </label>
+
+                    <label class="timeframe-pill" id="pill-time-all" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: 1.5px solid #cbd5e1; background: #ffffff; color: #64748b; transition: all 0.2s;">
+                      <input type="radio" name="scout_timeframe" value="all" style="display: none;">
+                      <i class="fa-solid fa-globe" style="color: #64748b;"></i> Semua Waktu
+                    </label>
+                  </div>
+                </div>
+
                 <!-- GOOGLE DORKING GENERATOR LIVE BOX -->
                 <div class="google-dork-card" style="margin-top: 18px; padding: 16px 18px; background: #ffffff; border: 1.5px solid #e0e7ff; border-radius: 12px; box-shadow: 0 2px 6px rgba(99,102,241,0.05);">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
