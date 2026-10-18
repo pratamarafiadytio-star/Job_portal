@@ -230,10 +230,36 @@ function saveAllJobs(jobs) {
 }
 
 // Storage Operations
+function enrichPlatform(j) {
+  if (!j) return j;
+  let p = j.source_platform;
+  let l = j.source_label;
+  if (!p) {
+    const raw = String(j.contact_value || '') + ' ' + String(j.website_url || '');
+    const desc = String(j.description || '') + ' ' + String(j.title || '');
+    if (raw.includes('linkedin.com') || desc.includes('LinkedIn') || desc.includes('#LokerLinkedIn')) {
+      p = 'linkedin';
+      l = 'LinkedIn Recruiter';
+    } else if (raw.includes('instagram.com') || desc.includes('Instagram') || desc.includes('#LokerInstagram')) {
+      p = 'instagram';
+      l = 'Instagram Karir';
+    } else if (raw.includes('facebook.com') || desc.includes('Facebook') || desc.includes('#LokerFacebook')) {
+      p = 'facebook';
+      l = 'Facebook Recruitment';
+    } else {
+      p = 'official';
+      l = 'Resmi BUMN & Swasta';
+    }
+  }
+  j.source_platform = p;
+  j.source_label = l || (p === 'linkedin' ? 'LinkedIn Recruiter' : p === 'instagram' ? 'Instagram Karir' : p === 'facebook' ? 'Facebook Loker' : 'Resmi BUMN & Swasta');
+  return j;
+}
+
 const storage = {
   // Get all jobs with optional filters
-  getJobs({ search, category, job_type, location, status, sort } = {}) {
-    let jobs = getAllJobs();
+  getJobs({ search, category, job_type, location, status, sort, platform } = {}) {
+    let jobs = getAllJobs().map(enrichPlatform);
 
     // Filter by status (default includes active, expired, and closed so locked jobs show to visitors)
     if (status && status !== 'all') {
@@ -253,6 +279,11 @@ const storage = {
     if (location && location !== 'Semua') {
       const locLower = location.toLowerCase();
       jobs = jobs.filter(j => j.location && j.location.toLowerCase().includes(locLower));
+    }
+
+    if (platform && platform !== 'Semua' && platform !== 'all') {
+      const plat = platform.toLowerCase();
+      jobs = jobs.filter(j => j.source_platform === plat);
     }
 
     if (search && search.trim() !== '') {
@@ -326,10 +357,11 @@ const storage = {
       email: email,
       website_url: web,
       contact_type: jobData.contact_type || (wa ? 'whatsapp' : (email ? 'email' : 'link')),
-      contact_value: contactVal,
       deadline: jobData.deadline || '',
       status: jobData.status || 'active',
       is_featured: jobData.is_featured ? 1 : 0,
+      source_platform: jobData.source_platform || (web.includes('linkedin.com') ? 'linkedin' : (web.includes('instagram.com') ? 'instagram' : (web.includes('facebook.com') ? 'facebook' : 'official'))),
+      source_label: jobData.source_label || (web.includes('linkedin.com') ? 'LinkedIn Recruiter' : (web.includes('instagram.com') ? 'Instagram Karir' : (web.includes('facebook.com') ? 'Facebook Loker' : 'Resmi BUMN & Korporasi'))),
       views_count: 0,
       created_at: new Date().toISOString()
     };

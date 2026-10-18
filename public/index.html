@@ -165,16 +165,19 @@
         </button>
       </div>
 
-      <!-- TRENDING SEARCH CHIPS -->
+      <!-- TRENDING SEARCH CHIPS & PLATFORMS -->
       <div class="trending-keywords" id="kategori-section">
-        <span class="trending-label"><i class="fa-solid fa-arrow-trend-up"></i> Topik Pencarian Populer:</span>
-        <button class="chip-keyword" data-keyword="React"><i class="fa-brands fa-react"></i> React / Web Development</button>
+        <span class="trending-label"><i class="fa-solid fa-arrow-trend-up"></i> Topik & Sumber Medsos:</span>
+        <button class="chip-keyword" id="btn-search-all-cat" data-keyword="" title="Cari di semua kategori secara bebas"><i class="fa-solid fa-arrows-to-dot" style="color: #6366f1;"></i> Cari Bebas Lintas Kategori</button>
+        <button class="chip-keyword chip-plat" data-platform="linkedin" style="border-color: #0a66c2; color: #0a66c2;"><i class="fa-brands fa-linkedin"></i> LinkedIn</button>
+        <button class="chip-keyword chip-plat" data-platform="instagram" style="border-color: #e1306c; color: #e1306c;"><i class="fa-brands fa-instagram"></i> Instagram</button>
+        <button class="chip-keyword chip-plat" data-platform="facebook" style="border-color: #1877f2; color: #1877f2;"><i class="fa-brands fa-facebook"></i> Facebook</button>
+        <button class="chip-keyword" data-keyword="Operator"><i class="fa-solid fa-industry"></i> Operator Produksi</button>
+        <button class="chip-keyword" data-keyword="React"><i class="fa-brands fa-react"></i> React / Web Dev</button>
         <button class="chip-keyword" data-keyword="UI/UX"><i class="fa-solid fa-pen-nib"></i> UI/UX Design</button>
         <button class="chip-keyword" data-keyword="Marketing"><i class="fa-solid fa-chart-line"></i> Digital Marketing</button>
-        <button class="chip-keyword" data-keyword="Graphic Designer"><i class="fa-solid fa-palette"></i> Graphic Designer</button>
-        <button class="chip-keyword" data-keyword="AI"><i class="fa-solid fa-microchip"></i> AI Specialist</button>
-        <button class="chip-keyword" data-keyword="Remote"><i class="fa-solid fa-laptop-code"></i> Remote (WFH)</button>
-        <button class="chip-keyword" data-keyword="Fresh Graduate"><i class="fa-solid fa-graduation-cap"></i> Fresh Graduate</button>
+        <button class="chip-keyword" data-keyword="K3"><i class="fa-solid fa-shield-halved"></i> K3 / Keselamatan Kerja</button>
+        <button class="chip-keyword" data-keyword="Frontliner"><i class="fa-solid fa-building-columns"></i> Frontliner / Bank</button>
       </div>
 
       <!-- STATS RIBBON -->
@@ -208,6 +211,9 @@
           </div>
         </div>
       </div>
+
+
+
     </div>
   </section>
 
@@ -259,6 +265,33 @@
           <div class="sidebar-header">
             <span class="sidebar-title"><i class="fa-solid fa-sliders"></i> Filter Pencarian</span>
             <button class="filter-reset" id="btn-reset-filter"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+          </div>
+
+          <!-- Filter: Sumber Lowongan (Medsos & Resmi) -->
+          <div class="filter-group">
+            <div class="filter-group-title"><i class="fa-solid fa-share-nodes" style="color: var(--primary);"></i> Sumber / Platform</div>
+            <div class="filter-options" id="sidebar-filter-platforms">
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_platform" value="Semua" checked>
+                <span>Semua Sumber</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_platform" value="linkedin">
+                <span><i class="fa-brands fa-linkedin" style="color: #0a66c2;"></i> LinkedIn Recruiter</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_platform" value="instagram">
+                <span><i class="fa-brands fa-instagram" style="color: #e1306c;"></i> Instagram Karir</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_platform" value="facebook">
+                <span><i class="fa-brands fa-facebook" style="color: #1877f2;"></i> Facebook Jobs</span>
+              </label>
+              <label class="filter-checkbox">
+                <input type="radio" name="filter_platform" value="official">
+                <span><i class="fa-solid fa-circle-check" style="color: #10b981;"></i> Resmi BUMN & Korporasi</span>
+              </label>
+            </div>
           </div>
 
           <!-- Filter: Kategori Bidang -->
@@ -427,7 +460,19 @@
         &copy; 2026 KerjaHub - Portal Berbagi Poster Lowongan Kerja Resmi.
       </div>
     </div>
-  </footer>
+  <!-- FLOATING WHATSAPP CV ORDER BUTTON -->
+  <div class="floating-wa-cv-container">
+    <a href="javascript:void(0)" class="floating-wa-cv-btn" id="btn-floating-pesan-cv" onclick="openCvOrderWhatsApp()" title="Pesan Layanan Pembuatan CV ATS via WhatsApp">
+      <div class="floating-wa-icon-box">
+        <span class="floating-wa-pulse"></span>
+        <i class="fa-brands fa-whatsapp"></i>
+      </div>
+      <div class="floating-wa-text">
+        <span class="floating-wa-title">Pesan CV Profesional</span>
+        <span class="floating-wa-sub">Standar ATS & HRD • Chat WA</span>
+      </div>
+    </a>
+  </div>
 
   <script src="./js/app.js"></script>
 </body>

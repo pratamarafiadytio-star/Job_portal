@@ -1,5 +1,535 @@
 [
   {
+    "id": 24,
+    "title": "Operator Packaging & Produksi Farmasi",
+    "company_name": "PT Kalbe Farma Tbk",
+    "category": "Operasional",
+    "job_type": "Full Time",
+    "location": "Kawasan Industri Delta Silicon Cikarang",
+    "salary_display": "Rp 5.300.000 - Rp 6.900.000 / bln",
+    "experience_level": "Fresh Graduate",
+    "poster_image": "./uploads/sample_uiux.jpg",
+    "description": "Postingan resmi Instagram @kalbecareer: PT Kalbe Farma Tbk membuka lowongan kerja Operator Packaging untuk penempatan fasilitas produksi obat dan suplemen kesehatan berstandar CPOB.",
+    "requirements": [
+      "Pendidikan SMA/SMK (Farmasi, Kimia, Mesin, atau IPA diutamakan)",
+      "Usia minimal 18 tahun, tidak buta warna, dan bebas alergi debu farmasi",
+      "Memiliki ketelitian tinggi dalam memeriksa nomor batch, expired date, dan kemasan blister",
+      "Bersedia bekerja dalam ritme dinamis dan jadwal 3 shift"
+    ],
+    "responsibilities": [
+      "Mengoperasikan mesin pengemas sekunder dan pelabelan otomatis produk farmasi",
+      "Melakukan rekonsiliasi bahan kemas dan memastikan zero-defect",
+      "Mematuhi regulasi ketat CPOB (Cara Pembuatan Obat yang Baik)"
+    ],
+    "benefits": [
+      "Gaji pokok sesuai ketentuan industri farmasi + Premi shift & lembur",
+      "Asuransi kesehatan Kalbe, BPJS lengkap & tunjangan obat gratis",
+      "Fasilitas jemputan bus dan makan siang di kantin higienis"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"whatsapp\":\"\",\"email\":\"recruitment@kalbe.co.id\",\"website\":\"https://www.instagram.com/kalbecareer/\"}",
+    "source_platform": "instagram",
+    "source_label": "Instagram Karir (@kalbecareer)",
+    "deadline": "2026-11-18",
+    "status": "active",
+    "is_featured": false,
+    "views_count": 134,
+    "created_at": "2026-10-18T03:48:00.078Z"
+  },
+  {
+    "id": 23,
+    "title": "Operator Assembling & Painting Motor",
+    "company_name": "PT Yamaha Indonesia Motor Mfg",
+    "category": "Operasional",
+    "job_type": "Full Time",
+    "location": "Kawasan Industri KIIC Karawang / Pulo Gadung",
+    "salary_display": "Rp 5.400.000 - Rp 7.100.000 / bln",
+    "experience_level": "Fresh Graduate",
+    "poster_image": "./uploads/sample_marketing.jpg",
+    "description": "Postingan resmi Facebook Yamaha Motor Recruitment: Dibuka lowongan kerja Operator Perakitan & Pengecatan komponen sepeda motor Yamaha berstandar manufaktur Jepang.",
+    "requirements": [
+      "Pria/Wanita, usia 18-21 tahun, lulusan SMA/SMK semua jurusan (Teknik diutamakan)",
+      "Tinggi badan minimal 165 cm (Pria) dan 158 cm (Wanita) dengan postur proporsional",
+      "Tidak bertato, tidak bertindik, tidak berkacamata/buta warna",
+      "Memiliki stamina fisik prima dan siap bekerja dalam sistem shift pabrik"
+    ],
+    "responsibilities": [
+      "Memasang komponen rangka, mesin, dan kelistrikan motor di jalur conveyor",
+      "Melakukan inspeksi visual hasil pengecatan body part tanpa cacat baret",
+      "Mematuhi target takt time dan pedoman keselamatan kerja K3 Yamaha"
+    ],
+    "benefits": [
+      "Gaji pokok sesuai UMK kawasan industri + Uang makan & uang transport",
+      "BPJS Kesehatan & Ketenagakerjaan lengkap kelas satu",
+      "Bonus akhir tahun dan diskon pembelian unit sepeda motor Yamaha"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"whatsapp\":\"\",\"email\":\"recruitment@yamaha-motor.co.id\",\"website\":\"https://www.facebook.com/yamaharecruitment.id\"}",
+    "source_platform": "facebook",
+    "source_label": "Facebook Karir Resmi Yamaha",
+    "deadline": "2026-11-15",
+    "status": "active",
+    "is_featured": false,
+    "views_count": 98,
+    "created_at": "2026-10-18T06:48:00.078Z"
+  },
+  {
+    "id": 22,
+    "title": "Teknisi Utility & Water Treatment Plant",
+    "company_name": "PT Krakatau Blue Water",
+    "category": "Operasional",
+    "job_type": "Full Time",
+    "location": "Krakatau Industrial Estate Cilegon, Banten",
+    "salary_display": "Rp 5.800.000 - Rp 7.600.000 / bln",
+    "experience_level": "1-3 Tahun",
+    "poster_image": "./uploads/sample_fullstack.jpg",
+    "description": "Pengumuman resmi dari Facebook Group & Fanpage Recruitment: PT Krakatau Blue Water (anak usaha industri Krakatau Steel) membuka lowongan Teknisi Water Treatment Plant & Utility kawasan industri baja.",
+    "requirements": [
+      "Pendidikan SMK/D3 Teknik Mesin, Kimia Industri, atau Teknik Elektro",
+      "Pengalaman kerja minimal 1 tahun di instalasi Water Treatment Plant (WTP) / Reverse Osmosis",
+      "Memahami operasional pompa industri, valve, piping, dan filtrasi air skala besar",
+      "Siap bekerja sistem shift di kawasan industri Cilegon"
+    ],
+    "responsibilities": [
+      "Memantau parameter kualitas air, tekanan pompa, dan debit instalasi WTP",
+      "Melakukan preventive maintenance berkala pada mesin pompa dan filtrasi",
+      "Mencatat logsheet operasional dan segera menindaklanjuti anomali sistem"
+    ],
+    "benefits": [
+      "Gaji menarik standar industri baja & energi Cilegon + Lembur normatif",
+      "Jaminan kesehatan BPJS lengkap & asuransi kecelakaan kerja",
+      "Fasilitas APD lengkap dan sertifikasi teknis keahlian utility"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"whatsapp\":\"\",\"email\":\"rekrutmen@krakataubluewater.co.id\",\"website\":\"https://www.facebook.com/groups/loker.cilegon.resmi\"}",
+    "source_platform": "facebook",
+    "source_label": "Facebook Recruitment Resmi",
+    "deadline": "2026-11-22",
+    "status": "active",
+    "is_featured": false,
+    "views_count": 112,
+    "created_at": "2026-10-18T08:48:00.078Z"
+  },
+  {
+    "id": 21,
+    "title": "Staff Quality Assurance & Food Hygiene",
+    "company_name": "PT Mayora Indah Tbk",
+    "category": "Operasional",
+    "job_type": "Full Time",
+    "location": "Daan Mogot Tangerang / Cilegon, Banten",
+    "salary_display": "Rp 5.600.000 - Rp 7.800.000 / bln",
+    "experience_level": "Fresh Graduate",
+    "poster_image": "./uploads/sample_uiux.jpg",
+    "description": "Dipublikasikan resmi di Instagram Karir @mayorakarir: PT Mayora Indah Tbk membuka kesempatan bagi sarjana muda bidang pangan untuk bergabung sebagai Quality Assurance & Food Safety Specialist.",
+    "requirements": [
+      "Lulusan D3/S1 Teknologi Pangan, Biologi, Kimia, atau Teknik Kimia",
+      "Memahami sistem HACCP, GMP, FSSC 22000, dan Sistem Jaminan Halal (SJH)",
+      "Fresh Graduate berprestasi atau pengalaman 1 tahun di industri makanan dipersilakan",
+      "Teliti, independen dalam pengujian laboratorium, dan siap penempatan pabrik"
+    ],
+    "responsibilities": [
+      "Melakukan inspeksi sampling bahan baku masuk dan memantau proses produksi biskuit/wafer",
+      "Mengawasi penerapan standar sanitasi area produksi dan higienitas pekerja",
+      "Menyusun laporan analisis laboratorium mutu produk harian"
+    ],
+    "benefits": [
+      "Gaji kompetitif tier-1 FMCG + Tunjangan penempatan pabrik",
+      "BPJS Ketenagakerjaan & Kesehatan lengkap",
+      "Paket produk Mayora bulanan & fasilitas poliklinik perusahaan"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"whatsapp\":\"\",\"email\":\"mayorakarir@mayora.co.id\",\"website\":\"https://www.instagram.com/mayorakarir/\"}",
+    "source_platform": "instagram",
+    "source_label": "Instagram Karir (@mayorakarir)",
+    "deadline": "2026-11-28",
+    "status": "active",
+    "is_featured": true,
+    "views_count": 189,
+    "created_at": "2026-10-18T13:48:00.078Z"
+  },
+  {
+    "id": 20,
+    "title": "Operator Produksi & Mesin Silikon",
+    "company_name": "PT Sumco Indonesia",
+    "category": "Operasional",
+    "job_type": "Full Time",
+    "location": "Kawasan Industri MM2100 Cikarang Barat, Bekasi",
+    "salary_display": "Rp 5.500.000 - Rp 7.200.000 / bln",
+    "experience_level": "Fresh Graduate",
+    "poster_image": "./uploads/sample_marketing.jpg",
+    "description": "Postingan resmi via LinkedIn Recruiter: PT Sumco Indonesia membuka lowongan Operator Produksi & Mesin untuk fasilitas pengolahan ingot dan pemotongan wafer silikon semikonduktor di MM2100.",
+    "requirements": [
+      "Pria/Wanita, pendidikan SMA/SMK sederajat (Mesin, Elektro, Listrik, atau IPA diutamakan)",
+      "Usia minimal 18 tahun, tidak buta warna, dan memiliki ketelitian kerja tinggi",
+      "Memahami K3 industri dan bersedia bekerja dalam rotasi 3 shift",
+      "Disiplin, bertanggung jawab, dan mampu bekerja dalam cleanroom berstandar Jepang"
+    ],
+    "responsibilities": [
+      "Mengoperasikan mesin pemotong dan poles wafer silikon sesuai instruksi kerja (IK)",
+      "Memeriksa dimensi dan mutu permukaan produk menggunakan mikrometer presisi",
+      "Menjaga kebersihan area kerja cleanroom dan melaporkan data produksi harian"
+    ],
+    "benefits": [
+      "Gaji pokok sesuai standar MM2100 + Premi shift & lembur normatif",
+      "BPJS Kesehatan & Ketenagakerjaan lengkap kelas 1",
+      "Fasilitas antar-jemput bus karyawan dan makan siang"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"whatsapp\":\"\",\"email\":\"recruitment@sumco.co.id\",\"website\":\"https://www.linkedin.com/jobs/view/pt-sumco-indonesia-operator-produksi\"}",
+    "source_platform": "linkedin",
+    "source_label": "LinkedIn Recruiter",
+    "deadline": "2026-11-25",
+    "status": "active",
+    "is_featured": true,
+    "views_count": 145,
+    "created_at": "2026-10-18T16:48:00.078Z"
+  },
+  {
+    "id": 19,
+    "title": "Warehouse & Logistics Operations Coordinator",
+    "company_name": "PT Shopee International Indonesia",
+    "category": "Logistik & Distribusi",
+    "job_type": "Full Time",
+    "location": "Jakarta Utara / Cibitung / Marunda Hub",
+    "salary_display": "Rp 7.000.000 - Rp 10.500.000 / bln",
+    "experience_level": "1-3 Tahun",
+    "poster_image": "./uploads/sample_fullstack.jpg",
+    "description": "Shopee Express (SPX Logistics) mencari Coordinator Operasional Pergudangan untuk memimpin alur logistik inbound/outbound e-commerce tercepat dan terpercaya di Indonesia.",
+    "requirements": [
+      "Pendidikan minimal D3 / S1 semua jurusan (Manajemen Logistik / Teknik Industri diutamakan)",
+      "Pengalaman minimal 1 tahun di warehouse, sorting hub, atau supply chain e-commerce",
+      "Menguasai Warehouse Management System (WMS) dan mahir Microsoft Excel (VLOOKUP, Pivot)",
+      "Memiliki kepemimpinan yang baik dan siap bekerja dalam ritme dinamis serta sistem shift"
+    ],
+    "responsibilities": [
+      "Mengawasi proses inbound, sorting, staging, dan dispatch paket agar memenuhi target SLA",
+      "Mengontrol inventory gudang dan meminimalkan angka paket retur atau rusak",
+      "Mengatur jadwal shift kerja dan membimbing tim operator packer dan sorting"
+    ],
+    "benefits": [
+      "Gaji kompetitif tier-1 tech company + Tunjangan shift malam",
+      "Asuransi kesehatan swasta (Cashless) & BPJS Ketenagakerjaan",
+      "Insentif performa bulanan dan voucher belanja Shopee"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"whatsapp\":\"081398765432\",\"email\":\"recruitment.spx@shopee.com\",\"website\":\"https://careers.shopee.co.id\"}",
+    "deadline": "2026-12-10",
+    "status": "expired",
+    "is_featured": false,
+    "views_count": 167,
+    "created_at": "2026-10-18T17:59:57.746899+00:00",
+    "updated_at": "2026-10-18T18:33:06.150Z",
+    "source_platform": "official",
+    "source_label": "Resmi BUMN & Korporasi"
+  },
+  {
+    "id": 18,
+    "title": "Staf Operasional & Passenger Service Stasiun",
+    "company_name": "PT Kereta Api Indonesia (Persero)",
+    "category": "Operasional & Layanan",
+    "job_type": "Full Time",
+    "location": "Daop 1 Jakarta / Daop 2 Bandung / Daop 6 Yogyakarta",
+    "salary_display": "Rp 6.200.000 - Rp 8.500.000 / bln",
+    "experience_level": "Fresh Graduate",
+    "poster_image": "./uploads/sample_marketing.jpg",
+    "description": "PT Kereta Api Indonesia (Persero) membuka rekrutmen Staf Layanan Penumpang dan Operasional Stasiun untuk mewujudkan pelayanan transportasi perkeretaapian yang aman, nyaman, dan modern.",
+    "requirements": [
+      "Warga Negara Indonesia (WNI), usia 18 - 25 tahun",
+      "Pendidikan minimal SMA/SMK (NEM/Nilai min. 7.0) atau D3/S1 (IPK min. 3.00)",
+      "Tinggi badan minimal 160 cm (pria) dan 155 cm (wanita) dengan berat proporsional",
+      "Ramah, komunikatif, cekatan, dan memiliki jiwa melayani"
+    ],
+    "responsibilities": [
+      "Melakukan verifikasi tiket (boarding gate) dan asistensi alur penumpang di stasiun",
+      "Memberikan informasi jadwal keberangkatan, rute, dan fasilitas stasiun secara jelas",
+      "Membantu penumpang prioritas (lansia, ibu hamil, difabel) dengan sigap"
+    ],
+    "benefits": [
+      "Penghasilan standar BUMN transportasi perkeretaapian",
+      "Fasilitas kesehatan dinas kereta api & BPJS lengkap",
+      "Seragam kedinasan lengkap & tiket reduksi perjalanan dinas"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"whatsapp\":\"\",\"email\":\"rekrutmen@kai.id\",\"website\":\"https://recruitment.kai.id\"}",
+    "deadline": "2026-11-28",
+    "status": "active",
+    "is_featured": true,
+    "views_count": 278,
+    "created_at": "2026-10-18T17:59:57.621527+00:00",
+    "updated_at": "2026-10-18T17:59:57.621527+00:00",
+    "source_platform": "official",
+    "source_label": "Resmi BUMN & Korporasi"
+  },
+  {
+    "id": 17,
+    "title": "Quality Control & Food Processing Inspector",
+    "company_name": "PT Mayora Indah Tbk",
+    "category": "Manufaktur & Produksi",
+    "job_type": "Full Time",
+    "location": "Tangerang / Bekasi, Jawa Barat",
+    "salary_display": "Rp 5.800.000 - Rp 7.500.000 / bln",
+    "experience_level": "Fresh Graduate",
+    "poster_image": "./uploads/sample_uiux.jpg",
+    "description": "PT Mayora Indah Tbk mengundang kandidat berdedikasi tinggi untuk bergabung di divisi pengawasan mutu produk dan laboratorium pengujian pabrik makanan & minuman terkemuka.",
+    "requirements": [
+      "Pendidikan minimal SMK Kimia Industri, Analis Kimia, atau D3 Teknologi Pangan / Farmasi",
+      "Memahami dasar Good Manufacturing Practice (GMP), HACCP, dan sistem jaminan halal",
+      "Mampu mengoperasikan instrumen laboratorium dasar dan mencatat hasil analisis secara teliti",
+      "Bersedia bekerja di lingkungan pabrik manufaktur dengan sistem shift"
+    ],
+    "responsibilities": [
+      "Melakukan uji organoleptik, fisik, dan kimia pada bahan baku dan produk jadi",
+      "Memastikan alur produksi berjalan higienis dan sesuai spesifikasi mutu Mayora",
+      "Mendokumentasikan dan melaporkan temuan ketidaksesuaian mutu kepada Supervisor QC"
+    ],
+    "benefits": [
+      "Gaji kompetitif + Uang makan & fasilitas transport",
+      "Asuransi kesehatan & BPJS Ketenagakerjaan",
+      "Paket produk Mayora bulanan & bonus tahunan"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"whatsapp\":\"\",\"email\":\"recruitment.center@mayora.co.id\",\"website\":\"https://mayoraindah.co.id/career\"}",
+    "deadline": "2026-12-05",
+    "status": "active",
+    "is_featured": false,
+    "views_count": 142,
+    "created_at": "2026-10-18T17:59:57.507638+00:00",
+    "updated_at": "2026-10-18T17:59:57.507638+00:00",
+    "source_platform": "official",
+    "source_label": "Resmi BUMN & Korporasi"
+  },
+  {
+    "id": 16,
+    "title": "Frontliner (Customer Service & Teller)",
+    "company_name": "PT Bank Rakyat Indonesia (Persero) Tbk",
+    "category": "Administrasi & Keuangan",
+    "job_type": "Full Time",
+    "location": "Jakarta, Surabaya, Bandung (Kantor Cabang)",
+    "salary_display": "Rp 6.500.000 - Rp 9.000.000 / bln",
+    "experience_level": "Fresh Graduate",
+    "poster_image": "./uploads/sample_marketing.jpg",
+    "description": "Program rekrutmen Frontliner resmi Bank BRI memberikan kesempatan bagi generasi muda berkarir di industri perbankan nasional, melayani transaksi dan kebutuhan finansial nasabah secara profesional.",
+    "requirements": [
+      "Pendidikan minimal D3 / S1 semua jurusan dengan IPK minimal 2.75",
+      "Usia maksimal 24 tahun (Fresh Graduate) atau 25 tahun (berpengalaman)",
+      "Berpenampilan rapi, ramah, dan memiliki kemampuan komunikasi interpersonal yang baik",
+      "Teliti dalam perhitungan uang tunai dan berorientasi pada kepuasan nasabah"
+    ],
+    "responsibilities": [
+      "Memberikan layanan transaksi tunai, setoran, dan penarikan kepada nasabah",
+      "Memberikan edukasi dan asistensi terkait produk perbankan digital BRI (BRImo)",
+      "Menjaga kerahasiaan dan keamanan data nasabah sesuai standar OJK & BI"
+    ],
+    "benefits": [
+      "Gaji dan tunjangan representasi perbankan BUMN",
+      "Asuransi kesehatan lengkap & jaminan hari tua",
+      "Jenjang karir profesional dan pelatihan perbankan komprehensif"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"whatsapp\":\"081212345678\",\"email\":\"\",\"website\":\"https://e-recruitment.bri.co.id\"}",
+    "deadline": "2026-11-20",
+    "status": "active",
+    "is_featured": true,
+    "views_count": 189,
+    "created_at": "2026-10-18T17:59:57.387157+00:00",
+    "updated_at": "2026-10-18T17:59:57.387157+00:00",
+    "source_platform": "official",
+    "source_label": "Resmi BUMN & Korporasi"
+  },
+  {
+    "id": 15,
+    "title": "Digital Talent & Cloud Software Engineer",
+    "company_name": "PT Telkom Indonesia (Persero) Tbk",
+    "category": "Teknologi & IT",
+    "job_type": "Hybrid",
+    "location": "Jakarta Pusat / Bandung (Hybrid)",
+    "salary_display": "Rp 14.000.000 - Rp 22.000.000 / bln",
+    "experience_level": "1-3 Tahun",
+    "poster_image": "./uploads/sample_fullstack.jpg",
+    "description": "PT Telkom Indonesia (Persero) Tbk membuka rekrutmen talenta muda digital untuk memperkuat ekosistem digital nasional, arsitektur microservices, dan transformasi cloud enterprise.",
+    "requirements": [
+      "Pendidikan minimal D3 / S1 Teknik Informatika, Ilmu Komputer, atau Sistem Informasi",
+      "Menguasai salah satu bahasa pemrograman (Node.js, Go, Python, atau React/Next.js)",
+      "Memahami konsep microservices, RESTful API, dan database relasional (PostgreSQL/MySQL)",
+      "Terbiasa bekerja dengan Git version control dan environment CI/CD"
+    ],
+    "responsibilities": [
+      "Mengembangkan fitur dan layanan digital enterprise berskala nasional",
+      "Berkolaborasi dengan product owner dan UI/UX designer dalam sprint agile mingguan",
+      "Mengoptimalkan performa, keamanan data, dan skalabilitas sistem Telkom Group"
+    ],
+    "benefits": [
+      "Paket remunerasi kompetitif BUMN + Tunjangan kinerja triwulanan",
+      "Asuransi kesehatan swasta kelas 1 (termasuk keluarga)",
+      "Laptop kerja modern & budget sertifikasi cloud tahunan (AWS/GCP)",
+      "Fleksibilitas kerja hybrid (WFO / WFH)"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"whatsapp\":\"\",\"email\":\"careers@telkom.co.id\",\"website\":\"https://careers.telkom.co.id\"}",
+    "deadline": "2026-12-15",
+    "status": "active",
+    "is_featured": true,
+    "views_count": 312,
+    "created_at": "2026-10-18T17:59:57.258103+00:00",
+    "updated_at": "2026-10-18T17:59:57.258103+00:00",
+    "source_platform": "official",
+    "source_label": "Resmi BUMN & Korporasi"
+  },
+  {
+    "id": 14,
+    "title": "Operator Produksi & Assembling Otomotif",
+    "company_name": "PT Astra Honda Motor",
+    "category": "Manufaktur & Produksi",
+    "job_type": "Full Time",
+    "location": "Cikarang / Karawang, Jawa Barat",
+    "salary_display": "Rp 5.500.000 - Rp 7.200.000 / bln",
+    "experience_level": "Fresh Graduate",
+    "poster_image": "./uploads/sample_uiux.jpg",
+    "description": "PT Astra Honda Motor (AHM), pelopor industri sepeda motor di Indonesia, membuka rekrutmen Operator Produksi untuk penempatan fasilitas perakitan manufaktur engine dan unit kendaraan dengan standar mutu internasional.",
+    "requirements": [
+      "Pendidikan minimal SMA / SMK sederajat (Teknik Mesin, Otomotif, Listrik, atau IPA diutamakan)",
+      "Usia 18 - 22 tahun, sehat jasmani dan rohani, tidak buta warna",
+      "Disiplin, berintegritas tinggi, dan mampu bekerja sama dalam tim",
+      "Bersedia bekerja dalam sistem rotasi shift (Plant Cikarang/Karawang)"
+    ],
+    "responsibilities": [
+      "Mengoperasikan mesin assembling komponen otomotif sesuai instruksi kerja (SOP)",
+      "Menjaga kualitas perakitan tanpa cacat (Zero Defect) dan standar 5R",
+      "Menerapkan keselamatan dan kesehatan kerja (K3) selama bertugas"
+    ],
+    "benefits": [
+      "Gaji pokok standar UMK industri otomotif + Upah lembur normatif",
+      "BPJS Ketenagakerjaan & BPJS Kesehatan (Kelas 1)",
+      "Fasilitas makan siang, seragam kerja, dan jemputan bus karyawan AHM",
+      "Tunjangan Hari Raya (THR) dan bonus kinerja tahunan"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"whatsapp\":\"\",\"email\":\"recruitment@astra-honda.com\",\"website\":\"https://recruitment.astra-honda.com\"}",
+    "deadline": "2026-11-30",
+    "status": "active",
+    "is_featured": true,
+    "views_count": 245,
+    "created_at": "2026-10-18T17:59:57.139329+00:00",
+    "updated_at": "2026-10-18T17:59:57.139329+00:00",
+    "source_platform": "official",
+    "source_label": "Resmi BUMN & Korporasi"
+  },
+  {
+    "id": 13,
+    "title": "OPERATOR PRODUKSI",
+    "company_name": "PT NITERRA MOBILITY INDONESIA",
+    "category": "Operasional",
+    "job_type": "Full Time",
+    "location": "Cikarang / Karawang, Jawa Barat",
+    "salary_display": "Rp 5.200.000 - Rp 6.800.000 / bln",
+    "experience_level": "Fresh Graduate",
+    "poster_image": "",
+    "description": "PT Niterra Mobility Indonesia (produsen busi NGK & sensor otomotif terkemuka) membuka lowongan kerja resmi Operator Produksi untuk penempatan fasilitas perakitan dan manufaktur berstandar Jepang.",
+    "requirements": [
+      "Pendidikan minimal SMA/SMK sederajat",
+      "Memiliki kemampuan Komunikasi, Kerja sama tim, dan Kedisiplinan yang baik",
+      "Dapat mengoperasikan Microsoft word, Excel dan Sistem Produksi",
+      "Bersedia bekerja dalam sistem shift"
+    ],
+    "responsibilities": [
+      "Menjalankan proses perakitan komponen otomotif sesuai SOP",
+      "Menjaga ketelitian dan mutu kualitas produk tanpa cacat",
+      "Mematuhi standar K3 (Keselamatan & Kesehatan Kerja) dan 5R"
+    ],
+    "benefits": [
+      "Gaji pokok sesuai UMK kawasan industri + Lembur normatif",
+      "BPJS Kesehatan & Ketenagakerjaan lengkap",
+      "Fasilitas jemputan bus karyawan & makan siang"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"whatsapp\":\"\",\"email\":\"recruitment@niterra.co.id\",\"website\":\"https://www.ngkbusi.com/career\"}",
+    "deadline": "30 Oktober 2026",
+    "status": "active",
+    "is_featured": true,
+    "views_count": 1,
+    "created_at": "2026-10-18T17:54:22.892485+00:00",
+    "updated_at": "2026-10-18T17:54:22.892485+00:00",
+    "source_platform": "official",
+    "source_label": "Resmi BUMN & Korporasi"
+  },
+  {
+    "id": 3,
+    "title": "Digital Marketing & Social Media Strategist",
+    "company_name": "Creative Sparks Agency",
+    "category": "Marketing & Penjualan",
+    "job_type": "Full Time",
+    "location": "Bandung, Jawa Barat",
+    "salary_display": "Rp 9.000.000 - Rp 14.000.000 / bln",
+    "experience_level": "1-3 Tahun",
+    "poster_image": "/uploads/sample_marketing.jpg",
+    "description": "Creative Sparks mencari Digital Marketing Specialist yang kreatif dan analitis untuk memimpin kampanye multi-channel, paid ads (Meta & TikTok), serta konten viral.",
+    "requirements": [
+      "Pengalaman minimal 2 tahun dalam digital marketing dan social media ads",
+      "Terbukti sukses mengelola Meta Ads (Facebook/Instagram) dan TikTok Ads",
+      "Kreatif dalam menyusun copywriting iklan yang engaging",
+      "Menguasai tren media sosial terkini (Reels, TikTok, Shorts)"
+    ],
+    "responsibilities": [
+      "Merencanakan dan mengeksekusi kampanye pemasaran digital bulanan",
+      "Mengoptimalkan performa iklan berbayar (paid ads) untuk ROI maksimal",
+      "Membuat strategi konten bersama tim kreatif desain grafis"
+    ],
+    "benefits": [
+      "Suasana kerja agensi yang seru, dinamis, tanpa birokrasi kaku",
+      "Tunjangan kuota internet & transportasi",
+      "Bonus performa pencapaian target campaign"
+    ],
+    "contact_type": "link",
+    "contact_value": "https://creativesparks.io/apply",
+    "deadline": "2026-11-15",
+    "status": "active",
+    "is_featured": false,
+    "views_count": 90,
+    "created_at": "2026-10-08T16:57:03.044039+00:00",
+    "updated_at": "2026-10-16T16:10:53.733+00:00",
+    "source_platform": "official",
+    "source_label": "Resmi BUMN & Korporasi"
+  },
+  {
+    "id": 2,
+    "title": "Full Stack Web Developer (Node.js & React)",
+    "company_name": "Tech Innovations Lab",
+    "category": "Teknologi & IT",
+    "job_type": "Hybrid",
+    "location": "Jakarta Selatan (SCBD)",
+    "salary_display": "Rp 18.000.000 - Rp 28.000.000 / bln",
+    "experience_level": "3-5 Tahun",
+    "poster_image": "/uploads/sample_fullstack.jpg",
+    "description": "Kami mengundang Full Stack Developer berbakat untuk membangun arsitektur sistem enterprise yang cepat, terukur, dan aman. Mengembangkan REST API modern dan antarmuka responsif.",
+    "requirements": [
+      "Pengalaman kerja minimal 3 tahun menggunakan Node.js dan React / Next.js",
+      "Fasih bekerja dengan database relasional dan konsep RESTful API modern",
+      "Pemahaman solid mengenai Clean Architecture dan version control (Git)",
+      "Berpengalaman dengan cloud deployment dan containerization (Docker)"
+    ],
+    "responsibilities": [
+      "Merancang arsitektur backend scalable dan antarmuka web modern",
+      "Mengoptimasi performa dan keamanan aplikasi web",
+      "Bekerjasama dalam tim sprint agile mingguan"
+    ],
+    "benefits": [
+      "Sistem kerja Hybrid fleksibel (2 hari kantor, 3 hari WFH)",
+      "Gaji kompetitif + THR + Bonus kuartalan",
+      "Makan siang gratis & snack bar sepuasnya di kantor SCBD",
+      "Asuransi kesehatan lengkap termasuk keluarga"
+    ],
+    "contact_type": "email",
+    "contact_value": "careers@techinnovations.com",
+    "deadline": "2026-11-25",
+    "status": "active",
+    "is_featured": true,
+    "views_count": 305,
+    "created_at": "2026-10-08T16:57:03.044039+00:00",
+    "updated_at": "2026-10-16T16:10:54.439+00:00",
+    "source_platform": "official",
+    "source_label": "Resmi BUMN & Korporasi"
+  },
+  {
     "id": 1,
     "title": "Senior UI/UX Designer",
     "company_name": "Synergy Tech Global",
@@ -8,7 +538,7 @@
     "location": "Jakarta / Remote",
     "salary_display": "Rp 15.000.000 - Rp 25.000.000 / bln",
     "experience_level": "Senior (5+ Tahun)",
-    "poster_image": "./uploads/sample_uiux.jpg",
+    "poster_image": "/uploads/sample_uiux.jpg",
     "description": "Synergy Tech sedang mencari Senior UI/UX Designer untuk memimpin strategi desain produk digital generasi berikutnya. Anda akan merancang antarmuka elegan, prototipe interaktif, dan berkolaborasi erat dengan tim engineering.",
     "requirements": [
       "Pengalaman minimal 5 tahun di bidang UI/UX Design untuk platform web & mobile",
@@ -33,151 +563,11 @@
     "contact_value": "081234567890",
     "deadline": "2026-11-30",
     "status": "active",
-    "is_featured": 1,
-    "views_count": 184,
-    "created_at": "2026-10-08T15:52:47.419Z"
-  },
-  {
-    "id": 2,
-    "title": "Full Stack Web Developer (Node.js & React)",
-    "company_name": "Tech Innovations Lab",
-    "category": "Teknologi & IT",
-    "job_type": "Hybrid",
-    "location": "Jakarta Selatan (SCBD)",
-    "salary_display": "Rp 18.000.000 - Rp 28.000.000 / bln",
-    "experience_level": "3-5 Tahun",
-    "poster_image": "./uploads/sample_fullstack.jpg",
-    "description": "Kami mengundang Full Stack Developer berbakat untuk membangun arsitektur sistem enterprise yang cepat, terukur, dan aman. Mengembangkan REST API modern dan antarmuka responsif.",
-    "requirements": [
-      "Pengalaman kerja minimal 3 tahun menggunakan Node.js dan React / Next.js",
-      "Fasih bekerja dengan database relasional dan konsep RESTful API modern",
-      "Pemahaman solid mengenai Clean Architecture dan version control (Git)",
-      "Berpengalaman dengan cloud deployment dan containerization (Docker)"
-    ],
-    "responsibilities": [
-      "Merancang arsitektur backend scalable dan antarmuka web modern",
-      "Mengoptimasi performa dan keamanan aplikasi web",
-      "Bekerjasama dalam tim sprint agile mingguan"
-    ],
-    "benefits": [
-      "Sistem kerja Hybrid fleksibel (2 hari kantor, 3 hari WFH)",
-      "Gaji kompetitif + THR + Bonus kuartalan",
-      "Makan siang gratis & snack bar sepuasnya di kantor SCBD",
-      "Asuransi kesehatan lengkap termasuk keluarga"
-    ],
-    "contact_type": "email",
-    "contact_value": "careers@techinnovations.com",
-    "deadline": "2026-11-25",
-    "status": "active",
-    "is_featured": 1,
-    "views_count": 340,
-    "created_at": "2026-10-08T15:52:47.420Z"
-  },
-  {
-    "id": 3,
-    "title": "Digital Marketing & Social Media Strategist",
-    "company_name": "Creative Sparks Agency",
-    "category": "Marketing & Penjualan",
-    "job_type": "Full Time",
-    "location": "Bandung, Jawa Barat",
-    "salary_display": "Rp 9.000.000 - Rp 14.000.000 / bln",
-    "experience_level": "1-3 Tahun",
-    "poster_image": "./uploads/sample_marketing.jpg",
-    "description": "Creative Sparks mencari Digital Marketing Specialist yang kreatif dan analitis untuk memimpin kampanye multi-channel, paid ads (Meta & TikTok), serta konten viral.",
-    "requirements": [
-      "Pengalaman minimal 2 tahun dalam digital marketing dan social media ads",
-      "Terbukti sukses mengelola Meta Ads (Facebook/Instagram) dan TikTok Ads",
-      "Kreatif dalam menyusun copywriting iklan yang engaging",
-      "Menguasai tren media sosial terkini (Reels, TikTok, Shorts)"
-    ],
-    "responsibilities": [
-      "Merencanakan dan mengeksekusi kampanye pemasaran digital bulanan",
-      "Mengoptimalkan performa iklan berbayar (paid ads) untuk ROI maksimal",
-      "Membuat strategi konten bersama tim kreatif desain grafis"
-    ],
-    "benefits": [
-      "Suasana kerja agensi yang seru, dinamis, tanpa birokrasi kaku",
-      "Tunjangan kuota internet & transportasi",
-      "Bonus performa pencapaian target campaign"
-    ],
-    "contact_type": "link",
-    "contact_value": "https://creativesparks.io/apply",
-    "deadline": "2026-11-15",
-    "status": "active",
-    "is_featured": 0,
-    "views_count": 112,
-    "created_at": "2026-10-08T15:52:47.420Z"
-  },
-  {
-    "id": 4,
-    "title": "Junior Graphic Designer & Content Creator",
-    "company_name": "Nusantara Media Kreatif",
-    "category": "Design & Kreatif",
-    "job_type": "Full Time",
-    "location": "Yogyakarta / Hybrid",
-    "salary_display": "Rp 5.500.000 - Rp 8.000.000 / bln",
-    "experience_level": "Fresh Graduate",
-    "poster_image": "./uploads/sample_uiux.jpg",
-    "description": "Membuka kesempatan bagi talenta muda kreatif dan Fresh Graduate untuk memproduksi materi promosi visual, flyer poster digital, serta video reels kreatif.",
-    "requirements": [
-      "Lulusan D3/S1 Desain Komunikasi Visual atau jurusan relevan (Fresh Graduate dipersilakan melamar)",
-      "Menguasai Adobe Illustrator, Photoshop, dan Canva Pro",
-      "Memiliki selera visual yang segar, estetik, dan up-to-date",
-      "Mampu bekerja sama dalam tim dan terbuka terhadap masukan desain"
-    ],
-    "responsibilities": [
-      "Merancang flyer poster promosi, banner, dan materi sosial media harian",
-      "Mengedit video pendek kreatif untuk Instagram Reels dan TikTok",
-      "Menjaga konsistensi visual branding perusahaan"
-    ],
-    "benefits": [
-      "Mentorship intensif langsung dari Senior Art Director",
-      "Suasana kerja santai dan supportive untuk fresh graduate",
-      "Kompensasi lembur & uang makan",
-      "BPJS Ketenagakerjaan & Kesehatan"
-    ],
-    "contact_type": "whatsapp",
-    "contact_value": "081987654321",
-    "deadline": "2026-12-10",
-    "status": "active",
-    "is_featured": 1,
-    "views_count": 96,
-    "created_at": "2026-10-09T08:30:00.000Z"
-  },
-  {
-    "id": 5,
-    "title": "AI Prompt Engineer & Data Specialist",
-    "company_name": "Nusantara AI Labs",
-    "category": "Data & AI",
-    "job_type": "Remote",
-    "location": "Remote (Seluruh Indonesia)",
-    "salary_display": "Rp 16.000.000 - Rp 24.000.000 / bln",
-    "experience_level": "1-3 Tahun",
-    "poster_image": "./uploads/sample_fullstack.jpg",
-    "description": "Bergabung dengan tim AI terdepan untuk mengembangkan pipeline LLM, fine-tuning model generatif, prompt engineering, dan validasi data cerdas.",
-    "requirements": [
-      "Pemahaman konsep dasar Machine Learning, LLM, dan Prompt Engineering",
-      "Kemampuan analisis data dengan Python (Pandas, NumPy)",
-      "Teliti dan kritis dalam mengevaluasi respons model AI",
-      "Bisa bekerja secara mandiri dan disiplin dalam lingkungan 100% remote"
-    ],
-    "responsibilities": [
-      "Merancang dan menyempurnakan prompt sistem LLM untuk use case bisnis",
-      "Melakukan evaluasi benchmark output AI dan kurasi dataset",
-      "Berkolaborasi dengan tim data engineer untuk integrasi API AI"
-    ],
-    "benefits": [
-      "100% Kerja dari Rumah (Remote) dari mana saja di Indonesia",
-      "Tunjangan internet bulanan & laptop stipend",
-      "Akses penuh ke akun AI berbayar dan GPU compute resources",
-      "Asuransi rawat inap & jalan"
-    ],
-    "contact_type": "email",
-    "contact_value": "recruitment@nusantara-ai.id",
-    "deadline": "2026-11-20",
-    "status": "active",
-    "is_featured": 0,
-    "views_count": 145,
-    "created_at": "2026-10-09T10:15:00.000Z"
+    "is_featured": true,
+    "views_count": 999,
+    "created_at": "2026-10-08T16:57:03.044039+00:00",
+    "updated_at": "2026-10-16T16:10:55.595+00:00",
+    "source_platform": "official",
+    "source_label": "Resmi BUMN & Korporasi"
   }
 ]

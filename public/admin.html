@@ -14,6 +14,8 @@
   <link rel="stylesheet" href="./css/admin.css">
   <!-- Supabase JS Client for Online Cloud Operation -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- QRCode.js for generating scannable QR Codes on posters -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -102,15 +104,22 @@
         </li>
         <li class="menu-item">
           <a href="#sosmed-generator">
-            <i class="fa-solid fa-wand-magic-sparkles" style="color: #a78bfa;"></i>
-            <span>Scout Loker Sosmed</span>
-            <span class="menu-pill-sparkle">BARU</span>
+            <i class="fa-solid fa-certificate" style="color: #10b981;"></i>
+            <span>Loker Resmi & Poster</span>
+            <span class="menu-pill-sparkle" style="background: linear-gradient(135deg, #10b981, #06b6d4);">RESMI</span>
           </a>
         </li>
         <li class="menu-item">
           <a href="#settings-master">
             <i class="fa-solid fa-sliders" style="color: #06b6d4;"></i>
             <span>Master Data & Filter</span>
+          </a>
+        </li>
+        <li class="menu-item">
+          <a href="#settings-cv">
+            <i class="fa-brands fa-whatsapp" style="color: #25d366;"></i>
+            <span>Pesan CV WhatsApp</span>
+            <span class="menu-pill-sparkle" style="background: #25d366; color: white;">PUBLIK</span>
           </a>
         </li>
       </ul>
@@ -473,6 +482,9 @@
                   </label>
 
                   <div class="action-btn-group">
+                    <button type="button" class="btn btn-outline" id="btn-generate-poster-from-form" style="border-color: #6366f1; color: #4f46e5; font-weight: 700;">
+                      <i class="fa-solid fa-palette"></i> Buat Gambar Poster Dari Form Ini ⚡
+                    </button>
                     <button type="reset" class="btn btn-secondary">
                       <i class="fa-solid fa-rotate-left"></i> Reset Form
                     </button>
@@ -527,17 +539,19 @@
         </section>
 
         <!-- ========================================== -->
-        <!-- SECTION 4: SCOUT LOKER SOSMED (NEW!)       -->
+        <!-- SECTION 4: GENERATOR LOKER RESMI & POSTER  -->
         <!-- ========================================== -->
         <section id="section-sosmed-generator" style="display: none;">
           <div class="panel">
-            <div class="panel-header" style="background: linear-gradient(135deg, rgba(79,70,229,0.06), rgba(168,85,247,0.08));">
+            <div class="panel-header" style="background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(10,102,194,0.08), rgba(225,48,108,0.08));">
               <div>
-                <div class="panel-title">
-                  <i class="fa-solid fa-wand-magic-sparkles" style="color: #7c3aed;"></i> Generator & Pencari Loker Sosmed (LinkedIn, Instagram, Facebook)
+                <div class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+                  <i class="fa-solid fa-satellite-dish" style="color: #4f46e5;"></i>
+                  <span>Generator Lowongan Multi-Platform (LinkedIn, IG, Facebook & Resmi) & Studio Poster</span>
+                  <span class="badge badge-success" style="font-size: 0.72rem; padding: 3px 8px; background: #059669; color: white;"><i class="fa-solid fa-bolt"></i> MEDSOS & RESMI AKTIF</span>
                 </div>
-                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px;">
-                  Cari dan kumpulkan link postingan lowongan kerja dari media sosial dalam sekali running tanpa perlu membuka medsos satu per satu!
+                <p style="font-size: 0.84rem; color: var(--text-muted); margin-top: 4px;">
+                  Hasilkan lowongan kerja tervalidasi dari <strong>LinkedIn Recruiter</strong>, <strong>Instagram Karir</strong>, <strong>Facebook Loker</strong>, serta <strong>BUMN & Korporasi</strong>. Sekali klik bisa langsung <strong>"Lihat Loker"</strong>, <strong>"Generate Gambar (Poster Flyer)"</strong>, dan <strong>"Simpan ke Database"</strong>!
                 </p>
               </div>
             </div>
@@ -545,145 +559,146 @@
             <div class="panel-body">
               <!-- CONTROLS -->
               <div class="scout-controls-card">
+
+                <!-- PLATFORM / SUMBER SELECTOR PILLS (LINKEDIN, IG, FB, RESMI) -->
+                <div style="margin-bottom: 14px;">
+                  <div style="font-size: 0.82rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <i class="fa-solid fa-share-nodes" style="color: #6366f1;"></i> Pilih Sumber Platform Lowongan:
+                    </div>
+                    <span style="font-size: 0.74rem; color: var(--text-muted);">Mendukung Postingan Real-Time Facebook, Instagram & LinkedIn</span>
+                  </div>
+                  <div class="official-source-pills" id="official-source-pills" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" class="source-pill active" data-source="all">
+                      <i class="fa-solid fa-globe"></i> Semua Sumber (Resmi + Medsos)
+                    </button>
+                    <button type="button" class="source-pill pill-linkedin" data-source="linkedin">
+                      <i class="fa-brands fa-linkedin" style="color: #0a66c2;"></i> LinkedIn Recruiter
+                    </button>
+                    <button type="button" class="source-pill pill-instagram" data-source="instagram">
+                      <i class="fa-brands fa-instagram" style="color: #e1306c;"></i> Instagram Karir
+                    </button>
+                    <button type="button" class="source-pill pill-facebook" data-source="facebook">
+                      <i class="fa-brands fa-facebook" style="color: #1877f2;"></i> Facebook Loker
+                    </button>
+                    <button type="button" class="source-pill pill-official" data-source="official">
+                      <i class="fa-solid fa-building-circle-check" style="color: #10b981;"></i> Resmi BUMN & Korporasi
+                    </button>
+                  </div>
+                </div>
+
+                <!-- SEKTOR SELECTOR TABS -->
+                <div style="margin-bottom: 16px;">
+                  <div style="font-size: 0.82rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-layer-group" style="color: #6366f1;"></i> Kategori Sektor Industri:
+                  </div>
+                  <div class="official-sector-pills" id="official-sector-pills" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" class="sector-pill active" data-sector="all">Semua Sektor</button>
+                    <button type="button" class="sector-pill" data-sector="manufaktur"><i class="fa-solid fa-industry"></i> Manufaktur & Otomotif (Niterra, Astra, Sumco)</button>
+                    <button type="button" class="sector-pill" data-sector="bumn"><i class="fa-solid fa-landmark"></i> BUMN & Perbankan (KAI, BRI, BCA, Krakatau)</button>
+                    <button type="button" class="sector-pill" data-sector="fmcg"><i class="fa-solid fa-boxes-stacked"></i> FMCG, Farmasi & Retail (Mayora, Kalbe, Indofood)</button>
+                    <button type="button" class="sector-pill" data-sector="tech"><i class="fa-solid fa-laptop-code"></i> Teknologi, E-Commerce & Agency (Shopee, Telkom)</button>
+                  </div>
+                </div>
+
                 <div class="form-grid-2">
                   <div class="form-group">
                     <label class="form-label"><i class="fa-solid fa-magnifying-glass"></i> Posisi / Kata Kunci Lowongan</label>
-                    <input type="text" id="scout-keyword" class="form-input" placeholder="Contoh: Graphic Designer, Frontend Developer, Admin, Social Media...">
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label"><i class="fa-solid fa-location-dot"></i> Lokasi / Filter Wilayah</label>
-                    <input type="text" id="scout-location" class="form-input" placeholder="Contoh: Jakarta, Indonesia, Remote, Bandung...">
-                  </div>
-                </div>
-
-                <!-- PLATFORM SELECTOR -->
-                <div class="scout-platforms-bar">
-                  <div class="platforms-label">
-                    <i class="fa-solid fa-share-nodes"></i> Pilih Sumber Media Sosial:
-                  </div>
-
-                  <div class="platforms-pills-row">
-                    <label class="platform-toggle-pill active" id="pill-linkedin">
-                      <input type="checkbox" id="check-scout-linkedin" checked>
-                      <i class="fa-brands fa-linkedin" style="color: #0a66c2;"></i>
-                      <span>LinkedIn</span>
-                    </label>
-
-                    <label class="platform-toggle-pill active" id="pill-instagram">
-                      <input type="checkbox" id="check-scout-instagram" checked>
-                      <i class="fa-brands fa-instagram" style="color: #e1306c;"></i>
-                      <span>Instagram</span>
-                    </label>
-
-                    <label class="platform-toggle-pill active" id="pill-facebook">
-                      <input type="checkbox" id="check-scout-facebook" checked>
-                      <i class="fa-brands fa-facebook" style="color: #1877f2;"></i>
-                      <span>Facebook</span>
-                    </label>
-
-                    <button type="button" class="btn-select-all-platforms" id="btn-toggle-all-platforms">
-                      <i class="fa-solid fa-check-double"></i> Pilih Semua
-                    </button>
-                  </div>
-                </div>
-
-                <!-- RECENCY & TIMEFRAME SELECTOR (ANTI-EXPIRED FILTER) -->
-                <div class="scout-timeframe-bar" style="margin-top: 14px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
-                  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
-                    <div style="font-size: 0.82rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
-                      <i class="fa-solid fa-clock-rotate-left" style="color: #6366f1;"></i> Filter Waktu Postingan (Hanya Lowongan Terbaru):
-                    </div>
-                    <span style="font-size: 0.74rem; color: #059669; font-weight: 600;">
-                      <i class="fa-solid fa-shield-halved"></i> Bebas Lowongan Kedaluwarsa
-                    </span>
-                  </div>
-
-                  <div class="timeframe-pills-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <label class="timeframe-pill active" id="pill-time-7d" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; cursor: pointer; border: 1.5px solid #6366f1; background: #eef2ff; color: #4338ca; transition: all 0.2s;">
-                      <input type="radio" name="scout_timeframe" value="7d" checked style="display: none;">
-                      <i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> 7 Hari Terakhir (Sangat Baru & Masih Buka)
-                    </label>
-
-                    <label class="timeframe-pill" id="pill-time-24h" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; cursor: pointer; border: 1.5px solid #cbd5e1; background: #ffffff; color: #475569; transition: all 0.2s;">
-                      <input type="radio" name="scout_timeframe" value="24h" style="display: none;">
-                      <i class="fa-solid fa-fire" style="color: #ef4444;"></i> 24 Jam Terakhir (Hari Ini)
-                    </label>
-
-                    <label class="timeframe-pill" id="pill-time-30d" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; cursor: pointer; border: 1.5px solid #cbd5e1; background: #ffffff; color: #475569; transition: all 0.2s;">
-                      <input type="radio" name="scout_timeframe" value="30d" style="display: none;">
-                      <i class="fa-solid fa-calendar-days" style="color: #3b82f6;"></i> 30 Hari Terakhir (Bulan Ini)
-                    </label>
-
-                    <label class="timeframe-pill" id="pill-time-all" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: 1.5px solid #cbd5e1; background: #ffffff; color: #64748b; transition: all 0.2s;">
-                      <input type="radio" name="scout_timeframe" value="all" style="display: none;">
-                      <i class="fa-solid fa-globe" style="color: #64748b;"></i> Semua Waktu
-                    </label>
-                  </div>
-                </div>
-
-                <!-- GOOGLE DORKING GENERATOR LIVE BOX -->
-                <div class="google-dork-card" style="margin-top: 18px; padding: 16px 18px; background: #ffffff; border: 1.5px solid #e0e7ff; border-radius: 12px; box-shadow: 0 2px 6px rgba(99,102,241,0.05);">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span class="badge" style="background: #eef2ff; color: #4f46e5; font-weight: 700; font-size: 0.76rem; border: 1px solid #c7d2fe;">
-                        <i class="fa-brands fa-google"></i> Google Dorking Engine
-                      </span>
-                      <span style="font-size: 0.8rem; color: #64748b; font-weight: 500;">Query Pencarian Otomatis:</span>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                      <button type="button" class="btn btn-outline btn-xs" id="btn-copy-dork" title="Salin Query Dork ke Clipboard" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 6px;">
-                        <i class="fa-regular fa-copy"></i> Salin Query
-                      </button>
-                      <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-xs" id="btn-open-dork-direct" style="font-size: 0.78rem; padding: 5px 12px; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
-                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Google Langsung ↗
-                      </a>
+                    <input type="text" id="official-keyword" class="form-input" placeholder="Contoh: Operator Produksi, Staff Admin, QC, Teknisi...">
+                    <!-- Quick Preset Keywords -->
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;">
+                      <span class="badge-quick-preset" onclick="setOfficialKeyword('Operator Produksi')">Operator Produksi</span>
+                      <span class="badge-quick-preset" onclick="setOfficialKeyword('Quality Control')">Quality Control (QC)</span>
+                      <span class="badge-quick-preset" onclick="setOfficialKeyword('Staff Administrasi')">Staff Administrasi</span>
+                      <span class="badge-quick-preset" onclick="setOfficialKeyword('Teknisi Maintenance')">Teknisi Mesin</span>
+                      <span class="badge-quick-preset" onclick="setOfficialKeyword('Digital Marketing')">Digital Marketing</span>
+                      <span class="badge-quick-preset" onclick="setOfficialKeyword('Warehouse')">Gudang / Warehouse</span>
                     </div>
                   </div>
-                  <div style="position: relative;">
-                    <input type="text" id="live-dork-query" class="form-input" readonly style="background: #f8fafc; font-family: 'JetBrains Mono', Consolas, Monaco, monospace; font-size: 0.86rem; color: #1e1b4b; cursor: pointer; padding: 10px 14px; border: 1px solid #cbd5e1; font-weight: 600;" value='(site:linkedin.com/posts OR site:instagram.com OR site:facebook.com) "lowongan"'>
-                  </div>
-                  <div style="font-size: 0.75rem; color: #64748b; margin-top: 8px; display: flex; align-items: center; gap: 6px;">
-                    <i class="fa-solid fa-circle-info" style="color: #6366f1;"></i> Query Google Dorking di atas otomatis dibuat secara real-time berdasarkan platform, posisi/kata kunci, dan lokasi yang dipilih.
+
+                  <div class="form-grid-2" style="margin-bottom: 0;">
+                    <div class="form-group">
+                      <label class="form-label"><i class="fa-solid fa-location-dot"></i> Lokasi / Wilayah</label>
+                      <input type="text" id="official-location" class="form-input" placeholder="Contoh: Karawang, Cikarang, Jakarta, Cilegon, Surabaya...">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label"><i class="fa-solid fa-graduation-cap"></i> Pendidikan</label>
+                      <select id="official-education" class="form-select">
+                        <option value="all">Semua Pendidikan</option>
+                        <option value="smk">SMA / SMK Sederajat</option>
+                        <option value="d3">Diploma (D3)</option>
+                        <option value="s1">Sarjana (S1 / S2)</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <div style="margin-top: 18px; display: flex; gap: 12px;">
-                  <button type="button" class="btn btn-primary btn-scout-run" id="btn-run-scout">
-                    <i class="fa-solid fa-bolt"></i> Generate & Cari Semua Postingan Loker
+                <!-- ANTI-HOAX & VERIFIED GUARANTEE BADGE -->
+                <div style="margin-top: 10px; padding: 10px 14px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                  <div style="font-size: 0.8rem; color: #065f46; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-shield-check" style="color: #10b981; font-size: 1.1rem;"></i>
+                    <span>Sumber Terjamin Resmi: Postingan lowongan disaring dari akun karir terverifikasi di LinkedIn, IG, FB & Portal BUMN. Bebas penipuan!</span>
+                  </div>
+                  <span style="font-size: 0.74rem; background: #10b981; color: white; padding: 2px 8px; border-radius: 12px; font-weight: 700;">100% AMAN & RESMI</span>
+                </div>
+
+                <!-- ACTION BUTTONS -->
+                <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                  <button type="button" class="btn btn-primary" id="btn-generate-official-jobs" style="padding: 10px 22px; font-weight: 700;">
+                    <i class="fa-solid fa-bolt"></i> Generate & Tampilkan Loker
+                  </button>
+                  <button type="button" class="btn btn-outline" id="btn-fetch-live-scout" style="padding: 10px 18px; font-weight: 700; border-color: #6366f1; color: #4f46e5; background: #f5f3ff;">
+                    <i class="fa-brands fa-searchengin"></i> Cari Postingan Medsos Terkini (Live RSS)
+                  </button>
+                  <button type="button" class="btn btn-outline" id="btn-toggle-scout-sosmed" style="font-size: 0.84rem;">
+                    <i class="fa-solid fa-share-nodes"></i> Buka Opsi Dorking Medsos (LinkedIn/IG/FB)
                   </button>
                 </div>
+
+                <!-- OPTIONAL GOOGLE DORKING SECTION (COLLAPSIBLE) -->
+                <div id="scout-sosmed-drawer" style="display: none; margin-top: 20px; padding-top: 16px; border-top: 1px dashed #cbd5e1;">
+                  <div class="google-dork-card" style="padding: 16px 18px; background: #ffffff; border: 1.5px solid #e0e7ff; border-radius: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="badge" style="background: #eef2ff; color: #4f46e5; font-weight: 700; font-size: 0.76rem; border: 1px solid #c7d2fe;">
+                          <i class="fa-brands fa-google"></i> Google Dorking Engine
+                        </span>
+                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 500;">Query Pencarian Medsos Otomatis:</span>
+                      </div>
+                      <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn btn-outline btn-xs" id="btn-copy-dork" title="Salin Query Dork ke Clipboard">
+                          <i class="fa-regular fa-copy"></i> Salin Query
+                        </button>
+                        <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-xs" id="btn-open-dork-direct" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                          <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Google Langsung ↗
+                        </a>
+                      </div>
+                    </div>
+                    <div>
+                      <input type="text" id="live-dork-query" class="form-input" readonly style="background: #f8fafc; font-family: monospace; font-size: 0.86rem; color: #1e1b4b; cursor: pointer;" value='(site:linkedin.com/posts OR site:instagram.com OR site:facebook.com) "lowongan"'>
+                    </div>
+                  </div>
+                </div>
+
               </div>
 
               <!-- RESULTS CONTAINER -->
-              <div id="scout-results-area" style="display: none; margin-top: 28px;">
+              <div id="scout-results-area" style="display: block; margin-top: 28px;">
                 
                 <!-- SUMMARY & BULK ACTIONS -->
-                <div class="scout-results-header">
+                <div class="scout-results-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 20px;">
                   <div class="results-stats-left">
-                    <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Siap Digunakan</span>
-                    <h3 id="scout-results-summary-title">Menemukan Postingan Loker untuk "Graphic Designer"</h3>
-                    <p id="scout-results-summary-sub">Klik link untuk membuka postingan asli atau klik "Jadikan Draft" untuk otomatis mengisi form upload poster.</p>
-                  </div>
-                  
-                  <div class="results-actions-right">
-                    <button type="button" class="btn btn-outline btn-sm" id="btn-open-all-links" title="Buka semua search link di tab baru">
-                      <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Semua Tautan Sekaligus
-                    </button>
+                    <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Siap Digunakan & Diunduh</span>
+                    <h3 id="scout-results-summary-title" style="margin-top: 6px; font-size: 1.25rem;">Daftar Lowongan Resmi Terverifikasi</h3>
+                    <p id="scout-results-summary-sub" style="font-size: 0.84rem; color: var(--text-muted);">
+                      Pilih loker, klik <strong>"Lihat Loker"</strong> untuk membuka web resmi, klik <strong>"Generate Gambar (Poster)"</strong> untuk mengunduh gambar flyer loker otomatis, atau <strong>"Simpan ke Database"</strong>!
+                    </p>
                   </div>
                 </div>
 
-                <!-- QUICK SEARCH LINKS HUB -->
-                <div class="quick-links-hub">
-                  <div class="hub-title"><i class="fa-solid fa-compass"></i> Tautan Pencarian Langsung Media Sosial:</div>
-                  <div class="hub-links-grid" id="scout-deep-links-container">
-                    <!-- JS Injected Deep Links -->
-                  </div>
-                </div>
-
-                <!-- GENERATED POSTINGS CARDS -->
-                <div class="scout-postings-grid" id="scout-postings-container">
-                  <!-- JS Injected Post Cards -->
+                <!-- OFFICIAL JOBS GRID -->
+                <div class="official-jobs-grid" id="official-jobs-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px;">
+                  <!-- Injected via JavaScript -->
                 </div>
 
               </div>
@@ -806,6 +821,92 @@
                       <i class="fa-solid fa-plus"></i> Tambah
                     </button>
                   </form>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION: PENGATURAN PESAN CV (WHATSAPP KONTAK PUBLIK) -->
+        <section id="section-settings-cv" style="display: none;">
+          <div class="panel">
+            <div class="panel-header" style="background: linear-gradient(135deg, rgba(37,211,102,0.08), rgba(6,182,212,0.06));">
+              <div>
+                <div class="panel-title">
+                  <i class="fa-brands fa-whatsapp" style="color: #25d366;"></i> Pengaturan Layanan Pesan CV (WhatsApp Publik)
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+                  Nomor WhatsApp yang Anda atur di bawah ini akan otomatis menjadi tujuan chat ketika pelamar mengklik tombol <strong>"Pesan CV"</strong> di website publik.
+                </p>
+              </div>
+              <span class="badge badge-success" style="background: rgba(37,211,102,0.15); color: #059669; border: 1px solid rgba(37,211,102,0.3); font-weight: 700;">
+                <i class="fa-solid fa-bolt"></i> Realtime Sync
+              </span>
+            </div>
+
+            <div class="panel-body">
+              <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; align-items: start;">
+                
+                <!-- FORM SETTING -->
+                <form id="form-settings-cv" style="background: var(--bg-surface-alt); padding: 24px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                  <div class="form-group" style="margin-bottom: 18px;">
+                    <label class="form-label" for="setting-cv-whatsapp" style="font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                      <i class="fa-brands fa-whatsapp" style="color: #25d366; font-size: 1.1rem;"></i> Nomor WhatsApp Resmi Pemesanan CV
+                    </label>
+                    <div style="position: relative;">
+                      <input type="text" id="setting-cv-whatsapp" class="form-input" placeholder="Contoh: 081234567890 atau 6281234567890" style="padding-left: 42px; font-weight: 700; font-size: 1rem; color: var(--text-main);" required>
+                      <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #25d366; font-size: 1.2rem;">
+                        <i class="fa-brands fa-whatsapp"></i>
+                      </span>
+                    </div>
+                    <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 6px;">
+                      Format: Awali dengan 08... atau 628... (Sistem otomatis memformat ke link wa.me yang valid).
+                    </span>
+                  </div>
+
+                  <div class="form-group" style="margin-bottom: 22px;">
+                    <label class="form-label" for="setting-cv-message" style="font-weight: 700; color: var(--text-main);">
+                      <i class="fa-solid fa-message" style="color: var(--primary);"></i> Template Pesan Otomatis (Saat Pelamar Chat)
+                    </label>
+                    <textarea id="setting-cv-message" class="form-textarea" rows="4" placeholder="Tuliskan draf pesan pembuka..." style="font-size: 0.9rem; line-height: 1.5;"></textarea>
+                    <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 6px;">
+                      Pesan ini akan otomatis terisi di kolom chat WhatsApp pelamar saat mengklik tombol pesan CV.
+                    </span>
+                  </div>
+
+                  <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <button type="submit" class="btn btn-primary" id="btn-save-cv-settings" style="padding: 12px 24px; font-weight: 700; background: #25d366; border-color: #25d366; color: white;">
+                      <i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan WhatsApp CV
+                    </button>
+                    <button type="button" class="btn btn-outline" id="btn-test-wa-direct" style="padding: 12px 18px;">
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i> Tes Buka Chat WA
+                    </button>
+                  </div>
+                </form>
+
+                <!-- LIVE PREVIEW CARD -->
+                <div style="background: #0b141a; color: #e9edef; padding: 22px; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 25px rgba(0,0,0,0.25);">
+                  <div style="display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 14px; margin-bottom: 16px;">
+                    <div style="width: 44px; height: 44px; border-radius: 50%; background: #25d366; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+                      <i class="fa-brands fa-whatsapp"></i>
+                    </div>
+                    <div>
+                      <h4 style="margin: 0; font-size: 1rem; color: #e9edef; font-weight: 700;">Pratinjau Respon Pelamar</h4>
+                      <span id="preview-cv-wa-number" style="font-size: 0.8rem; color: #25d366; font-family: monospace;">+62 812-3456-7890</span>
+                    </div>
+                  </div>
+
+                  <div style="background: #202c33; border-radius: 8px; padding: 14px; margin-bottom: 16px; position: relative;">
+                    <div style="font-size: 0.76rem; color: #8696a0; margin-bottom: 6px; font-weight: 600;">Pesan Masuk dari Website:</div>
+                    <p id="preview-cv-wa-msg" style="font-size: 0.88rem; line-height: 1.5; color: #e9edef; margin: 0; white-space: pre-wrap; font-style: italic;">
+                      Halo Admin KerjaHub, saya ingin memesan layanan pembuatan / review CV profesional...
+                    </p>
+                  </div>
+
+                  <div style="font-size: 0.8rem; color: #8696a0; line-height: 1.5;">
+                    <i class="fa-solid fa-circle-info" style="color: #25d366;"></i> Nomor ini langsung aktif di tombol floating <strong>"Pesan CV"</strong> di sudut kanan bawah website publik dan halaman Cek CV secara real time.
+                  </div>
                 </div>
 
               </div>
@@ -950,6 +1051,152 @@
       </div>
     </div>
   </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL STUDIO POSTER LOWONGAN OTOMATIS (CANVAS FLYER GENERATOR) -->
+  <!-- ============================================================== -->
+  <div class="admin-modal-overlay" id="poster-studio-modal">
+    <div class="admin-modal-box poster-studio-box">
+      <div class="admin-modal-header" style="background: linear-gradient(135deg, rgba(79,70,229,0.06), rgba(16,185,129,0.06));">
+        <div>
+          <h3 style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; color: #1e1b4b; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-palette" style="color: #4f46e5;"></i> Studio Gambar Poster Lowongan Otomatis
+          </h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+            Informasi lowongan dari web otomatis dirender ke gambar flyer profesional siap download & diposting ke media sosial!
+          </p>
+        </div>
+        <button class="btn-table" onclick="closePosterStudioModal()" style="border-radius: 50%;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="admin-modal-body" style="padding: 20px;">
+        <div class="poster-studio-layout">
+          <!-- LEFT: LIVE CANVAS PREVIEW & DOWNLOAD BUTTONS -->
+          <div class="poster-preview-col">
+            <div style="position: relative; display: flex; justify-content: center;">
+              <canvas id="poster-canvas" width="1080" height="1350"></canvas>
+            </div>
+            
+            <div style="font-size: 0.74rem; color: #64748b; text-align: center; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <i class="fa-solid fa-expand"></i> Resolusi Ultra-HD: 1080 x 1350 px (Format Instagram 4:5 / WA Status)
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;">
+              <button type="button" class="btn btn-primary" id="btn-download-poster-png" style="padding: 12px; font-weight: 800; font-size: 0.95rem; background: #059669; border-color: #059669;">
+                <i class="fa-solid fa-download"></i> Download Gambar Poster (PNG)
+              </button>
+
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-outline btn-sm" id="btn-copy-poster-clipboard" style="flex: 1; font-size: 0.8rem;">
+                  <i class="fa-regular fa-copy"></i> Salin Gambar
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" id="btn-use-poster-for-job" style="flex: 1; font-size: 0.8rem; color: #4f46e5; border-color: #c7d2fe;">
+                  <i class="fa-solid fa-cloud-arrow-up"></i> Jadikan Poster Loker
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: CONTROLS & AUTO-EXTRACTED DATA -->
+          <div class="poster-controls-col">
+            
+            <!-- THEME SELECTOR -->
+            <div class="poster-control-card">
+              <label class="form-label"><i class="fa-solid fa-swatchbook"></i> Pilih Tema Warna Poster:</label>
+              <div class="poster-theme-options" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <label class="poster-theme-pill active" id="theme-pill-factory">
+                  <input type="radio" name="poster_theme" value="factory" checked style="display: none;">
+                  <span class="theme-color-dots"><span style="background: #1e3a8a;"></span><span style="background: #f97316;"></span></span>
+                  <span>Manufaktur & Pabrik (Biru - Oranye)</span>
+                </label>
+                <label class="poster-theme-pill" id="theme-pill-bumn">
+                  <input type="radio" name="poster_theme" value="bumn" style="display: none;">
+                  <span class="theme-color-dots"><span style="background: #0f172a;"></span><span style="background: #10b981;"></span></span>
+                  <span>BUMN & Korporat (Navy - Emerald)</span>
+                </label>
+                <label class="poster-theme-pill" id="theme-pill-modern">
+                  <input type="radio" name="poster_theme" value="modern" style="display: none;">
+                  <span class="theme-color-dots"><span style="background: #4f46e5;"></span><span style="background: #06b6d4;"></span></span>
+                  <span>Modern Tech (Indigo - Cyan)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- MASCOT SELECTOR -->
+            <div class="poster-control-card">
+              <label class="form-label"><i class="fa-solid fa-user-astronaut"></i> Karakter Maskot / Ilustrasi Pekerja:</label>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <label class="poster-theme-pill active" id="mascot-pill-factory">
+                  <input type="radio" name="poster_mascot" value="factory" checked style="display: none;">
+                  <i class="fa-solid fa-bullhorn" style="color: #f97316;"></i>
+                  <span>Operator Pabrik (Megafon)</span>
+                </label>
+                <label class="poster-theme-pill" id="mascot-pill-corporate">
+                  <input type="radio" name="poster_mascot" value="corporate" style="display: none;">
+                  <i class="fa-solid fa-briefcase" style="color: #6366f1;"></i>
+                  <span>Profesional Kantor (Tablet)</span>
+                </label>
+                <label class="poster-theme-pill" id="mascot-pill-none">
+                  <input type="radio" name="poster_mascot" value="none" style="display: none;">
+                  <i class="fa-solid fa-ban"></i>
+                  <span>Tanpa Maskot (Minimalis)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- EDITABLE FIELDS -->
+            <div class="poster-control-card">
+              <div style="font-size: 0.82rem; font-weight: 700; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <span><i class="fa-solid fa-sliders"></i> Informasi Yang Digambar ke Poster:</span>
+                <span style="font-size: 0.72rem; color: #059669; font-weight: 600;"><i class="fa-solid fa-bolt"></i> Realtime Update</span>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 10px;">
+                <label class="form-label">Nama Perusahaan</label>
+                <input type="text" id="poster-input-company" class="form-input" placeholder="PT NITERRA MOBILITY INDONESIA">
+              </div>
+
+              <div class="form-group" style="margin-bottom: 10px;">
+                <label class="form-label">Posisi Lowongan</label>
+                <input type="text" id="poster-input-title" class="form-input" placeholder="OPERATOR PRODUKSI">
+              </div>
+
+              <div class="form-group" style="margin-bottom: 10px;">
+                <label class="form-label">Kualifikasi (Maks 4-5 poin, pisahkan per baris)</label>
+                <textarea id="poster-input-requirements" class="form-textarea" rows="4" placeholder="Pendidikan minimal SMA/SMK sederajat&#10;Memiliki kemampuan Komunikasi dan Kedisiplinan&#10;Dapat mengoperasikan komputer & sistem kerja&#10;Bersedia bekerja sistem shift"></textarea>
+              </div>
+
+              <div class="form-grid-2" style="margin-bottom: 10px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Batas Waktu / Deadline</label>
+                  <input type="text" id="poster-input-deadline" class="form-input" placeholder="30 Oktober 2026">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Teks Cara Melamar</label>
+                  <input type="text" id="poster-input-apply-info" class="form-input" placeholder="Kirim CV/Lamaran melalui website resmi perusahaan">
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 10px;">
+                <label class="form-label"><i class="fa-solid fa-qrcode"></i> URL Tujuan QR Code (Scan Langsung)</label>
+                <input type="url" id="poster-input-qr-url" class="form-input" placeholder="https://perusahaan.co.id/career">
+              </div>
+
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Tagar / Akun Sosmed Footer</label>
+                <input type="text" id="poster-input-hashtag" class="form-input" placeholder="@KerjaHubOfficial #Lowongankerja2026">
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HIDDEN QR CODE HOLDER -->
+  <div id="poster-qrcode-temp" style="display: none;"></div>
 
   <script src="./js/admin.js"></script>
 </body>

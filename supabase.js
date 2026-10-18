@@ -15,6 +15,32 @@ if (supabaseUrl && supabaseKey) {
   }
 }
 
+function enrichJobPlatform(job) {
+  if (!job) return job;
+  let p = job.source_platform;
+  let l = job.source_label;
+  if (!p) {
+    const rawContact = String(job.contact_value || '') + ' ' + String(job.website_url || '');
+    const desc = String(job.description || '') + ' ' + String(job.title || '');
+    if (rawContact.includes('linkedin.com') || desc.includes('LinkedIn') || desc.includes('#LokerLinkedIn')) {
+      p = 'linkedin';
+      l = 'LinkedIn Recruiter';
+    } else if (rawContact.includes('instagram.com') || desc.includes('Instagram') || desc.includes('#LokerInstagram')) {
+      p = 'instagram';
+      l = 'Instagram Karir';
+    } else if (rawContact.includes('facebook.com') || desc.includes('Facebook') || desc.includes('#LokerFacebook')) {
+      p = 'facebook';
+      l = 'Facebook Recruitment';
+    } else {
+      p = 'official';
+      l = 'Resmi BUMN & Swasta';
+    }
+  }
+  job.source_platform = p;
+  job.source_label = l || (p === 'linkedin' ? 'LinkedIn Recruiter' : p === 'instagram' ? 'Instagram Karir' : p === 'facebook' ? 'Facebook Loker' : 'Resmi BUMN & Swasta');
+  return job;
+}
+
 const db = {
   // Get all jobs
   async getJobs(filters = {}) {
@@ -61,7 +87,13 @@ const db = {
         return localStorage.getJobs(filters);
       }
 
-      return data || [];
+      let list = (data || []).map(enrichJobPlatform);
+      if (filters.platform && filters.platform !== 'Semua' && filters.platform !== 'all') {
+        const plat = filters.platform.toLowerCase();
+        list = list.filter(j => j.source_platform === plat);
+      }
+
+      return list;
     } catch (err) {
       console.warn('⚠️ Supabase fetch exception, using local storage:', err.message);
       return localStorage.getJobs(filters);
@@ -81,7 +113,7 @@ const db = {
       // Increment views count in background
       supabase.from('jobs').update({ views_count: (data.views_count || 0) + 1 }).eq('id', id).then();
 
-      return data;
+      return enrichJobPlatform(data);
     } catch (err) {
       return localStorage.getJobById(id);
     }
@@ -105,8 +137,16 @@ const db = {
         requirements: jobData.requirements || [],
         responsibilities: jobData.responsibilities || [],
         benefits: jobData.benefits || [],
-        contact_type: jobData.contact_type || 'whatsapp',
-        contact_value: jobData.contact_value || '',
+        contact_type: jobData.contact_type || (jobData.whatsapp ? 'whatsapp' : (jobData.email ? 'email' : 'link')),
+        contact_value: jobData.contact_value || (
+          (jobData.whatsapp || jobData.email || jobData.website || jobData.website_url)
+            ? JSON.stringify({
+                whatsapp: jobData.whatsapp || '',
+                email: jobData.email || '',
+                website: jobData.website_url || jobData.website || ''
+              })
+            : ''
+        ),
         deadline: jobData.deadline || '',
         status: jobData.status || 'active',
         is_featured: !!jobData.is_featured,
@@ -133,12 +173,30 @@ const db = {
     if (!supabase) return localStorage.updateJob(id, updateData);
 
     try {
-      const payload = {
-        ...updateData,
-        updated_at: new Date().toISOString()
-      };
+      const allowedColumns = [
+        'title', 'company_name', 'category', 'job_type', 'location',
+        'salary_display', 'experience_level', 'poster_image', 'description',
+        'requirements', 'responsibilities', 'benefits', 'contact_type',
+        'contact_value', 'deadline', 'status', 'is_featured', 'views_count'
+      ];
 
-      const { data, error } = await supabase.from('jobs').update(payload).eq('id', id).select().single();
+      const payload = { updated_at: new Date().toISOString() };
+      for (const col of allowedColumns) {
+        if (updateData[col] !== undefined) {
+          payload[col] = updateData[col];
+        }
+      }
+
+      // If contact information was supplied separately, ensure it is safely packed into contact_value
+      if (!payload.contact_value && (updateData.whatsapp || updateData.email || updateData.website || updateData.website_url)) {
+        payload.contact_value = JSON.stringify({
+          whatsapp: updateData.whatsapp || '',
+          email: updateData.email || '',
+          website: updateData.website_url || updateData.website || ''
+        });
+      }
+
+      const { data, error } = await supabase.from('jobs').update(payload).eq('id', Number(id)).select().single();
       if (error) {
         console.warn('⚠️ Supabase update error, falling back to local storage:', error.message);
         return localStorage.updateJob(id, updateData);
@@ -147,6 +205,7 @@ const db = {
       localStorage.updateJob(id, updateData);
       return data;
     } catch (err) {
+      console.warn('⚠️ Supabase update exception:', err.message);
       return localStorage.updateJob(id, updateData);
     }
   },
@@ -156,11 +215,13 @@ const db = {
     if (!supabase) return localStorage.deleteJob(id);
 
     try {
-      const { error } = await supabase.from('jobs').delete().eq('id', id);
+      const { error } = await supabase.from('jobs').delete().eq('id', Number(id));
       if (error) {
         console.warn('⚠️ Supabase delete error:', error.message);
+        return localStorage.deleteJob(id);
       }
-      return localStorage.deleteJob(id);
+      localStorage.deleteJob(id);
+      return true;
     } catch (err) {
       return localStorage.deleteJob(id);
     }
@@ -175,7 +236,7 @@ const db = {
       if (!current) return null;
 
       const nextStatus = newStatus || (current.status === 'active' ? 'expired' : 'active');
-      const { data, error } = await supabase.from('jobs').update({ status: nextStatus, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+      const { data, error } = await supabase.from('jobs').update({ status: nextStatus, updated_at: new Date().toISOString() }).eq('id', Number(id)).select().single();
 
       if (error) {
         return localStorage.toggleStatus(id, newStatus);

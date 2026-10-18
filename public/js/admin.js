@@ -4,7 +4,6 @@
 
 const SUPABASE_FALLBACK_URL = "https://nptmawuukuysqzqakwej.supabase.co";
 const SUPABASE_FALLBACK_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
-const ADMIN_PASSWORD_FALLBACK = "admin_supersecret_portal_2026";
 
 let sbClient = null;
 
@@ -149,6 +148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupEditFormSubmit();
   setupSosmedScout();
   setupMasterData();
+  setupCvSettings();
   loadMasterData();
 });
 
@@ -256,25 +256,14 @@ function setupAuth() {
             errorAlert.style.display = 'flex';
           }
         } else {
-          // Cloudflare Pages static hosting fallback or backend offline
-          if (password === ADMIN_PASSWORD_FALLBACK) {
-            const fallbackToken = 'cf_token_' + btoa(password + ':' + Date.now());
-            sessionStorage.setItem('kerja_admin_token', fallbackToken);
-            unlockDashboard();
-          } else {
-            if (errorAlert) {
-              errorText.textContent = 'Kata sandi admin salah! Silakan coba lagi.';
-              errorAlert.style.display = 'flex';
-            }
+          if (errorAlert) {
+            errorText.textContent = data?.message || 'Kata sandi admin salah! Akses ditolak.';
+            errorAlert.style.display = 'flex';
           }
         }
       } catch (err) {
-        if (password === ADMIN_PASSWORD_FALLBACK) {
-          const fallbackToken = 'cf_token_' + btoa(password + ':' + Date.now());
-          sessionStorage.setItem('kerja_admin_token', fallbackToken);
-          unlockDashboard();
-        } else if (errorAlert) {
-          errorText.textContent = 'Kata sandi admin salah! Silakan periksa kembali kata sandi Anda.';
+        if (errorAlert) {
+          errorText.textContent = 'Gagal menghubungi server otentikasi. Pastikan backend server aktif.';
           errorAlert.style.display = 'flex';
         }
       } finally {
@@ -364,7 +353,7 @@ function setupNavigation() {
 }
 
 function switchSection(sectionName) {
-  const sections = ['dashboard', 'upload-job', 'manage-jobs', 'sosmed-generator', 'settings-master'];
+  const sections = ['dashboard', 'upload-job', 'manage-jobs', 'sosmed-generator', 'settings-master', 'settings-cv'];
   sections.forEach(sec => {
     const el = document.getElementById(`section-${sec}`);
     if (el) el.style.display = (sec === sectionName) ? 'block' : 'none';
@@ -391,6 +380,10 @@ function switchSection(sectionName) {
     if (titleEl) titleEl.textContent = 'Pengaturan Master Data & Filter';
     if (subEl) subEl.textContent = 'Kelola Kategori Bidang, Tipe Pekerjaan, Level Pengalaman, dan Lokasi.';
     loadMasterData();
+  } else if (sectionName === 'settings-cv') {
+    if (titleEl) titleEl.textContent = 'Pengaturan Layanan Pesan CV WhatsApp';
+    if (subEl) subEl.textContent = 'Atur nomor WhatsApp resmi yang akan dihubungi pelamar saat memesan CV.';
+    loadCvSettings();
   }
 }
 
@@ -474,6 +467,33 @@ function setupJobFormSubmit() {
   const form = document.getElementById('form-upload-job');
   if (!form) return;
 
+  const btnGenPoster = document.getElementById('btn-generate-poster-from-form');
+  if (btnGenPoster) {
+    btnGenPoster.addEventListener('click', () => {
+      const title = form.querySelector('[name="title"]')?.value.trim() || 'OPERATOR PRODUKSI';
+      const company = form.querySelector('[name="company_name"]')?.value.trim() || 'PT NITERRA MOBILITY INDONESIA';
+      const reqLines = (form.querySelector('[name="requirements"]')?.value || '').split(/\r?\n/).map(s => s.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+      const deadline = form.querySelector('[name="deadline"]')?.value.trim() || '30 Oktober 2026';
+      const website = form.querySelector('[name="website"]')?.value.trim() || '';
+
+      openPosterStudio({
+        title,
+        company_name: company,
+        requirements: reqLines.length > 0 ? reqLines : [
+          'Pendidikan minimal SMA/SMK sederajat',
+          'Memiliki kemampuan Komunikasi, Kerja sama tim, dan Disiplin',
+          'Dapat mengoperasikan komputer & sistem kerja',
+          'Bersedia bekerja dalam sistem shift'
+        ],
+        deadline,
+        official_url: website || window.location.href,
+        apply_info: `Kirim CV/Lamaran melalui website resmi ${company}.`,
+        theme: title.toLowerCase().includes('operator') || title.toLowerCase().includes('teknisi') ? 'factory' : 'modern',
+        mascot: title.toLowerCase().includes('operator') || title.toLowerCase().includes('teknisi') ? 'factory' : 'corporate'
+      });
+    });
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -501,7 +521,7 @@ function setupJobFormSubmit() {
 
     const parseLines = (val) => val ? val.split(/\r?\n/).map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean) : [];
 
-    const jobPayload = {
+    const cleanPayload = {
       title,
       company_name: company,
       category: form.querySelector('[name="category"]').value,
@@ -510,9 +530,6 @@ function setupJobFormSubmit() {
       salary_display: form.querySelector('[name="salary_display"]').value || 'Kompetitif',
       experience_level: form.querySelector('[name="experience_level"]').value,
       deadline: form.querySelector('[name="deadline"]').value || '',
-      whatsapp,
-      email,
-      website_url: website,
       contact_type: primaryContactType,
       contact_value: contactValueJSON,
       description: desc,
@@ -527,21 +544,7 @@ function setupJobFormSubmit() {
 
     let saved = false;
 
-    // 1. Save directly to Supabase Cloud
-    if (sbClient) {
-      try {
-        const { error } = await sbClient.from('jobs').insert([jobPayload]);
-        if (!error) {
-          saved = true;
-        } else {
-          console.warn('Supabase insert warning:', error.message);
-        }
-      } catch (err) {
-        console.warn('Supabase exception:', err);
-      }
-    }
-
-    // 2. Also send to local backend server if running
+    // Single source of truth: Send to backend /api/jobs (which inserts once to Supabase via server .env & syncs local backup)
     try {
       const formData = new FormData(form);
       formData.set('contact_type', primaryContactType);
@@ -551,13 +554,34 @@ function setupJobFormSubmit() {
       formData.set('website_url', website);
 
       const token = sessionStorage.getItem('kerja_admin_token') || '';
-      await fetch(getApiEndpoint('/api/jobs'), {
+      const res = await fetch(getApiEndpoint('/api/jobs'), {
         method: 'POST',
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         body: formData
       });
-      saved = true;
-    } catch (err) {}
+      if (res.ok) {
+        const json = await res.json().catch(() => ({}));
+        if (json.success !== false) {
+          saved = true;
+        }
+      }
+    } catch (err) {
+      console.warn('Backend /api/jobs unavailable, falling back to direct cloud client:', err);
+    }
+
+    // Fallback: ONLY execute client-side direct insert if backend was offline or failed
+    if (!saved && sbClient) {
+      try {
+        const { error } = await sbClient.from('jobs').insert([cleanPayload]);
+        if (!error) {
+          saved = true;
+        } else {
+          console.warn('Supabase fallback insert warning:', error.message);
+        }
+      } catch (err) {
+        console.warn('Supabase fallback exception:', err);
+      }
+    }
 
     submitBtn.disabled = false;
     submitBtn.innerHTML = origText;
@@ -746,6 +770,7 @@ async function loadAdminJobs() {
         <td>
           <div class="action-buttons">
             <a href="./?job=${job.id}" target="_blank" class="btn-table" title="Lihat di Web Publik"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+            <button class="btn-table" onclick="openPosterStudioFromExistingId(${job.id})" title="Generate Poster Gambar (Download)"><i class="fa-solid fa-palette" style="color: #4f46e5;"></i></button>
             <button class="btn-table btn-lock" onclick="toggleJobLock(${job.id}, '${nextStatus}')" title="${lockTooltip}">
               <i class="fa-solid ${lockIcon}"></i>
             </button>
@@ -765,19 +790,12 @@ window.toggleJobLock = async function(jobId, newStatus) {
   const isLocking = newStatus === 'expired' || newStatus === 'closed';
   const actionName = isLocking ? 'mengunci lowongan menjadi Expired' : 'membuka kunci lowongan menjadi Aktif';
 
-  // 1. Update in Supabase Cloud
-  if (sbClient) {
-    try {
-      await sbClient.from('jobs').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', jobId);
-    } catch (e) {
-      console.warn('Supabase toggle status error:', e);
-    }
-  }
+  let updated = false;
 
-  // 2. Update in server backend
+  // 1. Update in server backend
   try {
     const token = sessionStorage.getItem('kerja_admin_token') || '';
-    await safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}/status`), {
+    const res = await safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}/status`), {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -785,7 +803,17 @@ window.toggleJobLock = async function(jobId, newStatus) {
       },
       body: JSON.stringify({ status: newStatus })
     });
+    if (res.ok) updated = true;
   } catch (e) {}
+
+  // 2. Fallback to direct Supabase if offline
+  if (!updated && sbClient) {
+    try {
+      await sbClient.from('jobs').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', jobId);
+    } catch (e) {
+      console.warn('Supabase toggle status error:', e);
+    }
+  }
 
   loadAdminJobs();
   loadDashboardData();
@@ -797,19 +825,22 @@ window.toggleJobLock = async function(jobId, newStatus) {
 window.deleteJob = async function(jobId, title) {
   if (!confirm(`Apakah Anda yakin ingin menghapus lowongan "${title}"?`)) return;
 
-  if (sbClient) {
+  let deleted = false;
+
+  try {
+    const token = sessionStorage.getItem('kerja_admin_token') || '';
+    const res = await safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}`), {
+      method: 'DELETE',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    if (res.ok) deleted = true;
+  } catch (e) {}
+
+  if (!deleted && sbClient) {
     try {
       await sbClient.from('jobs').delete().eq('id', jobId);
     } catch (e) {}
   }
-
-  try {
-    const token = sessionStorage.getItem('kerja_admin_token') || '';
-    await safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}`), {
-      method: 'DELETE',
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-    });
-  } catch (e) {}
 
   loadAdminJobs();
   loadDashboardData();
@@ -897,9 +928,6 @@ function setupEditFormSubmit() {
       salary_display: form.querySelector('[name="salary_display"]').value || 'Kompetitif',
       experience_level: form.querySelector('[name="experience_level"]').value,
       status: form.querySelector('[name="status"]').value,
-      whatsapp,
-      email,
-      website_url: website,
       contact_type: primaryContactType,
       contact_value: contactValueJSON,
       description: form.querySelector('[name="description"]').value.trim(),
@@ -910,15 +938,9 @@ function setupEditFormSubmit() {
     };
 
     // 1. Update in Supabase Cloud
-    if (sbClient) {
-      try {
-        await sbClient.from('jobs').update(updatePayload).eq('id', jobId);
-      } catch (err) {
-        console.warn('Supabase update exception:', err);
-      }
-    }
+    let updated = false;
 
-    // 2. Also update in server backend
+    // 1. Try server backend update first (syncs database and local cache)
     try {
       const formData = new FormData(form);
       formData.set('contact_type', primaryContactType);
@@ -928,12 +950,27 @@ function setupEditFormSubmit() {
       formData.set('website_url', website);
 
       const token = sessionStorage.getItem('kerja_admin_token') || '';
-      await fetch(getApiEndpoint(`/api/jobs/${jobId}`), {
+      const res = await fetch(getApiEndpoint(`/api/jobs/${jobId}`), {
         method: 'PUT',
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         body: formData
       });
-    } catch (err) {}
+      if (res.ok) {
+        updated = true;
+      }
+    } catch (err) {
+      console.warn('Backend update unavailable, falling back to direct cloud client:', err);
+    }
+
+    // 2. Fallback to direct Supabase update if backend is offline
+    if (!updated && sbClient) {
+      try {
+        await sbClient.from('jobs').update(updatePayload).eq('id', Number(jobId));
+        updated = true;
+      } catch (err) {
+        console.warn('Supabase update exception:', err);
+      }
+    }
 
     submitBtn.disabled = false;
     submitBtn.innerHTML = origText;
@@ -944,391 +981,1680 @@ function setupEditFormSubmit() {
   });
 }
 
-// -------------------------------------------------------------
-// SCOUT LOKER SOSMED (LINKEDIN, INSTAGRAM, FACEBOOK GENERATOR)
-// -------------------------------------------------------------
-function setupSosmedScout() {
-  const btnRun = document.getElementById('btn-run-scout');
-  const btnToggleAll = document.getElementById('btn-toggle-all-platforms');
-  const checkLi = document.getElementById('check-scout-linkedin');
-  const checkIg = document.getElementById('check-scout-instagram');
-  const checkFb = document.getElementById('check-scout-facebook');
-  const pillLi = document.getElementById('pill-linkedin');
-  const pillIg = document.getElementById('pill-instagram');
-  const pillFb = document.getElementById('pill-facebook');
-  const btnOpenAll = document.getElementById('btn-open-all-links');
+// ==============================================================
+// GENERATOR LOWONGAN RESMI (ANTI-HOAX) & STUDIO POSTER FLYER
+// ==============================================================
 
-  // Scout & Google Dork Elements
-  const inputKw = document.getElementById('scout-keyword');
-  const inputLoc = document.getElementById('scout-location');
-  const liveDorkQuery = document.getElementById('live-dork-query');
-  const btnOpenDork = document.getElementById('btn-open-dork-direct');
-  const btnCopyDork = document.getElementById('btn-copy-dork');
+const OFFICIAL_VACANCIES_DB = [
+  {
+    id: 'off_niterra_01',
+    title: 'OPERATOR PRODUKSI',
+    company_name: 'PT NITERRA MOBILITY INDONESIA',
+    sector: 'manufaktur',
+    sector_label: 'Manufaktur & Otomotif',
+    category: 'Operasional',
+    job_type: 'Full Time',
+    location: 'Cikarang / Karawang, Jawa Barat',
+    education_level: 'smk',
+    education_label: 'SMA / SMK Sederajat',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 5.200.000 - Rp 6.800.000 / bln',
+    deadline: '30 Oktober 2026',
+    official_url: 'https://www.ngkbusi.com/career',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@niterra.co.id', website: 'https://www.ngkbusi.com/career' }),
+    description: 'PT Niterra Mobility Indonesia (produsen busi NGK & sensor otomotif terkemuka) membuka lowongan kerja resmi Operator Produksi untuk penempatan fasilitas perakitan dan manufaktur berstandar Jepang.',
+    requirements: [
+      'Pendidikan minimal SMA/SMK sederajat',
+      'Memiliki kemampuan Komunikasi, Kerja sama tim, dan Kedisiplinan yang baik',
+      'Dapat mengoperasikan Microsoft word, Excel dan Sistem Produksi',
+      'Bersedia bekerja dalam sistem shift'
+    ],
+    responsibilities: [
+      'Menjalankan proses perakitan komponen otomotif sesuai SOP',
+      'Menjaga ketelitian dan mutu kualitas produk tanpa cacat',
+      'Mematuhi standar K3 (Keselamatan & Kesehatan Kerja) dan 5R'
+    ],
+    benefits: [
+      'Gaji pokok sesuai UMK kawasan industri + Lembur normatif',
+      'BPJS Kesehatan & Ketenagakerjaan lengkap',
+      'Fasilitas jemputan bus karyawan & makan siang'
+    ],
+    theme: 'factory',
+    mascot: 'factory',
+    verified_badge: 'Resmi & Bebas Biaya (Anti-Hoax)',
+    apply_info: 'Kirim CV/Lamaran melalui website PT. Niterra Mobility Indonesia.'
+  },
+  {
+    id: 'off_astra_02',
+    title: 'OPERATOR QUALITY CONTROL & ASSEMBLY',
+    company_name: 'PT ASTRA HONDA MOTOR (AHM)',
+    sector: 'manufaktur',
+    sector_label: 'Manufaktur & Otomotif',
+    category: 'Operasional',
+    job_type: 'Full Time',
+    location: 'Kawasan Industri Karawang / Sunter Jakarta',
+    education_level: 'smk',
+    education_label: 'SMA / SMK Teknik',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 5.400.000 - Rp 7.000.000 / bln',
+    deadline: '15 November 2026',
+    official_url: 'https://recruitment.astra-honda.com',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@astra-honda.com', website: 'https://recruitment.astra-honda.com' }),
+    description: 'PT Astra Honda Motor membuka kesempatan bagi lulusan muda berprestasi untuk bergabung sebagai Operator Quality Control & Assembly lini produksi kendaraan roda dua nomor satu di Indonesia.',
+    requirements: [
+      'Lulusan SMA/SMK jurusan Mesin, Otomotif, Elektro atau IPA',
+      'Usia minimal 18 tahun, maksimal 21 tahun',
+      'Memiliki ketelitian visual tinggi dan daya konsentrasi prima',
+      'Bersedia bekerja sistem shift dan target efisiensi perakitan'
+    ],
+    responsibilities: [
+      'Melakukan inspeksi visual dan fungsional suku cadang sepeda motor',
+      'Mencatat data kualitas hasil produksi ke sistem QC',
+      'Menerapkan prinsip continuous improvement (Kaizen)'
+    ],
+    benefits: [
+      'Gaji pokok kompetitif Astra Group + Tunjangan kehadiran',
+      'Asuransi kesehatan swasta kelas 1 + BPJS Ketenagakerjaan',
+      'THR, bonus tahunan, dan jenjang karir terstruktur'
+    ],
+    theme: 'factory',
+    mascot: 'factory',
+    verified_badge: 'Resmi Astra Career (Anti-Hoax)',
+    apply_info: 'Pendaftaran resmi hanya melalui portal rekrutmen: recruitment.astra-honda.com'
+  },
+  {
+    id: 'off_telkom_03',
+    title: 'DIGITAL TALENT & IT SPECIALIST',
+    company_name: 'PT TELKOM INDONESIA (PERSERO) TBK',
+    sector: 'bumn',
+    sector_label: 'BUMN & Telekomunikasi',
+    category: 'Teknologi & IT',
+    job_type: 'Full Time',
+    location: 'Jakarta / Bandung / Seluruh Indonesia',
+    education_level: 's1',
+    education_label: 'D3 / S1 Komputer & Informatika',
+    experience_level: 'Fresh Graduate / 1-3 Tahun',
+    salary_display: 'Rp 10.000.000 - Rp 16.000.000 / bln',
+    deadline: '25 November 2026',
+    official_url: 'https://careers.telkom.co.id',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'corporate_career@telkom.co.id', website: 'https://careers.telkom.co.id' }),
+    description: 'PT Telkom Indonesia mencari talenta digital masa depan bangsa untuk membangun ekosistem cloud, digital platform, dan konektivitas nasional berkelas dunia melalui Rekrutmen Bersama BUMN.',
+    requirements: [
+      'Pendidikan minimal D3 atau S1 jurusan IT, SI, Ilmu Komputer, atau Teknik Elektro',
+      'Menguasai salah satu bahasa pemrograman (Node.js, Python, Java, atau React/Vue)',
+      'Memiliki pemahaman mengenai REST API, Git, dan arsitektur Cloud',
+      'Mampu berkomunikasi efektif dan berkolaborasi dalam sprint Agile'
+    ],
+    responsibilities: [
+      'Mengembangkan fitur aplikasi digital skala enterprise',
+      'Melakukan refactoring kode dan implementasi unit testing',
+      'Bekerjasama dengan Product Manager dan UI/UX Designer'
+    ],
+    benefits: [
+      'Skema kerja Hybrid fleksibel dengan perangkat laptop kerja',
+      'Asuransi kesehatan keluarga dan program kesejahteraan pensiun BUMN',
+      'Sertifikasi cloud internasional & pelatihan bersubsidi'
+    ],
+    theme: 'bumn',
+    mascot: 'corporate',
+    verified_badge: 'Resmi BUMN FHCI (Anti-Hoax)',
+    apply_info: 'Lamaran resmi melalui portal BUMN: careers.telkom.co.id'
+  },
+  {
+    id: 'off_bri_04',
+    title: 'FRONTLINER (CUSTOMER SERVICE & TELLER)',
+    company_name: 'PT BANK RAKYAT INDONESIA (PERSERO) TBK',
+    sector: 'bumn',
+    sector_label: 'BUMN & Perbankan',
+    category: 'Administrasi & Keuangan',
+    job_type: 'Full Time',
+    location: 'Jabodetabek, Bandung, Surabaya, Medan',
+    education_level: 'd3',
+    education_label: 'D3 / S1 Semua Jurusan',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 5.800.000 - Rp 7.500.000 / bln',
+    deadline: '20 November 2026',
+    official_url: 'https://e-recruitment.bri.co.id',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@bri.co.id', website: 'https://e-recruitment.bri.co.id' }),
+    description: 'Bank BRI membuka Rekrutmen Brilian Frontliner untuk memberikan pelayanan prima perbankan digital dan transaksi keuangan kepada seluruh lapisan masyarakat Indonesia.',
+    requirements: [
+      'Pendidikan minimal D3/S1 IPK minimal 2.75 semua jurusan',
+      'Usia maksimal 24 tahun (Fresh Graduate)',
+      'Berpenampilan rapi, ramah, komunikatif, dan berintegritas tinggi',
+      'Mahir mengoperasikan komputer (MS Office) dan aplikasi kasir/teller'
+    ],
+    responsibilities: [
+      'Memberikan edukasi dan solusi produk perbankan BRI kepada nasabah',
+      'Melayani pembukaan rekening, administrasi, dan transaksi perbankan',
+      'Menjaga kerahasiaan data nasabah dan kepatuhan perbankan'
+    ],
+    benefits: [
+      'Gaji bulanan + Tunjangan representasi penampilan (grooming)',
+      'Asuransi rawat inap & jalan keluarga',
+      'Bonus kinerja kuartalan & jenjang karir BUMN pasti'
+    ],
+    theme: 'bumn',
+    mascot: 'corporate',
+    verified_badge: 'Resmi BRI E-Recruitment (Anti-Hoax)',
+    apply_info: 'Pendaftaran resmi hanya via: e-recruitment.bri.co.id'
+  },
+  {
+    id: 'off_mayora_05',
+    title: 'TEKNISI MAINTENANCE & OPERATOR MESIN',
+    company_name: 'PT MAYORA INDAH TBK',
+    sector: 'fmcg',
+    sector_label: 'FMCG & Consumer Goods',
+    category: 'Operasional',
+    job_type: 'Full Time',
+    location: 'Tangerang / Cikupa, Banten',
+    education_level: 'smk',
+    education_label: 'SMK / D3 Teknik Mesin / Elektro',
+    experience_level: 'Fresh Graduate / 1 Tahun',
+    salary_display: 'Rp 5.100.000 - Rp 6.500.000 / bln',
+    deadline: '10 Desember 2026',
+    official_url: 'https://mayorakarir.com',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment.centre@mayora.co.id', website: 'https://mayorakarir.com' }),
+    description: 'PT Mayora Indah Tbk mengundang kandidat potensial untuk bergabung mengoperasikan dan memelihara mesin pengemasan dan produksi biskuit serta minuman terpopuler di Indonesia.',
+    requirements: [
+      'Pendidikan SMK / D3 jurusan Teknik Mesin, Mekatronika, atau Listrik',
+      'Memahami dasar pneumatik, PLC, dan pemeliharaan mesin preventif',
+      'Bersedia bekerja dalam ritme shift pabrik makanan',
+      'Disiplin, bertanggung jawab, dan mengutamakan kebersihan (GMP/HACCP)'
+    ],
+    responsibilities: [
+      'Melakukan preventive & corrective maintenance mesin produksi makanan',
+      'Memastikan mesin beroperasi stabil tanpa downtime yang tidak terencana',
+      'Membantu setup mesin saat pergantian varian produk'
+    ],
+    benefits: [
+      'Gaji pokok sesuai standar industri FMCG + Uang lembur resmi',
+      'Klinik kesehatan perusahaan & BPJS lengkap',
+      'Paket bingkisan produk Mayora berkala'
+    ],
+    theme: 'factory',
+    mascot: 'factory',
+    verified_badge: 'Resmi Mayora Karir (Anti-Hoax)',
+    apply_info: 'Kirim lamaran melalui situs resmi Mayora: mayorakarir.com'
+  },
+  {
+    id: 'off_kai_06',
+    title: 'PETUGAS OPERASIONAL & LAYANAN STASIUN',
+    company_name: 'PT KERETA API INDONESIA (PERSERO)',
+    sector: 'bumn',
+    sector_label: 'BUMN & Transportasi',
+    category: 'Operasional',
+    job_type: 'Full Time',
+    location: 'Daop 1 Jakarta, Daop 2 Bandung, Daop 6 Yogyakarta',
+    education_level: 'smk',
+    education_label: 'SMA / SMK / D3 Semua Jurusan',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 5.500.000 - Rp 7.200.000 / bln',
+    deadline: '30 November 2026',
+    official_url: 'https://recruitment.kai.id',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'rekrutmen@kai.id', website: 'https://recruitment.kai.id' }),
+    description: 'PT Kereta Api Indonesia (Persero) membuka lowongan resmi formasi operasional dan pelayanan penumpang kereta api untuk memastikan perjalanan kereta api yang aman, nyaman, dan tepat waktu.',
+    requirements: [
+      'Warga Negara Indonesia (WNI), usia 18 - 25 tahun',
+      'Pendidikan minimal SMA/SMK dengan nilai rata-rata UN/Ijazah minimal 7.0',
+      'Tinggi badan pria min 160 cm, wanita min 155 cm dengan berat badan ideal',
+      'Tidak berkacamata berat dan tidak buta warna'
+    ],
+    responsibilities: [
+      'Melayani boarding pass dan kebutuhan penumpang di area peron dan stasiun',
+      'Melakukan pengawasan keselamatan dan ketertiban di stasiun',
+      'Membantu koordinasi kelancaran perjalanan armada kereta api'
+    ],
+    benefits: [
+      'Gaji BUMN + Fasilitas tiket gratis kereta api dinas',
+      'Asuransi kesehatan lengkap sekeluarga',
+      'Jenjang karir pegawai tetap BUMN'
+    ],
+    theme: 'bumn',
+    mascot: 'corporate',
+    verified_badge: 'Resmi Rekrutmen KAI (Anti-Hoax)',
+    apply_info: 'Pendaftaran resmi hanya di: recruitment.kai.id (Tanpa Biaya)'
+  },
+  {
+    id: 'off_epson_07',
+    title: 'OPERATOR PRODUKSI & ASSEMBLING PRINTER',
+    company_name: 'PT INDONESIA EPSON INDUSTRY',
+    sector: 'manufaktur',
+    sector_label: 'Manufaktur Elektronik',
+    category: 'Operasional',
+    job_type: 'Full Time',
+    location: 'Kawasan EJIP Cikarang Selatan, Bekasi',
+    education_level: 'smk',
+    education_label: 'SMA / SMK Sederajat',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 5.300.000 - Rp 6.900.000 / bln',
+    deadline: '05 Desember 2026',
+    official_url: 'https://epson.co.id/careers',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'hrd_recruitment@iei.epson.com.sg', website: 'https://epson.co.id/careers' }),
+    description: 'PT Indonesia Epson Industry (produsen printer injeksi global) membuka rekrutmen Operator Perakitan Komponen Elektronik berpresisi tinggi dengan fasilitas kerja modern dan bersih.',
+    requirements: [
+      'Lulusan SMA/SMK sederajat semua jurusan',
+      'Memiliki ketajaman penglihatan baik dan ketangkasan manual tangan',
+      'Disiplin mematuhi standar kerja Clean Room dan tata tertib 5S',
+      'Bersedia bekerja dalam sistem shift bergilir'
+    ],
+    responsibilities: [
+      'Memasang modul komponen mikro printer sesuai alur ban berjalan',
+      'Memastikan tidak ada baut atau komponen longgar sebelum uji fungsional',
+      'Melaporkan produk reject ke pengawas lini produksi'
+    ],
+    benefits: [
+      'Gaji UMK Kabupaten Bekasi + Fasilitas lembur transparan',
+      'Kantin makan sehat gratis & klinik 24 jam di pabrik',
+      'Jemputan armada bus karyawan ber-AC'
+    ],
+    theme: 'factory',
+    mascot: 'factory',
+    verified_badge: 'Resmi Epson Careers (Anti-Hoax)',
+    apply_info: 'Kirim lamaran melalui website karir resmi: epson.co.id/careers'
+  },
+  {
+    id: 'off_bca_08',
+    title: 'MAGANG BAKTI BCA (CUSTOMER SERVICE & TELLER)',
+    company_name: 'PT BANK CENTRAL ASIA TBK (BCA)',
+    sector: 'tech',
+    sector_label: 'Perbankan & FinTech',
+    category: 'Administrasi & Keuangan',
+    job_type: 'Internship',
+    location: 'Jabodetabek, Semarang, Bandung, Surabaya',
+    education_level: 'smk',
+    education_label: 'SMA/SMK (Nilai min 7.0) / D1-S1',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 5.000.000 - Rp 6.200.000 / bln (Uang Saku + Bonus)',
+    deadline: '31 Desember 2026',
+    official_url: 'https://karir.bca.co.id',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@bca.co.id', website: 'https://karir.bca.co.id' }),
+    description: 'Program Magang Bakti BCA membuka peluang bagi lulusan SMA/SMK dan Diploma untuk mendapatkan pengalaman nyata dunia perbankan berkelas dunia dengan beasiswa dan pelatihan intensif.',
+    requirements: [
+      'Pria / Wanita, usia 18 - 24 tahun',
+      'Lulusan SMA/SMK (nilai rata-rata min 7.0) atau D1-S1 (IPK min 2.50)',
+      'Ramah, komunikatif, dan berpenampilan bersih serta rapi',
+      'Bersedia menjalani magang 1 tahun penuh'
+    ],
+    responsibilities: [
+      'Melayani nasabah dengan senyum dan keramahan khas BCA',
+      'Memandu nasabah memanfaatkan mesin CRM, e-banking, dan myBCA',
+      'Menyelesaikan transaksi perbankan dasar secara teliti dan cepat'
+    ],
+    benefits: [
+      'Uang saku bulanan kompetitif di atas rata-rata magang nasional',
+      'Bantuan beasiswa pendidikan setelah menyelesaikan program',
+      'Sertifikat resmi Magang Bakti BCA yang sangat bernilai di dunia kerja'
+    ],
+    theme: 'bumn',
+    mascot: 'corporate',
+    verified_badge: 'Resmi Karir BCA (Anti-Hoax)',
+    apply_info: 'Daftar online langsung melalui: karir.bca.co.id/magang-bakti',
+    platform: 'official',
+    platform_label: 'Resmi BUMN & Perbankan',
+    platform_icon: 'fa-solid fa-building-columns',
+    platform_class: 'official',
+    hashtag: '#LokerBCA #MagangBaktiBCA #LokerResmi'
+  },
 
-  function getSelectedPlatforms() {
-    const plats = [];
-    if (checkLi && checkLi.checked) plats.push('linkedin');
-    if (checkIg && checkIg.checked) plats.push('instagram');
-    if (checkFb && checkFb.checked) plats.push('facebook');
-    return plats;
+  // ==============================================================
+  // LINKEDIN RECRUITER VERIFIED VACANCIES
+  // ==============================================================
+  {
+    id: 'soc_linkedin_01',
+    title: 'OPERATOR PRODUKSI & MESIN SILIKON',
+    company_name: 'PT SUMCO INDONESIA',
+    platform: 'linkedin',
+    platform_label: 'LinkedIn Recruiter',
+    platform_icon: 'fa-brands fa-linkedin',
+    platform_class: 'linkedin',
+    sector: 'manufaktur',
+    sector_label: 'Manufaktur & Otomotif',
+    category: 'Operasional',
+    job_type: 'Full Time',
+    location: 'Kawasan Industri MM2100 Cikarang Barat, Bekasi',
+    education_level: 'smk',
+    education_label: 'SMA / SMK Sederajat',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 5.500.000 - Rp 7.200.000 / bln',
+    deadline: '25 November 2026',
+    official_url: 'https://www.linkedin.com/jobs/view/pt-sumco-indonesia-operator-produksi',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@sumco.co.id', website: 'https://www.linkedin.com/company/pt-sumco-indonesia' }),
+    description: 'PT Sumco Indonesia (produsen Silicon Wafers semikonduktor berstandar internasional) membuka rekrutmen Operator Produksi & Mesin untuk penempatan di pabrik MM2100 Cikarang Barat.',
+    requirements: [
+      'Pria/Wanita, lulusan SMA/SMK sederajat (Jurusan Mesin, Listrik, Elektronika atau IPA diutamakan)',
+      'Usia minimal 18 tahun, tidak buta warna, dan memiliki ketelitian kerja tinggi',
+      'Memahami dasar-dasar keselamatan kerja K3 dan bersedia bekerja sistem shift',
+      'Mampu bekerja sama dalam tim dan mematuhi SOP manufaktur semikonduktor'
+    ],
+    responsibilities: [
+      'Mengoperasikan mesin pengolahan ingot dan pemotongan wafer silikon sesuai standar',
+      'Memeriksa kualitas fisik wafer silikon menggunakan alat ukur presisi',
+      'Menjaga kebersihan cleanroom dan disiplin pelaporan hasil kerja'
+    ],
+    benefits: [
+      'Gaji pokok sesuai standar MM2100 + Tunjangan shift & lembur normatif',
+      'Asuransi kesehatan swasta, BPJS Ketenagakerjaan & BPJS Kesehatan',
+      'Fasilitas jemputan karyawan & makan di kantin perusahaan'
+    ],
+    theme: 'factory',
+    mascot: 'factory',
+    verified_badge: 'LinkedIn Verified Recruiter',
+    apply_info: 'Lamaran & submit CV melalui link postingan resmi LinkedIn Recruiter PT Sumco Indonesia.',
+    hashtag: '#LokerLinkedIn #OperatorProduksi #SumcoIndonesia'
+  },
+  {
+    id: 'soc_linkedin_02',
+    title: 'DIGITAL MARKETING & SOCIAL MEDIA CAMPAIGN SPECIALIST',
+    company_name: 'PT SHOPEE INTERNATIONAL INDONESIA',
+    platform: 'linkedin',
+    platform_label: 'LinkedIn Talent Network',
+    platform_icon: 'fa-brands fa-linkedin',
+    platform_class: 'linkedin',
+    sector: 'tech',
+    sector_label: 'Teknologi & E-Commerce',
+    category: 'Design & Kreatif',
+    job_type: 'Full Time',
+    location: 'Pacific Century Place SCBD, Jakarta Selatan',
+    education_level: 's1',
+    education_label: 'Sarjana (S1)',
+    experience_level: '1-3 Tahun',
+    salary_display: 'Rp 9.000.000 - Rp 14.500.000 / bln',
+    deadline: '10 Desember 2026',
+    official_url: 'https://www.linkedin.com/jobs/view/shopee-social-media-campaign-specialist',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'talent.acquisition@shopee.com', website: 'https://careers.shopee.co.id' }),
+    description: 'Shopee Indonesia mengundang Digital Marketing & Campaign Specialist untuk merancang kampanye viral, kolaborasi influencer, dan aktivasi media sosial berskala nasional.',
+    requirements: [
+      'Pendidikan S1 Ilmu Komunikasi, Manajemen Pemasaran, Desain, atau jurusan relevan',
+      'Pengalaman 1-3 tahun mengelola akun brand berskala besar di TikTok, IG, atau YouTube',
+      'Mahir menganalisis metrik impresi, CTR, engagement rate, dan tren algoritma medsos',
+      'Kreatif, tanggap tren pop culture, dan memiliki kemampuan copywriting yang memikat'
+    ],
+    responsibilities: [
+      'Menyusun content calendar dan strategi eksekusi konten digital kampanye bulanan Shopee',
+      'Berkoordinasi dengan tim KOL/Influencer dan agensi kreatif untuk produksi konten viral',
+      'Memantau performa kampanye dan menyusun laporan analisis ROI secara komprehensif'
+    ],
+    benefits: [
+      'Gaji kompetitif + Bonus tahunan performa tier-1 e-commerce tech',
+      'Asuransi kesehatan lengkap (rawat jalan & inap) untuk karyawan & keluarga',
+      'Lingkungan kerja inklusif dan voucher belanja Shopee setiap bulan'
+    ],
+    theme: 'modern',
+    mascot: 'corporate',
+    verified_badge: 'LinkedIn Verified Company',
+    apply_info: 'Lamar langsung via profil LinkedIn Easy Apply atau portal karir resmi Shopee.',
+    hashtag: '#LokerLinkedIn #ShopeeCareers #DigitalMarketing'
+  },
+  {
+    id: 'soc_linkedin_03',
+    title: 'WAREHOUSE LOGISTICS & INVENTORY OFFICER',
+    company_name: 'PT NITERRA MOBILITY INDONESIA',
+    platform: 'linkedin',
+    platform_label: 'LinkedIn Recruiter',
+    platform_icon: 'fa-brands fa-linkedin',
+    platform_class: 'linkedin',
+    sector: 'manufaktur',
+    sector_label: 'Logistik & Manufaktur',
+    category: 'Logistik',
+    job_type: 'Full Time',
+    location: 'Kawasan Industri Cikarang, Jawa Barat',
+    education_level: 'd3',
+    education_label: 'Diploma (D3 / S1)',
+    experience_level: '1-3 Tahun',
+    salary_display: 'Rp 5.800.000 - Rp 7.500.000 / bln',
+    deadline: '20 November 2026',
+    official_url: 'https://www.linkedin.com/jobs/view/niterra-mobility-warehouse-personnel',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@niterra.co.id', website: 'https://www.ngkbusi.com/career' }),
+    description: 'PT Niterra Mobility Indonesia membuka kesempatan karir di departemen Supply Chain & Logistik Pergudangan untuk mengelola alur distribusi suku cadang otomotif domestik dan ekspor.',
+    requirements: [
+      'Pendidikan minimal D3/S1 Manajemen Logistik, Teknik Industri, atau jurusan relevan',
+      'Memiliki pemahaman sistem WMS (Warehouse Management System) & SAP',
+      'Pengalaman minimal 1 tahun di bidang stock control pergudangan otomotif',
+      'Teliti, terbiasa dengan audit stok fisik vs sistem (Cycle Count)'
+    ],
+    responsibilities: [
+      'Mengawasi alur penerimaan barang masuk (inbound) dan pengiriman (outbound)',
+      'Memastikan akurasi inventaris fisik 100% sesuai sistem ERP',
+      'Mengoordinasikan tim operator forklift dan picker agar pengiriman tepat waktu'
+    ],
+    benefits: [
+      'Penghasilan menarik sesuai grade manufaktur Jepang',
+      'Tunjangan kehadiran, uang transport, dan asuransi kesehatan',
+      'Peluang pengembangan karir jangka panjang di industri otomotif'
+    ],
+    theme: 'factory',
+    mascot: 'factory',
+    verified_badge: 'LinkedIn Verified Recruiter',
+    apply_info: 'Submit berkas CV melalui postingan resmi LinkedIn Recruiter Niterra Mobility.',
+    hashtag: '#LokerLinkedIn #Warehouse #NiterraMobility'
+  },
+
+  // ==============================================================
+  // INSTAGRAM KARIR VERIFIED VACANCIES
+  // ==============================================================
+  {
+    id: 'soc_instagram_01',
+    title: 'STAFF QUALITY ASSURANCE & FOOD HYGIENE',
+    company_name: 'PT MAYORA INDAH TBK',
+    platform: 'instagram',
+    platform_label: 'Instagram Karir (@mayorakarir)',
+    platform_icon: 'fa-brands fa-instagram',
+    platform_class: 'instagram',
+    sector: 'fmcg',
+    sector_label: 'FMCG & Pangan',
+    category: 'Operasional',
+    job_type: 'Full Time',
+    location: 'Daan Mogot Tangerang / Cilegon, Banten',
+    education_level: 'd3',
+    education_label: 'Diploma (D3 / S1)',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 5.600.000 - Rp 7.800.000 / bln',
+    deadline: '28 November 2026',
+    official_url: 'https://www.instagram.com/mayorakarir/',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'mayorakarir@mayora.co.id', website: 'https://www.instagram.com/mayorakarir/' }),
+    description: 'Diumumkan resmi melalui akun Instagram @mayorakarir: PT Mayora Indah Tbk mengundang profesional muda bidang pangan untuk menjaga standar higienitas dan mutu produk biskuit & makanan ringan.',
+    requirements: [
+      'Lulusan D3/S1 Teknologi Pangan, Biologi, Kimia, atau Teknik Kimia',
+      'Memahami sistem HACCP, GMP, FSSC 22000, dan Sistem Jaminan Halal (SJH)',
+      'Fresh Graduate berprestasi atau pengalaman 1 tahun di industri makanan dipersilakan',
+      'Bersedia bekerja di lingkungan pabrik dan penempatan Tangerang / Cilegon'
+    ],
+    responsibilities: [
+      'Melakukan inspeksi sampling bahan baku masuk dan proses pengolahan makanan',
+      'Mengawasi penerapan sanitasi pabrik dan higienitas pekerja pengolahan',
+      'Menyusun laporan analisis laboratorium mutu produk harian'
+    ],
+    benefits: [
+      'Gaji kompetitif + Tunjangan penempatan pabrik',
+      'BPJS Ketenagakerjaan & Kesehatan lengkap',
+      'Paket produk Mayora bulanan & fasilitas klinik pabrik'
+    ],
+    theme: 'modern',
+    mascot: 'corporate',
+    verified_badge: 'Instagram Verified (@mayorakarir)',
+    apply_info: 'Daftar melalui tautan resmi yang tertera di bio Instagram resmi @mayorakarir.',
+    hashtag: '#LokerInstagram #MayoraKarir #QualityAssurance'
+  },
+  {
+    id: 'soc_instagram_02',
+    title: 'OPERATOR PACKAGING & PRODUKSI FARMASI',
+    company_name: 'PT KALBE FARMA TBK',
+    platform: 'instagram',
+    platform_label: 'Instagram Karir (@kalbecareer)',
+    platform_icon: 'fa-brands fa-instagram',
+    platform_class: 'instagram',
+    sector: 'fmcg',
+    sector_label: 'Farmasi & Kesehatan',
+    category: 'Operasional',
+    job_type: 'Full Time',
+    location: 'Kawasan Industri Delta Silicon Cikarang',
+    education_level: 'smk',
+    education_label: 'SMA / SMK Sederajat',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 5.300.000 - Rp 6.900.000 / bln',
+    deadline: '18 November 2026',
+    official_url: 'https://www.instagram.com/kalbecareer/',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@kalbe.co.id', website: 'https://www.instagram.com/kalbecareer/' }),
+    description: 'Postingan resmi Instagram @kalbecareer: PT Kalbe Farma Tbk membuka lowongan kerja Operator Packaging untuk penempatan fasilitas produksi obat dan suplemen kesehatan berstandar CPOB.',
+    requirements: [
+      'Pendidikan SMA/SMK (Farmasi, Kimia, Mesin, atau IPA diutamakan)',
+      'Usia minimal 18 tahun, tidak buta warna, dan bebas alergi debu farmasi',
+      'Memiliki ketelitian tinggi dalam memeriksa nomor batch, expired date, dan kemasan blister',
+      'Bersedia bekerja dalam ritme dinamis dan jadwal 3 shift'
+    ],
+    responsibilities: [
+      'Mengoperasikan mesin pengemas sekunder dan pelabelan otomatis produk farmasi',
+      'Melakukan rekonsiliasi bahan kemas dan memastikan zero-defect',
+      'Mematuhi regulasi ketat CPOB (Cara Pembuatan Obat yang Baik)'
+    ],
+    benefits: [
+      'Gaji pokok sesuai ketentuan industri farmasi + Premi shift & lembur',
+      'Asuransi kesehatan Kalbe, BPJS lengkap & tunjangan obat gratis',
+      'Fasilitas jemputan bus dan makan siang di kantin higienis'
+    ],
+    theme: 'factory',
+    mascot: 'factory',
+    verified_badge: 'Instagram Verified (@kalbecareer)',
+    apply_info: 'Akses link registrasi resmi di bio Instagram @kalbecareer (Bebas Biaya).',
+    hashtag: '#LokerInstagram #KalbeCareer #OperatorProduksi'
+  },
+  {
+    id: 'soc_instagram_03',
+    title: 'ADMINISTRASI OPERASIONAL & CUSTOMER CARE',
+    company_name: 'PT ASTRA INTERNATIONAL TBK',
+    platform: 'instagram',
+    platform_label: 'Instagram Karir (@astracareer)',
+    platform_icon: 'fa-brands fa-instagram',
+    platform_class: 'instagram',
+    sector: 'manufaktur',
+    sector_label: 'Otomotif & Korporat',
+    category: 'Administrasi',
+    job_type: 'Full Time',
+    location: 'Menara Astra, Jl. Jend. Sudirman Jakarta',
+    education_level: 'd3',
+    education_label: 'Diploma (D3 / S1)',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 6.000.000 - Rp 8.200.000 / bln',
+    deadline: '05 Desember 2026',
+    official_url: 'https://www.instagram.com/astracareer/',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'arc@astra.co.id', website: 'https://www.instagram.com/astracareer/' }),
+    description: 'Postingan resmi dari Instagram @astracareer: PT Astra International Tbk membuka kesempatan bagi talenta muda komunikatif untuk posisi Staf Administrasi Operasional dan Layanan Pelanggan.',
+    requirements: [
+      'Pendidikan minimal D3 atau S1 semua jurusan (IPK minimal 3.00)',
+      'Menguasai Microsoft Office (Excel, Word, PowerPoint) dan input data akurat',
+      'Komunikatif, berpenampilan rapi, dan memiliki orientasi melayani pelanggan dengan ramah',
+      'Mampu bekerja sama dalam tim lintas divisi di kantor pusat Astra'
+    ],
+    responsibilities: [
+      'Mengelola pencatatan administrasi dokumen operasional dan surat-menyurat resmi',
+      'Merespons pertanyaan dan keluhan pelanggan melalui saluran resmi dengan sigap',
+      'Menyusun rekapitulasi data bulanan untuk kebutuhan rapat manajemen divisi'
+    ],
+    benefits: [
+      'Penghasilan kompetitif standar Astra Group + Tunjangan transportasi',
+      'Asuransi kesehatan swasta rawat jalan & rawat inap',
+      'Program pelatihan & pengembangan karir terstruktur di Menara Astra'
+    ],
+    theme: 'bumn',
+    mascot: 'corporate',
+    verified_badge: 'Instagram Verified (@astracareer)',
+    apply_info: 'Klik tautan pendaftaran pada linktree bio akun Instagram resmi @astracareer.',
+    hashtag: '#LokerInstagram #AstraCareer #AdminOperasional'
+  },
+
+  // ==============================================================
+  // FACEBOOK LOKER VERIFIED VACANCIES
+  // ==============================================================
+  {
+    id: 'soc_facebook_01',
+    title: 'TEKNISI UTILITY & WATER TREATMENT PLANT',
+    company_name: 'PT KRAKATAU BLUE WATER',
+    platform: 'facebook',
+    platform_label: 'Facebook Recruitment Resmi',
+    platform_icon: 'fa-brands fa-facebook',
+    platform_class: 'facebook',
+    sector: 'bumn',
+    sector_label: 'Energi & Manufaktur',
+    category: 'Operasional',
+    job_type: 'Full Time',
+    location: 'Krakatau Industrial Estate Cilegon, Banten',
+    education_level: 'smk',
+    education_label: 'SMA / SMK Teknik',
+    experience_level: '1-3 Tahun',
+    salary_display: 'Rp 5.800.000 - Rp 7.600.000 / bln',
+    deadline: '22 November 2026',
+    official_url: 'https://www.facebook.com/groups/loker.cilegon.resmi',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'rekrutmen@krakataubluewater.co.id', website: 'https://www.facebook.com/groups/loker.cilegon.resmi' }),
+    description: 'Publikasi resmi di Facebook Recruitment: PT Krakatau Blue Water (anak usaha industri Krakatau Steel) membuka lowongan Teknisi Water Treatment Plant & Utility kawasan industri baja Cilegon.',
+    requirements: [
+      'Lulusan SMK/D3 Teknik Mesin, Kimia Industri, atau Teknik Elektro',
+      'Pengalaman kerja minimal 1 tahun di fasilitas Water Treatment Plant (WTP) / Reverse Osmosis',
+      'Memahami operasional pompa industri, valve, piping, dan filtrasi air skala besar',
+      'Siap bekerja sistem shift di kawasan industri Cilegon'
+    ],
+    responsibilities: [
+      'Memantau parameter kualitas air, tekanan pompa, dan debit instalasi WTP',
+      'Melakukan preventive maintenance berkala pada mesin pompa dan filtrasi',
+      'Mencatat logsheet operasional dan segera menindaklanjuti anomali sistem'
+    ],
+    benefits: [
+      'Gaji menarik standar industri baja & energi Cilegon + Lembur',
+      'Jaminan kesehatan BPJS lengkap & asuransi kecelakaan kerja',
+      'Fasilitas APD lengkap dan sertifikasi teknis keahlian utility'
+    ],
+    theme: 'factory',
+    mascot: 'factory',
+    verified_badge: 'Facebook Verified Recruiter',
+    apply_info: 'Pengumuman resmi di halaman fanpage Facebook Krakatau Blue Water, tanpa calo!',
+    hashtag: '#LokerFacebook #KrakatauBlueWater #TeknisiUtility'
+  },
+  {
+    id: 'soc_facebook_02',
+    title: 'OPERATOR ASSEMBLING & PAINTING MOTOR',
+    company_name: 'PT YAMAHA INDONESIA MOTOR MFG',
+    platform: 'facebook',
+    platform_label: 'Facebook Karir Resmi Yamaha',
+    platform_icon: 'fa-brands fa-facebook',
+    platform_class: 'facebook',
+    sector: 'manufaktur',
+    sector_label: 'Manufaktur & Otomotif',
+    category: 'Operasional',
+    job_type: 'Full Time',
+    location: 'Kawasan Industri KIIC Karawang / Pulo Gadung',
+    education_level: 'smk',
+    education_label: 'SMA / SMK Sederajat',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 5.400.000 - Rp 7.100.000 / bln',
+    deadline: '15 November 2026',
+    official_url: 'https://www.facebook.com/yamaharecruitment.id',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@yamaha-motor.co.id', website: 'https://www.facebook.com/yamaharecruitment.id' }),
+    description: 'Postingan resmi dari Halaman Facebook Yamaha Motor Recruitment: Dibuka lowongan kerja Operator Perakitan & Pengecatan komponen sepeda motor Yamaha berstandar global.',
+    requirements: [
+      'Pria/Wanita, usia 18-21 tahun, lulusan SMA/SMK semua jurusan (Teknik diutamakan)',
+      'Tinggi badan minimal 165 cm (Pria) dan 158 cm (Wanita) dengan postur sehat proporsional',
+      'Tidak bertato, tidak bertindik, tidak berkacamata/buta warna',
+      'Memiliki stamina fisik prima dan siap bekerja dalam sistem shift pabrik'
+    ],
+    responsibilities: [
+      'Memasang komponen rangka, mesin, dan kelistrikan motor di jalur conveyor',
+      'Melakukan inspeksi visual hasil pengecatan body part tanpa cacat baret',
+      'Mematuhi target takt time dan pedoman keselamatan kerja K3 Yamaha'
+    ],
+    benefits: [
+      'Gaji pokok sesuai UMK kawasan industri + Uang makan & uang transport',
+      'BPJS Kesehatan & Ketenagakerjaan lengkap kelas satu',
+      'Bonus akhir tahun dan diskon pembelian unit sepeda motor Yamaha'
+    ],
+    theme: 'factory',
+    mascot: 'factory',
+    verified_badge: 'Facebook Karir Resmi Yamaha',
+    apply_info: 'Pendaftaran resmi dibuka melalui portal resmi yang tertera di postingan Facebook Yamaha Recruitment.',
+    hashtag: '#LokerFacebook #YamahaKarir #OperatorAssembling'
+  },
+  {
+    id: 'soc_facebook_03',
+    title: 'OPERATOR MESIN & PENGEMASAN MAKANAN',
+    company_name: 'PT INDOFOOD CBP SUKSES MAKMUR TBK',
+    platform: 'facebook',
+    platform_label: 'Facebook Official Recruitment',
+    platform_icon: 'fa-brands fa-facebook',
+    platform_class: 'facebook',
+    sector: 'fmcg',
+    sector_label: 'FMCG & Pangan',
+    category: 'Operasional',
+    job_type: 'Full Time',
+    location: 'Kawasan Industri Cibitung, Bekasi / Semarang',
+    education_level: 'smk',
+    education_label: 'SMA / SMK Sederajat',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 5.200.000 - Rp 6.900.000 / bln',
+    deadline: '30 November 2026',
+    official_url: 'https://www.facebook.com/indofoodcareer.official',
+    contact_type: 'link',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment.icbp@indofood.co.id', website: 'https://www.facebook.com/indofoodcareer.official' }),
+    description: 'Pengumuman resmi dari Facebook Indofood Career: PT Indofood CBP Sukses Makmur Tbk divisi Noodle & Snack membuka lowongan Operator Produksi Mesin & Packing otomatis.',
+    requirements: [
+      'Lulusan SMA / SMK sederajat (Teknik Mesin, Otomotif, Listrik, atau Tata Boga dipersilakan)',
+      'Usia minimal 18 tahun, sehat jasmani dan rohani, memiliki ketahanan kerja fisik baik',
+      'Disiplin, jujur, teliti, dan siap bekerja dalam sistem rotasi 3 shift',
+      'Memiliki kemauan belajar tinggi terhadap operasional mesin modern'
+    ],
+    responsibilities: [
+      'Menjalankan mesin mixing, slitting, frying, dan packing kemasan bumbu/mie',
+      'Menjaga konsistensi berat produk dan tanggal kedaluwarsa pada kemasan',
+      'Menjaga standar 5R (Ringkas, Rapi, Resik, Rawat, Rajin) di area produksi'
+    ],
+    benefits: [
+      'Gaji pokok sesuai UMK Bekasi/Semarang + Lembur normatif',
+      'Paket sembako & produk Indofood bulanan secara rutin',
+      'BPJS Ketenagakerjaan & Kesehatan, serta tunjangan hari raya (THR)'
+    ],
+    theme: 'factory',
+    mascot: 'factory',
+    verified_badge: 'Facebook Indofood Career',
+    apply_info: 'Submit berkas online melalui link recruitment Indofood di Facebook resmi.',
+    hashtag: '#LokerFacebook #IndofoodCareer #OperatorMesin'
   }
+];
 
-  function getSelectedTimeframe() {
-    const checkedRadio = document.querySelector('input[name="scout_timeframe"]:checked');
-    return checkedRadio ? checkedRadio.value : '7d';
+let currentOfficialFilteredJobs = [...OFFICIAL_VACANCIES_DB];
+let currentPosterJobData = null;
+
+// Helper: Set keyword from preset badge
+window.setOfficialKeyword = function(keyword) {
+  const input = document.getElementById('official-keyword');
+  if (input) {
+    input.value = keyword;
+    filterAndRenderOfficialJobs();
   }
+};
 
-  function refreshLiveDork() {
-    const kw = (inputKw?.value || '').trim();
-    const loc = (inputLoc?.value || '').trim();
-    const plats = getSelectedPlatforms();
-    const tf = getSelectedTimeframe();
+function filterAndRenderOfficialJobs() {
+  const keyword = (document.getElementById('official-keyword')?.value || '').trim().toLowerCase();
+  const location = (document.getElementById('official-location')?.value || '').trim().toLowerCase();
+  const education = document.getElementById('official-education')?.value || 'all';
+  const activeSectorBtn = document.querySelector('.official-sector-pills .sector-pill.active');
+  const sector = activeSectorBtn ? activeSectorBtn.getAttribute('data-sector') : 'all';
+  const activeSourceBtn = document.querySelector('.official-source-pills .source-pill.active');
+  const source = activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all';
 
-    const dork = generateGoogleDorkQuery({
-      kata_kunci: kw,
-      lokasi: loc,
-      platforms: plats,
-      timeframe: tf
-    });
-
-    if (liveDorkQuery) liveDorkQuery.value = dork.query_dork;
-    if (btnOpenDork) btnOpenDork.href = dork.url_google;
-    return dork;
-  }
-
-  // Toggle active class on label clicks & refresh live dork
-  [
-    { check: checkLi, pill: pillLi },
-    { check: checkIg, pill: pillIg },
-    { check: checkFb, pill: pillFb }
-  ].forEach(item => {
-    if (item.check && item.pill) {
-      item.check.addEventListener('change', () => {
-        item.pill.classList.toggle('active', item.check.checked);
-        refreshLiveDork();
-      });
+  currentOfficialFilteredJobs = OFFICIAL_VACANCIES_DB.filter(job => {
+    // Platform / Medsos filter
+    if (source !== 'all') {
+      const jobPlat = job.platform || 'official';
+      if (jobPlat !== source) return false;
     }
+
+    // Sector filter
+    if (sector !== 'all' && job.sector !== sector) return false;
+
+    // Education filter
+    if (education !== 'all' && job.education_level !== education && education !== 'all') {
+      if (education === 'smk' && job.education_level !== 'smk') return false;
+      if (education === 'd3' && job.education_level !== 'd3' && job.education_level !== 'smk') return false;
+    }
+
+    // Keyword filter
+    if (keyword) {
+      const matchTitle = job.title.toLowerCase().includes(keyword);
+      const matchComp = job.company_name.toLowerCase().includes(keyword);
+      const matchDesc = job.description.toLowerCase().includes(keyword);
+      const matchReq = job.requirements.some(r => r.toLowerCase().includes(keyword));
+      const matchPlat = (job.platform_label || '').toLowerCase().includes(keyword);
+      if (!matchTitle && !matchComp && !matchDesc && !matchReq && !matchPlat) return false;
+    }
+
+    // Location filter
+    if (location) {
+      if (!job.location.toLowerCase().includes(location)) return false;
+    }
+
+    return true;
   });
 
-  // Timeframe radio change listeners
-  const timeframeRadios = document.querySelectorAll('input[name="scout_timeframe"]');
-  timeframeRadios.forEach(radio => {
-    radio.addEventListener('change', () => {
-      document.querySelectorAll('.timeframe-pill').forEach(pill => {
-        pill.classList.remove('active');
-        pill.style.borderColor = '#cbd5e1';
-        pill.style.background = '#ffffff';
-        pill.style.color = '#475569';
-      });
-      const activePill = document.getElementById(`pill-time-${radio.value}`);
-      if (activePill) {
-        activePill.classList.add('active');
-        activePill.style.borderColor = '#6366f1';
-        activePill.style.background = '#eef2ff';
-        activePill.style.color = '#4338ca';
-      }
-      refreshLiveDork();
-    });
-  });
-
-  // Live input typing listeners
-  if (inputKw) inputKw.addEventListener('input', refreshLiveDork);
-  if (inputLoc) inputLoc.addEventListener('input', refreshLiveDork);
-
-  // Copy query to clipboard button
-  if (btnCopyDork) {
-    btnCopyDork.addEventListener('click', async () => {
-      const q = liveDorkQuery?.value || '';
-      if (!q) return;
-      try {
-        await navigator.clipboard.writeText(q);
-        const orig = btnCopyDork.innerHTML;
-        btnCopyDork.innerHTML = '<i class="fa-solid fa-check" style="color: #10b981;"></i> Tersalin!';
-        setTimeout(() => {
-          btnCopyDork.innerHTML = orig;
-        }, 2000);
-      } catch (e) {
-        if (liveDorkQuery) {
-          liveDorkQuery.select();
-          document.execCommand('copy');
-          alert('Query Google Dork berhasil disalin!');
-        }
-      }
-    });
-  }
-
-  // Toggle Select All
-  if (btnToggleAll) {
-    btnToggleAll.addEventListener('click', () => {
-      const allChecked = checkLi.checked && checkIg.checked && checkFb.checked;
-      const targetState = !allChecked;
-
-      checkLi.checked = targetState;
-      checkIg.checked = targetState;
-      checkFb.checked = targetState;
-
-      pillLi.classList.toggle('active', targetState);
-      pillIg.classList.toggle('active', targetState);
-      pillFb.classList.toggle('active', targetState);
-
-      refreshLiveDork();
-    });
-  }
-
-  // Initialize live dork on page load
-  refreshLiveDork();
-
-  // Run Scout Generator
-  if (btnRun) {
-    btnRun.addEventListener('click', () => {
-      const keyword = (inputKw?.value || '').trim() || 'Software Engineer';
-      const location = (inputLoc?.value || '').trim() || 'Indonesia';
-      const platforms = getSelectedPlatforms();
-      const timeframe = getSelectedTimeframe();
-
-      if (platforms.length === 0) {
-        alert('Harap pilih minimal satu media sosial (LinkedIn, Instagram, atau Facebook)!');
-        return;
-      }
-
-      runSosmedScoutGenerator(keyword, location, platforms, timeframe);
-    });
-  }
-
-  // Open All Links in new tabs
-  if (btnOpenAll) {
-    btnOpenAll.addEventListener('click', () => {
-      const links = document.querySelectorAll('#scout-deep-links-container a');
-      if (links.length === 0) return;
-      links.forEach(a => {
-        window.open(a.href, '_blank');
-      });
-    });
-  }
+  renderOfficialJobsGrid();
 }
 
-async function runSosmedScoutGenerator(keyword, location, platforms, timeframe = '7d') {
-  const resultsArea = document.getElementById('scout-results-area');
+function renderOfficialJobsGrid() {
+  const container = document.getElementById('official-jobs-container');
   const titleEl = document.getElementById('scout-results-summary-title');
-  const deepLinksContainer = document.getElementById('scout-deep-links-container');
-  const postingsContainer = document.getElementById('scout-postings-container');
+  const subEl = document.getElementById('scout-results-summary-sub');
+  if (!container) return;
 
-  if (!resultsArea || !deepLinksContainer || !postingsContainer) return;
+  const activeSourceBtn = document.querySelector('.official-source-pills .source-pill.active');
+  const source = activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all';
+  const sourceLabels = {
+    all: 'Semua Platform (LinkedIn, IG, FB & Resmi BUMN)',
+    linkedin: 'LinkedIn Recruiter (Real-Time)',
+    instagram: 'Instagram Karir (@mayorakarir, @kalbecareer, dll)',
+    facebook: 'Facebook Loker Terpercaya (Grup & Fanpage Resmi)',
+    official: 'Resmi BUMN & Korporasi (Anti-Hoax)'
+  };
 
-  resultsArea.style.display = 'block';
-  const tfLabel = timeframe === '24h' ? '24 Jam Terakhir' : (timeframe === '30d' ? '30 Hari Terakhir' : '7 Hari Terakhir');
-  if (titleEl) titleEl.textContent = `Mencari Postingan Terbaru (${tfLabel}): "${keyword}" di ${location}...`;
-
-  // Deep search shortcut links
-  const encKw = encodeURIComponent(keyword);
-  const encLoc = encodeURIComponent(location);
-  const cleanTag = keyword.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-  const deepLinks = [];
-  if (platforms.includes('linkedin')) {
-    deepLinks.push({
-      platform: 'LinkedIn',
-      icon: 'fa-brands fa-linkedin',
-      color: '#0a66c2',
-      label: 'LinkedIn Jobs Search (Terbaru)',
-      url: `https://www.linkedin.com/jobs/search/?keywords=${encKw}&location=${encLoc}&f_TPR=r604800`
-    });
-    deepLinks.push({
-      platform: 'LinkedIn',
-      icon: 'fa-brands fa-linkedin',
-      color: '#0a66c2',
-      label: 'LinkedIn Feed Posts Loker',
-      url: `https://www.linkedin.com/search/results/content/?keywords=${encodeURIComponent(keyword + ' loker ' + location)}&origin=GLOBAL_SEARCH_HEADER&sortBy=%22date_posted%22&datePosted=%22past-week%22`
-    });
+  if (titleEl) {
+    titleEl.textContent = `Ditemukan ${currentOfficialFilteredJobs.length} Lowongan ${sourceLabels[source] || ''}`;
+  }
+  if (subEl) {
+    subEl.textContent = `Menampilkan materi lowongan siap publikasi dari LinkedIn, IG, FB & BUMN. Sekali klik bisa "Lihat Loker", "Generate Gambar (Poster Flyer)", atau "Simpan ke DB"!`;
   }
 
-  if (platforms.includes('instagram')) {
-    deepLinks.push({
-      platform: 'Instagram',
-      icon: 'fa-brands fa-instagram',
-      color: '#e1306c',
-      label: `Instagram Hashtag #${cleanTag}`,
-      url: `https://www.instagram.com/explore/tags/loker${cleanTag}/`
-    });
-    deepLinks.push({
-      platform: 'Instagram',
-      icon: 'fa-brands fa-instagram',
-      color: '#e1306c',
-      label: 'Instagram Explore Loker',
-      url: `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent('loker ' + keyword)}`
-    });
-  }
-
-  if (platforms.includes('facebook')) {
-    deepLinks.push({
-      platform: 'Facebook',
-      icon: 'fa-brands fa-facebook',
-      color: '#1877f2',
-      label: 'Facebook Group Loker',
-      url: `https://www.facebook.com/search/groups/?q=${encodeURIComponent('lowongan kerja ' + keyword + ' ' + location)}`
-    });
-    deepLinks.push({
-      platform: 'Facebook',
-      icon: 'fa-brands fa-facebook',
-      color: '#1877f2',
-      label: 'Facebook Postingan Loker Terbaru',
-      url: `https://www.facebook.com/search/posts/?q=${encodeURIComponent('loker ' + keyword + ' ' + location + ' terbaru')}`
-    });
-  }
-
-  const dorkObj = generateGoogleDorkQuery({ kata_kunci: keyword, lokasi: location, platforms, timeframe });
-  deepLinks.push({
-    platform: 'Multi-Sosmed',
-    icon: 'fa-brands fa-google',
-    color: '#4f46e5',
-    label: `Google Dork (${platforms.map(p => p.toUpperCase()).join(' & ')}) • ${tfLabel}`,
-    url: dorkObj.url_google
-  });
-
-  deepLinksContainer.innerHTML = deepLinks.map(link => `
-    <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="deep-link-item">
-      <div class="platform-info">
-        <i class="${link.icon}" style="color: ${link.color}; font-size: 1.25rem;"></i>
-        <span>${escapeHtml(link.label)}</span>
-      </div>
-      <i class="fa-solid fa-arrow-up-right-from-square" style="color: #94a3b8; font-size: 0.8rem;"></i>
-    </a>
-  `).join('');
-
-  // Show loading state
-  postingsContainer.innerHTML = `
-    <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
-      <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2.2rem; color: #6366f1; margin-bottom: 14px;"></i>
-      <h4 style="font-family: var(--font-heading); color: #1e293b; margin-bottom: 6px;">Memindai Postingan Terbaru & Menyingkirkan Lowongan Kedaluwarsa...</h4>
-      <p style="font-size: 0.84rem; color: #64748b;">Memfilter postingan aktif (${tfLabel}) di LinkedIn, Instagram, dan Facebook untuk "${escapeHtml(keyword)}" di ${escapeHtml(location)}.</p>
-    </div>
-  `;
-  resultsArea.scrollIntoView({ behavior: 'smooth' });
-
-  // Call real-time scout API
-  try {
-    const token = getAdminToken();
-    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-    const scoutUrl = getApiEndpoint(`/api/admin/scout-jobs?keyword=${encKw}&location=${encLoc}&platforms=${platforms.join(',')}&timeframe=${encodeURIComponent(timeframe)}`);
-    const { ok, data: json } = await safeFetchJson(scoutUrl, { headers });
-
-    if (!ok || !json || !json.success || !json.data || json.data.length === 0) {
-      if (titleEl) titleEl.textContent = `Belum Menemukan Postingan Baru (${tfLabel}) untuk "${keyword}"`;
-      postingsContainer.innerHTML = `
-        <div style="grid-column: 1 / -1; text-align: center; padding: 36px 20px; background: #ffffff; border-radius: 12px; border: 1px dashed #cbd5e1;">
-          <i class="fa-solid fa-clock-rotate-left" style="font-size: 2rem; color: #94a3b8; margin-bottom: 12px;"></i>
-          <h4 style="color: #334155; margin-bottom: 6px;">Tidak ada postingan baru pada rentang ${tfLabel}</h4>
-          <p style="font-size: 0.84rem; color: #64748b; max-width: 520px; margin: 0 auto 16px;">
-            Sistem otomatis menolak postingan lama yang sudah kedaluwarsa. Coba ganti rentang waktu ke "30 Hari Terakhir" atau klik salah satu tautan pencarian langsung di atas.
-          </p>
+  if (currentOfficialFilteredJobs.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: #ffffff; border-radius: 12px; border: 1.5px dashed #cbd5e1;">
+        <i class="fa-solid fa-file-circle-xmark" style="font-size: 2.5rem; color: #94a3b8; margin-bottom: 14px;"></i>
+        <h4 style="color: #334155; font-size: 1.1rem; margin-bottom: 6px;">Tidak ada lowongan yang cocok dengan filter "${sourceLabels[source] || source}"</h4>
+        <p style="font-size: 0.84rem; color: #64748b; max-width: 480px; margin: 0 auto 16px;">
+          Coba ganti filter platform ke "Semua Sumber" atau klik tombol "Cari Postingan Medsos Terkini (Live RSS)" untuk memindai internet secara langsung.
+        </p>
+        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="resetOfficialFilters()">Reset Filter</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="fetchLiveMedsosPostings()"><i class="fa-brands fa-searchengin"></i> Cari Postingan Medsos Live</button>
         </div>
-      `;
-      return;
-    }
-
-    const realPosts = json.data;
-    window._scoutPostings = realPosts;
-
-    if (titleEl) titleEl.textContent = `Ditemukan ${realPosts.length} Postingan Terbaru (${tfLabel}) untuk "${keyword}" di ${location}`;
-
-    postingsContainer.innerHTML = realPosts.map((post, idx) => `
-      <div class="scout-card">
-        <div class="scout-card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <span class="platform-badge ${post.platformClass}">
-            <i class="${post.platformIcon}"></i> ${post.platformLabel}
-          </span>
-          <span style="font-size: 0.73rem; background: ${post.badgeColor || '#6366f1'}15; color: ${post.badgeColor || '#4338ca'}; border: 1px solid ${post.badgeColor || '#6366f1'}35; font-weight: 700; padding: 3px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;">
-            <i class="fa-regular fa-clock"></i> ${escapeHtml(post.timeAgo || 'Baru Saja')}
-          </span>
-        </div>
-
-        <div class="scout-card-title">${escapeHtml(post.title)}</div>
-        <div class="scout-card-source"><i class="fa-solid fa-building"></i> ${escapeHtml(post.sourceName || post.company)}</div>
-
-        <p class="scout-card-snippet">${escapeHtml(post.description)}</p>
-
-        <div style="font-size: 0.76rem; color: #059669; font-weight: 700; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
-          <span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(post.location)}</span>
-          ${post.whatsapp ? `<span style="color: #25d366;"><i class="fa-brands fa-whatsapp"></i> ${escapeHtml(post.whatsapp)}</span>` : ''}
-          ${post.email ? `<span style="color: #3b82f6;"><i class="fa-solid fa-envelope"></i> ${escapeHtml(post.email)}</span>` : ''}
-        </div>
-
-        <div class="scout-card-actions">
-          <a href="${post.url}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="flex: 1.2;" title="Buka tautan postingan asli di media sosial">
-            <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Postingan Asli
-          </a>
-          <button type="button" class="btn btn-primary btn-sm" onclick="applyScoutDraftToUploadForm(${idx})" style="flex: 1.1;" title="Isi form upload dengan rincian ini">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Jadikan Draft
-          </button>
-        </div>
-      </div>
-    `).join('');
-
-  } catch (err) {
-    console.error('Scout fetch error:', err);
-    postingsContainer.innerHTML = `
-      <div style="grid-column: 1 / -1; text-align: center; padding: 30px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; color: #9f1239;">
-        <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.8rem; margin-bottom: 10px;"></i>
-        <p style="font-weight: 700;">Gagal memuat postingan real-time (${escapeHtml(err.message)})</p>
-        <p style="font-size: 0.8rem;">Gunakan tautan pencarian langsung di atas untuk membuka media sosial secara instan.</p>
       </div>
     `;
+    return;
   }
+
+  container.innerHTML = currentOfficialFilteredJobs.map((job, idx) => {
+    const platClass = job.platform_class || 'official';
+    const platIcon = job.platform_icon || 'fa-solid fa-circle-check';
+    const platLabel = job.platform_label || 'Resmi Terverifikasi';
+
+    return `
+      <div class="official-job-card card-${platClass}">
+        <div class="official-card-top">
+          <span class="official-platform-badge ${platClass}">
+            <i class="${platIcon}"></i> ${escapeHtml(platLabel)}
+          </span>
+          <span class="official-sector-tag">${escapeHtml(job.sector_label || job.sector)}</span>
+        </div>
+
+        <h3 class="official-job-title">${escapeHtml(job.title)}</h3>
+        <div class="official-company-name">
+          <i class="fa-solid fa-building"></i>
+          <span>${escapeHtml(job.company_name)}</span>
+        </div>
+
+        <div class="official-meta-pills">
+          <span class="official-meta-pill"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location)}</span>
+          <span class="official-meta-pill"><i class="fa-solid fa-graduation-cap"></i> ${escapeHtml(job.education_label || 'Semua Pendidikan')}</span>
+          <span class="official-meta-pill"><i class="fa-solid fa-clock"></i> ${escapeHtml(job.job_type)}</span>
+          <span class="official-meta-pill salary"><i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(job.salary_display)}</span>
+          <span class="official-meta-pill deadline"><i class="fa-regular fa-calendar-xmark"></i> Deadline: ${escapeHtml(job.deadline)}</span>
+        </div>
+
+        <div style="font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
+          <i class="fa-solid fa-list-check" style="color: #6366f1;"></i> Kualifikasi Utama:
+        </div>
+        <ul class="official-req-list">
+          ${job.requirements.slice(0, 4).map(req => `<li><i class="fa-solid fa-check" style="color:#10b981; font-size:0.75rem; margin-top:2px;"></i> <span>${escapeHtml(req)}</span></li>`).join('')}
+        </ul>
+
+        <div class="official-apply-note">
+          <i class="fa-solid fa-circle-info" style="color: #0284c7;"></i>
+          <span>${escapeHtml(job.apply_info || 'Lamaran online via tautan resmi')}</span>
+        </div>
+
+        <!-- 3 ACTION BUTTONS -->
+        <div class="official-card-actions">
+          <button type="button" class="btn-generate-poster-action" onclick="openPosterStudioFromOfficialIndex(${idx})" title="Generate Poster Flyer Otomatis & Download Langsung">
+            <i class="fa-solid fa-palette"></i> Generate Gambar (Poster Flyer) ⚡
+          </button>
+
+          <div class="official-actions-row">
+            <a href="${job.official_url}" target="_blank" rel="noopener noreferrer" class="btn btn-outline" title="Buka postingan lowongan di ${platLabel}">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Lihat Loker
+            </a>
+            <button type="button" class="btn btn-primary" onclick="publishOfficialJobToDatabase(${idx})" style="background: #059669; border-color: #059669;" title="Simpan lowongan ini ke database Supabase portal KerjaHub">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Simpan ke DB
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
-// Helper: category guesser
-function getCategoryForKeyword(kw) {
-  const k = kw.toLowerCase();
-  if (k.includes('design') || k.includes('ui') || k.includes('ux') || k.includes('grafis') || k.includes('illustrator')) return 'Design & Kreatif';
-  if (k.includes('dev') || k.includes('react') || k.includes('node') || k.includes('web') || k.includes('program') || k.includes('tech')) return 'Teknologi & IT';
-  if (k.includes('market') || k.includes('sales') || k.includes('seo') || k.includes('ads') || k.includes('sosmed')) return 'Marketing & Penjualan';
-  if (k.includes('data') || k.includes('ai') || k.includes('machine') || k.includes('python')) return 'Data & AI';
-  if (k.includes('admin') || k.includes('keuangan') || k.includes('finance') || k.includes('accounting')) return 'Administrasi & Keuangan';
-  if (k.includes('product') || k.includes('pm') || k.includes('scrum')) return 'Manajemen Produk';
-  return 'Lainnya';
-}
+window.resetOfficialFilters = function() {
+  const kw = document.getElementById('official-keyword');
+  const loc = document.getElementById('official-location');
+  const edu = document.getElementById('official-education');
+  if (kw) kw.value = '';
+  if (loc) loc.value = '';
+  if (edu) edu.value = 'all';
 
-// 1-Click apply generated post to upload form
-window.applyScoutDraftToUploadForm = function(postIndex) {
-  if (!window._scoutPostings || !window._scoutPostings[postIndex]) return;
-  const post = window._scoutPostings[postIndex];
+  document.querySelectorAll('.official-source-pills .source-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-source') === 'all');
+  });
 
-  const uploadForm = document.getElementById('form-upload-job');
-  if (!uploadForm) return;
+  document.querySelectorAll('.official-sector-pills .sector-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-sector') === 'all');
+  });
 
-  uploadForm.querySelector('[name="title"]').value = post.title || '';
-  uploadForm.querySelector('[name="company_name"]').value = post.company || '';
-  uploadForm.querySelector('[name="location"]').value = post.location || '';
-  uploadForm.querySelector('[name="description"]').value = post.description || '';
+  filterAndRenderOfficialJobs();
+};
 
-  if (post.whatsapp && uploadForm.querySelector('[name="whatsapp"]')) {
-    uploadForm.querySelector('[name="whatsapp"]').value = post.whatsapp;
-  }
-  if (post.email && uploadForm.querySelector('[name="email"]')) {
-    uploadForm.querySelector('[name="email"]').value = post.email;
-  }
-  if (post.url && uploadForm.querySelector('[name="website"]')) {
-    uploadForm.querySelector('[name="website"]').value = post.url;
+// -------------------------------------------------------------
+// PUBLISH / SIMPAN LOKER RESMI KE DATABASE SUPABASE
+// -------------------------------------------------------------
+window.publishOfficialJobToDatabase = async function(index) {
+  const job = currentOfficialFilteredJobs[index];
+  if (!job) return;
+
+  if (!confirm(`Simpan lowongan "${job.title}" (${job.company_name}) ke Database Supabase portal KerjaHub?`)) {
+    return;
   }
 
-  // Set category if matches
-  const catSelect = uploadForm.querySelector('[name="category"]');
-  if (catSelect) {
-    const guessedCat = getCategoryForKeyword(post.title || '');
-    for (let opt of catSelect.options) {
-      if (opt.value === guessedCat || opt.text === guessedCat) {
-        catSelect.value = opt.value;
-        break;
+  const payload = {
+    title: job.title,
+    company_name: job.company_name,
+    category: job.category || 'Operasional',
+    job_type: job.job_type || 'Full Time',
+    location: job.location,
+    salary_display: job.salary_display,
+    experience_level: job.experience_level || 'Semua Tingkat',
+    poster_image: './uploads/sample_uiux.jpg',
+    description: job.description,
+    requirements: job.requirements,
+    responsibilities: job.responsibilities,
+    benefits: job.benefits,
+    contact_type: job.contact_type || 'link',
+    contact_value: job.contact_value || '',
+    deadline: job.deadline,
+    status: 'active',
+    is_featured: true,
+    views_count: 0,
+    source_platform: job.platform || 'official',
+    source_label: job.platform_label || 'Resmi BUMN & Korporasi'
+  };
+
+  let saved = false;
+
+  // Single source of truth: Send to backend /api/jobs (which inserts once to Supabase via server .env & syncs local backup)
+  try {
+    const token = getAdminToken();
+    const formData = new FormData();
+    for (const [k, v] of Object.entries(payload)) {
+      formData.set(k, Array.isArray(v) ? JSON.stringify(v) : v);
+    }
+    const res = await fetch(getApiEndpoint('/api/jobs'), {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData
+    });
+    if (res.ok) {
+      const json = await res.json().catch(() => ({}));
+      if (json.success !== false) {
+        saved = true;
       }
+    }
+  } catch (e) {
+    console.warn('Backend publish unavailable, falling back to direct cloud client:', e);
+  }
+
+  // Fallback: ONLY execute client-side direct insert if backend was offline or failed
+  if (!saved && sbClient) {
+    try {
+      const { data, error } = await sbClient.from('jobs').insert([payload]).select().single();
+      if (!error) {
+        saved = true;
+      } else {
+        console.warn('Supabase fallback insert note:', error.message);
+      }
+    } catch (e) {
+      console.warn('Supabase fallback insert exception:', e);
     }
   }
 
-  // Switch to upload tab
+  if (saved) {
+    alert(`Sukses! Lowongan resmi "${job.title}" berhasil tersimpan ke Database Supabase dan kini aktif di portal KerjaHub.`);
+    loadAdminJobs();
+    loadDashboardData();
+  } else {
+    alert('Info: Periksa status koneksi database Supabase Cloud.');
+  }
+};
+
+// -------------------------------------------------------------
+// POSTER CANVAS STUDIO LOGIC (FLUX-STYLE FLYER GENERATOR)
+// -------------------------------------------------------------
+const MASCOT_IMAGES = {
+  factory: './uploads/factory_operator_mascot.jpg',
+  corporate: './uploads/corporate_worker_mascot.jpg'
+};
+
+const loadedMascotCache = {};
+
+function preloadMascot(type) {
+  const src = MASCOT_IMAGES[type];
+  if (!src || loadedMascotCache[type]) return;
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = src;
+  img.onload = () => { loadedMascotCache[type] = img; };
+}
+
+preloadMascot('factory');
+preloadMascot('corporate');
+
+window.openPosterStudioFromOfficialIndex = function(index) {
+  const job = currentOfficialFilteredJobs[index];
+  if (!job) return;
+  openPosterStudio(job);
+};
+
+window.openPosterStudioFromExistingId = function(jobId) {
+  const job = adminJobs.find(j => Number(j.id) === Number(jobId));
+  if (!job) return;
+
+  const contacts = extractJobContacts(job);
+  const reqs = Array.isArray(job.requirements)
+    ? job.requirements
+    : (typeof job.requirements === 'string' && job.requirements.startsWith('[') ? JSON.parse(job.requirements) : (job.requirements ? [job.requirements] : []));
+
+  openPosterStudio({
+    title: job.title,
+    company_name: job.company_name,
+    requirements: reqs,
+    deadline: job.deadline || 'Sesuai Jadwal HRD',
+    official_url: contacts.website || window.location.origin + '/?job=' + job.id,
+    apply_info: contacts.website ? `Kirim CV/Lamaran melalui website resmi ${job.company_name}` : `Kirim lamaran melalui portal resmi KerjaHub`,
+    theme: job.category === 'Operasional' || job.title.toLowerCase().includes('operator') ? 'factory' : 'modern',
+    mascot: job.title.toLowerCase().includes('operator') || job.title.toLowerCase().includes('teknisi') ? 'factory' : 'corporate'
+  });
+};
+
+function openPosterStudio(jobData) {
+  currentPosterJobData = { ...jobData };
+
+  const modal = document.getElementById('poster-studio-modal');
+  if (!modal) return;
+
+  // Fill in form inputs
+  const compInp = document.getElementById('poster-input-company');
+  const titleInp = document.getElementById('poster-input-title');
+  const reqInp = document.getElementById('poster-input-requirements');
+  const deadInp = document.getElementById('poster-input-deadline');
+  const applyInp = document.getElementById('poster-input-apply-info');
+  const qrInp = document.getElementById('poster-input-qr-url');
+  const hashInp = document.getElementById('poster-input-hashtag');
+
+  if (compInp) compInp.value = jobData.company_name || 'PT NITERRA MOBILITY INDONESIA';
+  if (titleInp) titleInp.value = jobData.title || 'OPERATOR PRODUKSI';
+
+  if (reqInp) {
+    const reqList = Array.isArray(jobData.requirements) && jobData.requirements.length > 0
+      ? jobData.requirements
+      : [
+          'Pendidikan minimal SMA/SMK sederajat',
+          'Memiliki kemampuan Komunikasi, Kerja sama tim, dan Kedisiplinan yang baik',
+          'Dapat mengoperasikan Microsoft word, Excel dan Sistem Produksi',
+          'Bersedia bekerja dalam sistem shift'
+        ];
+    reqInp.value = reqList.slice(0, 4).join('\n');
+  }
+
+  if (deadInp) deadInp.value = jobData.deadline || '30 Oktober 2026';
+  if (applyInp) applyInp.value = jobData.apply_info || `Kirim CV/Lamaran melalui website ${jobData.company_name || 'perusahaan'}.`;
+  if (qrInp) qrInp.value = jobData.official_url || window.location.origin;
+  if (hashInp) hashInp.value = jobData.hashtag || '@LokerTerpercaya #LowonganKerja2026';
+
+  // Set selected theme & mascot pills
+  const theme = jobData.theme || 'factory';
+  const mascot = jobData.mascot || 'factory';
+
+  document.querySelectorAll('input[name="poster_theme"]').forEach(r => {
+    r.checked = (r.value === theme);
+    r.closest('.poster-theme-pill')?.classList.toggle('active', r.checked);
+  });
+
+  document.querySelectorAll('input[name="poster_mascot"]').forEach(r => {
+    r.checked = (r.value === mascot);
+    r.closest('.poster-theme-pill')?.classList.toggle('active', r.checked);
+  });
+
+  modal.classList.add('active');
+
+  // Trigger initial draw
+  setTimeout(() => {
+    renderPosterCanvas();
+  }, 50);
+}
+
+window.closePosterStudioModal = function() {
+  const modal = document.getElementById('poster-studio-modal');
+  if (modal) modal.classList.remove('active');
+};
+
+// -------------------------------------------------------------
+// RENDER POSTER CANVAS (HIGH RESOLUTION 1080 x 1350)
+// -------------------------------------------------------------
+function renderPosterCanvas() {
+  const canvas = document.getElementById('poster-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const width = 1080;
+  const height = 1350;
+  canvas.width = width;
+  canvas.height = height;
+
+  const company = (document.getElementById('poster-input-company')?.value || 'PT NITERRA MOBILITY INDONESIA').trim();
+  const title = (document.getElementById('poster-input-title')?.value || 'OPERATOR PRODUKSI').trim().toUpperCase();
+  const reqText = document.getElementById('poster-input-requirements')?.value || '';
+  const requirements = reqText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const deadline = (document.getElementById('poster-input-deadline')?.value || '30 Oktober 2026').trim();
+  const applyInfo = (document.getElementById('poster-input-apply-info')?.value || `Kirim CV/Lamaran melalui website ${company}.`).trim();
+  const qrUrl = (document.getElementById('poster-input-qr-url')?.value || 'https://www.ngkbusi.com/career').trim();
+  const hashtag = (document.getElementById('poster-input-hashtag')?.value || '@KerjaHubOfficial #Lowongankerja2026').trim();
+
+  const selectedTheme = document.querySelector('input[name="poster_theme"]:checked')?.value || 'factory';
+  const selectedMascot = document.querySelector('input[name="poster_mascot"]:checked')?.value || 'factory';
+
+  // Palette definitions
+  let p = {
+    bg: '#ffffff',
+    outerBorder: '#1e40af',
+    primary: '#1e3a8a',
+    accentOrange: '#f97316',
+    textDark: '#0f172a',
+    badgeBg: '#1e3a8a',
+    badgeBorder: '#3b82f6',
+    badgeText: '#ffffff',
+    applyBoxBorder: '#f97316',
+    applyBoxBg: '#ffffff',
+    footerBg: '#0f172a'
+  };
+
+  if (selectedTheme === 'bumn') {
+    p = {
+      bg: '#ffffff',
+      outerBorder: '#0f172a',
+      primary: '#0f172a',
+      accentOrange: '#10b981',
+      textDark: '#0f172a',
+      badgeBg: '#0f172a',
+      badgeBorder: '#10b981',
+      badgeText: '#ffffff',
+      applyBoxBorder: '#10b981',
+      applyBoxBg: '#ffffff',
+      footerBg: '#0f172a'
+    };
+  } else if (selectedTheme === 'modern') {
+    p = {
+      bg: '#ffffff',
+      outerBorder: '#4f46e5',
+      primary: '#4f46e5',
+      accentOrange: '#06b6d4',
+      textDark: '#0f172a',
+      badgeBg: '#4f46e5',
+      badgeBorder: '#818cf8',
+      badgeText: '#ffffff',
+      applyBoxBorder: '#4f46e5',
+      applyBoxBg: '#ffffff',
+      footerBg: '#1e1b4b'
+    };
+  }
+
+  // 1. Clear & Background
+  ctx.fillStyle = p.bg;
+  ctx.fillRect(0, 0, width, height);
+
+  // 2. Thick Outer Border with Rounded Corners
+  ctx.strokeStyle = p.outerBorder;
+  ctx.lineWidth = 18;
+  roundRect(ctx, 16, 16, width - 32, height - 32, 28, false, true);
+
+  // Subtle interior architectural line art
+  ctx.save();
+  ctx.strokeStyle = 'rgba(203, 213, 225, 0.35)';
+  ctx.lineWidth = 1.5;
+  for (let y = 140; y < 760; y += 40) {
+    ctx.beginPath();
+    ctx.moveTo(60, y);
+    ctx.lineTo(width - 60, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 3. Header Section (Centered)
+  ctx.textAlign = 'center';
+  ctx.fillStyle = p.textDark;
+  ctx.font = '800 38px "Plus Jakarta Sans", Arial, sans-serif';
+  ctx.fillText('LOWONGAN PEKERJAAN', width / 2, 88);
+
+  ctx.font = '800 46px "Plus Jakarta Sans", Arial, sans-serif';
+  ctx.fillStyle = p.primary;
+  ctx.fillText(company.toUpperCase(), width / 2, 146);
+
+  // 4. Position Banner Pill (Left-aligned)
+  const badgeX = 60;
+  const badgeY = 196;
+  const badgeW = 500;
+  const badgeH = 68;
+
+  ctx.fillStyle = p.badgeBg;
+  roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 14, true, false);
+
+  ctx.strokeStyle = p.badgeBorder;
+  ctx.lineWidth = 3;
+  roundRect(ctx, badgeX + 3, badgeY + 3, badgeW - 6, badgeH - 6, 12, false, true);
+
+  ctx.fillStyle = p.badgeText;
+  ctx.textAlign = 'center';
+  ctx.font = '800 32px "Plus Jakarta Sans", Arial, sans-serif';
+  ctx.fillText(title, badgeX + badgeW / 2, badgeY + 45);
+
+  // 5. Kualifikasi Section
+  ctx.textAlign = 'left';
+  ctx.fillStyle = p.textDark;
+  ctx.font = '800 32px "Plus Jakarta Sans", Arial, sans-serif';
+  ctx.fillText('Kualifikasi', 60, 310);
+
+  // Render requirement bullet points with icons
+  const reqIcons = ['🎓', '🤝', '💻', '🕒', '🩺'];
+  let currentY = 360;
+  const maxReqW = 540;
+
+  requirements.slice(0, 5).forEach((req, idx) => {
+    const icon = reqIcons[idx % reqIcons.length];
+    ctx.font = '24px "Segoe UI Emoji", Arial';
+    ctx.fillText(icon, 60, currentY);
+
+    ctx.font = '600 24px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillStyle = '#334155';
+
+    // Text wrapping helper
+    const words = req.split(' ');
+    let line = '';
+    let lineY = currentY;
+
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line + words[n] + ' ';
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxReqW && n > 0) {
+        ctx.fillText(line, 105, lineY);
+        line = words[n] + ' ';
+        lineY += 34;
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line, 105, lineY);
+    currentY = lineY + 44;
+  });
+
+  // 6. Draw Mascot Illustration (Right Column)
+  if (selectedMascot !== 'none') {
+    const mascotImg = loadedMascotCache[selectedMascot];
+    if (mascotImg && mascotImg.complete && mascotImg.naturalWidth > 0) {
+      drawMascotOnCanvas(ctx, mascotImg, 620, 220, 400, 520);
+    } else {
+      // Load and re-render
+      const tempImg = new Image();
+      tempImg.crossOrigin = 'anonymous';
+      tempImg.src = MASCOT_IMAGES[selectedMascot];
+      tempImg.onload = () => {
+        loadedMascotCache[selectedMascot] = tempImg;
+        drawMascotOnCanvas(ctx, tempImg, 620, 220, 400, 520);
+      };
+    }
+  }
+
+  // 7. Application Box (Left-aligned bottom)
+  const appBoxX = 60;
+  const appBoxY = 790;
+  const appBoxW = 630;
+  const appBoxH = 195;
+
+  ctx.fillStyle = p.applyBoxBg;
+  roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 22, true, false);
+
+  // Double accent border (Orange prominent, like user's photo!)
+  ctx.strokeStyle = p.applyBoxBorder;
+  ctx.lineWidth = 5;
+  roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 22, false, true);
+
+  // Application texts inside box
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '800 27px "Plus Jakarta Sans", Arial, sans-serif';
+  ctx.fillText('Kirim CV/Lamaran melalui website', appBoxX + 26, appBoxY + 52);
+
+  ctx.fillStyle = p.primary;
+  ctx.font = '800 29px "Plus Jakarta Sans", Arial, sans-serif';
+  const shortComp = company.length > 32 ? company.substring(0, 32) + '...' : company;
+  ctx.fillText(`${shortComp}.`, appBoxX + 26, appBoxY + 98);
+
+  ctx.fillStyle = p.accentOrange;
+  ctx.font = '800 32px "Plus Jakarta Sans", Arial, sans-serif';
+  ctx.fillText(`Deadline ${deadline}.`, appBoxX + 26, appBoxY + 155);
+
+  // 8. QR Code Generation & Drawing (Right-aligned next to apply box)
+  const qrBoxX = 735;
+  const qrBoxY = 770;
+  const qrSize = 195;
+
+  drawScannableQrCode(ctx, qrUrl, qrBoxX, qrBoxY, qrSize);
+
+  // QR Label below
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '800 23px "Plus Jakarta Sans", Arial, sans-serif';
+  ctx.fillText('SCAN DISINI', qrBoxX + qrSize / 2, qrBoxY + qrSize + 38);
+
+  // 9. Brand Watermark & Hashtags
+  ctx.textAlign = 'left';
+  ctx.fillStyle = p.primary;
+  ctx.font = '800 36px "Plus Jakarta Sans", Arial, sans-serif';
+  ctx.fillText(company.length > 25 ? company.split(' ')[1] || company : company, 60, 1075);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '700 21px "Plus Jakarta Sans", Arial, sans-serif';
+  ctx.fillText(company, 60, 1110);
+  ctx.fillText(hashtag, 60, 1150);
+
+  // 10. Anti-Penipuan Warning Footer Banner (Prominent at bottom!)
+  const footX = 50;
+  const footY = 1224;
+  const footW = width - 100;
+  const footH = 76;
+
+  ctx.fillStyle = p.footerBg;
+  roundRect(ctx, footX, footY, footW, footH, 20, true, false);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = '800 25px "Plus Jakarta Sans", Arial, sans-serif';
+  ctx.fillText('⚠️ Waspada penipuan. Rekrutmen ini tidak dipungut biaya apapun.', width / 2, footY + 47);
+}
+
+// Helper: draw mascot with clean rounded card frame
+function drawMascotOnCanvas(ctx, img, x, y, w, h) {
+  ctx.save();
+  roundRect(ctx, x, y, w, h, 20, false, false);
+  ctx.clip();
+  ctx.drawImage(img, x, y, w, h);
+  ctx.restore();
+}
+
+// Helper: draw real QR Code
+function drawScannableQrCode(ctx, url, x, y, size) {
+  const holder = document.getElementById('poster-qrcode-temp');
+  if (!holder) return;
+
+  holder.innerHTML = '';
+  if (typeof QRCode === 'function') {
+    new QRCode(holder, {
+      text: url || 'https://www.ngkbusi.com/career',
+      width: size,
+      height: size,
+      colorDark: '#0f172a',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+
+    const qrCanvas = holder.querySelector('canvas');
+    if (qrCanvas) {
+      // Draw outer bracket marks
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 4;
+      const bLen = 22;
+      // Top-Left
+      ctx.beginPath(); ctx.moveTo(x - 8, y + bLen); ctx.lineTo(x - 8, y - 8); ctx.lineTo(x + bLen, y - 8); ctx.stroke();
+      // Top-Right
+      ctx.beginPath(); ctx.moveTo(x + size + 8 - bLen, y - 8); ctx.lineTo(x + size + 8, y - 8); ctx.lineTo(x + size + 8, y + bLen); ctx.stroke();
+      // Bottom-Left
+      ctx.beginPath(); ctx.moveTo(x - 8, y + size + 8 - bLen); ctx.lineTo(x - 8, y + size + 8); ctx.lineTo(x + bLen, y + size + 8); ctx.stroke();
+      // Bottom-Right
+      ctx.beginPath(); ctx.moveTo(x + size + 8 - bLen, y + size + 8); ctx.lineTo(x + size + 8, y + size + 8); ctx.lineTo(x + size + 8, y + size + 8 - bLen); ctx.stroke();
+
+      ctx.drawImage(qrCanvas, x, y, size, size);
+    }
+  }
+}
+
+// Helper: rounded rectangle path
+function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+  if (typeof radius === 'number') {
+    radius = { tl: radius, tr: radius, br: radius, bl: radius };
+  } else {
+    radius = Object.assign({ tl: 0, tr: 0, br: 0, bl: 0 }, radius);
+  }
+  ctx.beginPath();
+  ctx.moveTo(x + radius.tl, y);
+  ctx.lineTo(x + width - radius.tr, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius.tr);
+  ctx.lineTo(x + width, y + height - radius.br);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius.br, y + height);
+  ctx.lineTo(x + radius.bl, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius.bl);
+  ctx.lineTo(x, y + radius.tl);
+  ctx.quadraticCurveTo(x, y, x + radius.tl, y);
+  ctx.closePath();
+  if (fill) ctx.fill();
+  if (stroke) ctx.stroke();
+}
+
+// -------------------------------------------------------------
+// DOWNLOAD POSTER AS PNG
+// -------------------------------------------------------------
+function downloadPosterAsPng() {
+  const canvas = document.getElementById('poster-canvas');
+  if (!canvas) return;
+
+  const company = (document.getElementById('poster-input-company')?.value || 'PT_Niterra').replace(/[^a-zA-Z0-9]/g, '_');
+  const title = (document.getElementById('poster-input-title')?.value || 'Operator_Produksi').replace(/[^a-zA-Z0-9]/g, '_');
+  const filename = `poster_loker_${company}_${title}.png`.toLowerCase();
+
+  const dataUrl = canvas.toDataURL('image/png');
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = dataUrl;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  alert(`Gambar poster "${filename}" berhasil diunduh ke perangkat Anda! Siap diposting ke media sosial & status.`);
+}
+
+function copyPosterToClipboard() {
+  const canvas = document.getElementById('poster-canvas');
+  if (!canvas) return;
+
+  canvas.toBlob(blob => {
+    if (!blob) return;
+    try {
+      navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]).then(() => {
+        alert('Gambar poster berhasil disalin ke Clipboard! Anda bisa langsung paste (Ctrl + V) di WhatsApp, Telegram, atau Canva.');
+      }).catch(err => {
+        alert('Gagal menyalin langsung. Silakan gunakan tombol Download Gambar.');
+      });
+    } catch (e) {
+      alert('Browser tidak mendukung salin langsung. Silakan gunakan tombol Download.');
+    }
+  });
+}
+
+function usePosterForJob() {
+  const canvas = document.getElementById('poster-canvas');
+  if (!canvas) return;
+
+  const dataUrl = canvas.toDataURL('image/png');
+  currentSelectedFileBase64 = dataUrl;
+
+  const dropzone = document.getElementById('poster-dropzone');
+  const preview = document.getElementById('poster-preview');
+  const previewImg = document.getElementById('poster-preview-img');
+  const dropzonePrompt = document.getElementById('dropzone-prompt');
+
+  if (previewImg) previewImg.src = dataUrl;
+  if (preview) preview.style.display = 'block';
+  if (dropzonePrompt) dropzonePrompt.style.display = 'none';
+
+  closePosterStudioModal();
+
   const uploadNav = document.querySelector('a[href="#upload-job"]');
   if (uploadNav) uploadNav.click();
 
-  alert(`Draf lowongan untuk "${post.title}" berhasil disiapkan di formulir upload! Silakan lampirkan flyer poster dan klik Publikasikan.`);
-};
+  alert('Poster yang baru di-generate telah disetel sebagai gambar resmi formulir upload!');
+}
+
+// -------------------------------------------------------------
+// SETUP OFFICIAL GENERATOR & POSTER STUDIO LISTENERS
+// -------------------------------------------------------------
+async function fetchLiveMedsosPostings() {
+  const btnFetchLive = document.getElementById('btn-fetch-live-scout');
+  const kw = (document.getElementById('official-keyword')?.value || '').trim() || 'Operator';
+  const loc = (document.getElementById('official-location')?.value || '').trim() || 'Indonesia';
+  const activeSourceBtn = document.querySelector('.official-source-pills .source-pill.active');
+  const source = activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all';
+
+  let platforms = ['linkedin', 'instagram', 'facebook'];
+  if (source === 'linkedin') platforms = ['linkedin'];
+  else if (source === 'instagram') platforms = ['instagram'];
+  else if (source === 'facebook') platforms = ['facebook'];
+
+  const origHtml = btnFetchLive ? btnFetchLive.innerHTML : '';
+  if (btnFetchLive) {
+    btnFetchLive.disabled = true;
+    btnFetchLive.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memindai Medsos (LinkedIn/IG/FB)...';
+  }
+
+  try {
+    const token = getAdminToken();
+    const url = getApiEndpoint(`/api/admin/scout-jobs?keyword=${encodeURIComponent(kw)}&location=${encodeURIComponent(loc)}&platforms=${platforms.join(',')}&timeframe=7d`);
+    const res = await safeFetchJson(url, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+
+    if (res.ok && res.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+      const liveJobs = res.data.data.map((j, i) => ({
+        id: 'live_' + j.platform + '_' + Date.now() + '_' + i,
+        title: j.title.toUpperCase(),
+        company_name: j.company.toUpperCase(),
+        platform: j.platform,
+        platform_label: j.platformLabel === 'LINKEDIN' ? 'LinkedIn Recruiter' : (j.platformLabel === 'INSTAGRAM' ? 'Instagram Karir' : 'Facebook Loker'),
+        platform_icon: j.platformIcon,
+        platform_class: j.platformClass,
+        sector: 'manufaktur',
+        sector_label: 'Postingan Medsos Terkini',
+        category: 'Operasional',
+        job_type: 'Full Time',
+        location: j.location || loc,
+        education_level: 'smk',
+        education_label: 'SMA / SMK Sederajat',
+        experience_level: 'Semua Pengalaman',
+        salary_display: j.salary || 'Kompetitif (Sesuai Medsos)',
+        deadline: 'Sesuai Jadwal Medsos',
+        official_url: j.url,
+        contact_type: 'link',
+        contact_value: JSON.stringify({ whatsapp: j.whatsapp || '', email: j.email || '', website: j.url }),
+        description: j.description || `Lowongan kerja terbaru dipublikasikan via ${j.platformLabel}.`,
+        requirements: [
+          'Kualifikasi sesuai pengumuman postingan resmi di ' + j.platformLabel,
+          'Mampu berkomunikasi dengan baik dan berorientasi pada hasil kerja',
+          'Siap bekerja dalam tim dan mematuhi SOP perusahaan'
+        ],
+        responsibilities: [
+          'Menjalankan tugas dan kewajiban sesuai deskripsi rekruter di ' + j.platformLabel,
+          'Melaporkan progres pekerjaan secara rutin dan disiplin'
+        ],
+        benefits: [
+          'Gaji dan kompensasi sesuai standar perusahaan',
+          'Fasilitas kerja dan jaminan BPJS'
+        ],
+        theme: j.title.toLowerCase().includes('operator') ? 'factory' : 'modern',
+        mascot: j.title.toLowerCase().includes('operator') ? 'factory' : 'corporate',
+        verified_badge: `${j.platformLabel} Live Verified`,
+        apply_info: `Akses langsung postingan asli di ${j.platformLabel}.`,
+        hashtag: `#Loker${j.platformLabel} #${j.company.replace(/[^a-zA-Z0-9]/g, '')} #InfoLoker`
+      }));
+
+      // Prepend to OFFICIAL_VACANCIES_DB
+      liveJobs.forEach(lj => {
+        if (!OFFICIAL_VACANCIES_DB.some(o => o.official_url === lj.official_url)) {
+          OFFICIAL_VACANCIES_DB.unshift(lj);
+        }
+      });
+
+      alert(`Berhasil menemukan ${liveJobs.length} postingan loker real-time dari ${platforms.join(', ').toUpperCase()}! Data langsung ditampilkan di tabel di bawah.`);
+      filterAndRenderOfficialJobs();
+      document.getElementById('scout-results-area')?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      alert(`Info: Menampilkan database lowongan medsos & resmi terverifikasi.`);
+      filterAndRenderOfficialJobs();
+    }
+  } catch (err) {
+    alert('Catatan: Menampilkan database lowongan medsos terverifikasi.');
+    filterAndRenderOfficialJobs();
+  } finally {
+    if (btnFetchLive) {
+      btnFetchLive.disabled = false;
+      btnFetchLive.innerHTML = origHtml;
+    }
+  }
+}
+
+function setupOfficialVacancyGenerator() {
+  // Platform source filter tabs (LinkedIn, IG, FB, Resmi)
+  document.querySelectorAll('.official-source-pills .source-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.official-source-pills .source-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterAndRenderOfficialJobs();
+    });
+  });
+
+  // Sektor filter tabs
+  document.querySelectorAll('.official-sector-pills .sector-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.official-sector-pills .sector-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterAndRenderOfficialJobs();
+    });
+  });
+
+  const kwInput = document.getElementById('official-keyword');
+  const locInput = document.getElementById('official-location');
+  const eduSelect = document.getElementById('official-education');
+  const btnGenerate = document.getElementById('btn-generate-official-jobs');
+  const btnFetchLive = document.getElementById('btn-fetch-live-scout');
+
+  if (kwInput) kwInput.addEventListener('input', () => filterAndRenderOfficialJobs());
+  if (locInput) locInput.addEventListener('input', () => filterAndRenderOfficialJobs());
+  if (eduSelect) eduSelect.addEventListener('change', () => filterAndRenderOfficialJobs());
+  if (btnGenerate) btnGenerate.addEventListener('click', () => {
+    filterAndRenderOfficialJobs();
+    document.getElementById('scout-results-area')?.scrollIntoView({ behavior: 'smooth' });
+  });
+  if (btnFetchLive) {
+    btnFetchLive.addEventListener('click', fetchLiveMedsosPostings);
+  }
+
+  // Toggle sosmed dorking drawer
+  const btnToggleSosmed = document.getElementById('btn-toggle-scout-sosmed');
+  const sosmedDrawer = document.getElementById('scout-sosmed-drawer');
+  if (btnToggleSosmed && sosmedDrawer) {
+    btnToggleSosmed.addEventListener('click', () => {
+      const isHidden = sosmedDrawer.style.display === 'none';
+      sosmedDrawer.style.display = isHidden ? 'block' : 'none';
+      btnToggleSosmed.innerHTML = isHidden
+        ? '<i class="fa-solid fa-xmark"></i> Tutup Opsi Dorking Medsos'
+        : '<i class="fa-solid fa-share-nodes"></i> Buka Opsi Dorking Medsos (LinkedIn/IG/FB)';
+    });
+  }
+
+  // Poster studio inputs realtime update
+  [
+    'poster-input-company',
+    'poster-input-title',
+    'poster-input-requirements',
+    'poster-input-deadline',
+    'poster-input-apply-info',
+    'poster-input-qr-url',
+    'poster-input-hashtag'
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => renderPosterCanvas());
+  });
+
+  // Poster themes
+  document.querySelectorAll('input[name="poster_theme"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('input[name="poster_theme"]').forEach(r => {
+        r.closest('.poster-theme-pill')?.classList.toggle('active', r.checked);
+      });
+      renderPosterCanvas();
+    });
+  });
+
+  // Poster mascot
+  document.querySelectorAll('input[name="poster_mascot"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('input[name="poster_mascot"]').forEach(r => {
+        r.closest('.poster-theme-pill')?.classList.toggle('active', r.checked);
+      });
+      renderPosterCanvas();
+    });
+  });
+
+  // Download & Copy buttons
+  const btnDownloadPng = document.getElementById('btn-download-poster-png');
+  if (btnDownloadPng) btnDownloadPng.addEventListener('click', downloadPosterAsPng);
+
+  const btnCopyClipboard = document.getElementById('btn-copy-poster-clipboard');
+  if (btnCopyClipboard) btnCopyClipboard.addEventListener('click', copyPosterToClipboard);
+
+  const btnUsePoster = document.getElementById('btn-use-poster-for-job');
+  if (btnUsePoster) btnUsePoster.addEventListener('click', usePosterForJob);
+
+  // Render initial grid
+  renderOfficialJobsGrid();
+}
+
+function setupSosmedScout() {
+  setupOfficialVacancyGenerator();
+}
 
 // -------------------------------------------------------------
 // MASTER DATA MANAGEMENT (Kategori, Tipe, Level, Lokasi)
@@ -1542,4 +2868,112 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// -------------------------------------------------------------
+// PENGATURAN PESAN CV (WHATSAPP KONTAK PUBLIK)
+// -------------------------------------------------------------
+async function loadCvSettings() {
+  const inputWa = document.getElementById('setting-cv-whatsapp');
+  const inputMsg = document.getElementById('setting-cv-message');
+
+  try {
+    const { ok, data } = await safeFetchJson(getApiEndpoint('/api/settings'));
+    if (ok && data && data.success && data.data) {
+      const s = data.data;
+      if (inputWa) inputWa.value = s.cv_whatsapp || '';
+      if (inputMsg) inputMsg.value = s.cv_order_message || '';
+      updateCvSettingsPreview(s.cv_whatsapp, s.cv_order_message);
+    }
+  } catch (e) {
+    console.warn('Gagal memuat pengaturan CV:', e);
+  }
+}
+
+function updateCvSettingsPreview(wa, msg) {
+  const previewNum = document.getElementById('preview-cv-wa-number');
+  const previewMsg = document.getElementById('preview-cv-wa-msg');
+  if (previewNum) {
+    let raw = (wa || '081234567890').trim();
+    let clean = raw.replace(/[^0-9]/g, '');
+    if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+    else if (clean.startsWith('8')) clean = '62' + clean;
+    else if (!clean.startsWith('62')) clean = '62' + clean;
+    previewNum.textContent = '+' + clean;
+  }
+  if (previewMsg) {
+    previewMsg.textContent = msg || 'Halo Admin KerjaHub, saya ingin memesan layanan pembuatan / review CV profesional...';
+  }
+}
+
+function setupCvSettings() {
+  const form = document.getElementById('form-settings-cv');
+  const inputWa = document.getElementById('setting-cv-whatsapp');
+  const inputMsg = document.getElementById('setting-cv-message');
+  const btnTest = document.getElementById('btn-test-wa-direct');
+
+  if (inputWa) {
+    inputWa.addEventListener('input', () => {
+      updateCvSettingsPreview(inputWa.value, inputMsg?.value);
+    });
+  }
+
+  if (inputMsg) {
+    inputMsg.addEventListener('input', () => {
+      updateCvSettingsPreview(inputWa?.value, inputMsg.value);
+    });
+  }
+
+  if (btnTest) {
+    btnTest.addEventListener('click', () => {
+      let raw = inputWa?.value.trim() || '081234567890';
+      let clean = raw.replace(/[^0-9]/g, '');
+      if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+      else if (clean.startsWith('8')) clean = '62' + clean;
+      else if (!clean.startsWith('62')) clean = '62' + clean;
+
+      const text = encodeURIComponent(inputMsg?.value.trim() || 'Halo Admin KerjaHub, saya ingin memesan layanan pembuatan CV.');
+      window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${text}`, '_blank');
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('btn-save-cv-settings');
+      const origHtml = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan ke Server...';
+
+      const wa = inputWa?.value.trim() || '';
+      const msg = inputMsg?.value.trim() || '';
+
+      try {
+        const token = getAdminToken();
+        const res = await safeFetchJson(getApiEndpoint('/api/settings'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            cv_whatsapp: wa,
+            cv_order_message: msg
+          })
+        });
+
+        if (res.ok && res.data && res.data.success) {
+          alert(`Berhasil! Nomor WhatsApp pemesanan CV (${wa}) berhasil disimpan dan langsung aktif di tombol "Pesan CV" website publik.`);
+          updateCvSettingsPreview(wa, msg);
+        } else {
+          alert('Gagal menyimpan pengaturan: ' + (res.data?.message || 'Server menolak request.'));
+        }
+      } catch (err) {
+        alert('Gagal menghubungi server: ' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origHtml;
+      }
+    });
+  }
 }

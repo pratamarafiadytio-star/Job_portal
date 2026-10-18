@@ -1,21 +1,62 @@
 // ==============================================================
-// CEK-CV.JS - Dedicated AI Resume Analyzer & Job Matcher
+// CEK-CV.JS - Accurate AI Resume Analyzer & Strict Job Matcher
+// High Accuracy: Only displays vacancies with verified keyword/skill overlap
+// Zero Fallback: If no vacancies match CV qualifications, shows ZERO jobs
 // ==============================================================
 
 let allJobs = [];
 let analyzedSkills = [];
 
+// Curated Multilingual Skill & Role Dictionary across Industries
 const SKILL_KEYWORDS_DICT = [
+  // Teknologi, Software & IT
   'react', 'reactjs', 'vue', 'vuejs', 'angular', 'node', 'nodejs', 'express', 'javascript', 'typescript', 'php', 'laravel', 
   'python', 'django', 'fastapi', 'java', 'spring', 'kotlin', 'flutter', 'android', 'ios', 'swift',
   'html', 'css', 'tailwind', 'bootstrap', 'sass', 'sql', 'mysql', 'postgresql', 'postgres', 'mongodb', 
   'redis', 'docker', 'kubernetes', 'aws', 'cloud', 'git', 'github', 'api', 'rest api', 'graphql',
-  'ui', 'ux', 'ui/ux', 'figma', 'adobe', 'photoshop', 'illustrator', 'canva', 'prototyping', 'design system',
-  'marketing', 'digital marketing', 'social media', 'content creator', 'copywriter', 'copywriting', 'seo', 'sem',
-  'meta ads', 'facebook ads', 'instagram ads', 'tiktok ads', 'google ads', 'sales', 'business development',
-  'data', 'data analyst', 'data science', 'machine learning', 'deep learning', 'ai', 'prompt engineering', 'llm',
-  'excel', 'powerbi', 'tableau', 'accounting', 'finance', 'administrasi', 'customer service', 'support', 'hr', 'hrd'
+  'ui', 'ux', 'ui/ux', 'figma', 'canva', 'prototyping', 'design system', 'data analyst', 'data science', 
+  'machine learning', 'deep learning', 'ai', 'prompt engineering', 'llm', 'devops', 'linux',
+
+  // Manufaktur, Pabrik, Otomotif & Operasional
+  'operator', 'operator produksi', 'assembly', 'perakitan', 'teknisi', 'teknisi mesin', 'teknisi listrik', 
+  'mekanik', 'maintenance', 'kelistrikan', 'mesin industri', 'manufaktur', 'pabrik', 'quality control', 
+  'qc', 'qa', 'quality assurance', 'k3', 'keselamatan kerja', 'hse', 'forklift', 'packing', 'pengemasan', 
+  'gudang', 'warehouse', 'logistik', 'inventory', 'plc', 'cnc', 'mesin bubut', 'las', 'welding', 
+  'otomotif', 'sparepart', '5s', 'kaizen', 'shift', 'smk teknik',
+
+  // Administrasi, Perkantoran & Kesekretariatan
+  'administrasi', 'staf admin', 'data entry', 'microsoft office', 'excel', 'ms excel', 'spreadsheet', 
+  'word', 'powerpoint', 'filing', 'pengarsipan', 'korespondensi', 'rekap data', 'rekapitulasi', 'sekretaris',
+
+  // Akuntansi, Pajak & Keuangan
+  'akuntansi', 'accounting', 'finance', 'pajak', 'perpajakan', 'tax', 'brevet', 'brevet ab', 'jurnal umum', 
+  'pembukuan', 'cash flow', 'laporan keuangan', 'invoicing', 'faktur', 'audit', 'sap', 'accurate', 'myob', 
+  'perbankan', 'teller', 'bank',
+
+  // Pemasaran, Penjualan, Konten & Kreatif
+  'marketing', 'sales', 'digital marketing', 'seo', 'sem', 'social media', 'sosmed', 'copywriter', 
+  'copywriting', 'content creator', 'photoshop', 'illustrator', 'adobe', 'coreldraw', 'desain grafis', 
+  'video editing', 'premiere', 'capcut', 'reels', 'tiktok ads', 'meta ads', 'facebook ads', 'google ads', 
+  'telemarketing', 'negosiasi', 'b2b', 'b2c',
+
+  // Layanan, Retail, Hospitality & Operasional Lapangan
+  'customer service', 'cs', 'frontliner', 'call center', 'layanan pelanggan', 'barista', 'kasir', 
+  'waiter', 'waitress', 'pramuniaga', 'kitchen', 'resepsionis', 'driver', 'sim a', 'sim b', 'sim c', 
+  'kurir', 'security', 'satpam'
 ];
+
+// Education Keywords
+const EDU_KEYWORDS = ['sma', 'smk', 'd3', 'd4', 's1', 's2', 'diploma', 'sarjana', 'fresh graduate'];
+
+// Indonesian & English Stopwords for Filtering
+const STOPWORDS = new Set([
+  'dan', 'yang', 'untuk', 'dengan', 'saya', 'di', 'ke', 'dari', 'ini', 'itu', 'pada', 'oleh', 
+  'serta', 'karena', 'adalah', 'sebagai', 'bahwa', 'tentang', 'telah', 'kami', 'anda', 'akan', 
+  'bisa', 'dapat', 'tahun', 'bulan', 'hari', 'kerja', 'bekerja', 'memiliki', 'mampu', 'baik', 
+  'pt', 'tbk', 'cv', 'lulusan', 'pendidikan', 'pengalaman', 'bidang', 'posisi', 'perusahaan', 
+  'the', 'and', 'with', 'for', 'from', 'in', 'at', 'to', 'of', 'a', 'an', 'is', 'are', 'have', 
+  'has', 'year', 'years', 'skills', 'skill', 'resume', 'curriculum', 'vitae', 'indonesia'
+]);
 
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
@@ -74,15 +115,57 @@ async function safeFetchJson(url, options = {}) {
   }
 }
 
-// Load Jobs from API
+// Site Settings (WhatsApp CV Order, etc.)
+window.siteSettings = {
+  cv_whatsapp: '081234567890',
+  cv_order_message: 'Halo Admin KerjaHub, saya ingin memesan layanan pembuatan / review CV profesional berstandar ATS agar lolos seleksi kerja. Mohon informasi tarif dan prosedurnya. Terima kasih.'
+};
+
+window.openCvOrderWhatsApp = function() {
+  const settings = window.siteSettings || {};
+  let phone = (settings.cv_whatsapp || '081234567890').trim();
+  let clean = phone.replace(/[^0-9]/g, '');
+  if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+  else if (clean.startsWith('8')) clean = '62' + clean;
+  else if (!clean.startsWith('62')) clean = '62' + clean;
+
+  const msg = settings.cv_order_message || 'Halo Admin KerjaHub, saya ingin memesan layanan pembuatan / review CV profesional berstandar ATS agar lolos seleksi kerja. Mohon informasi tarif dan prosedurnya. Terima kasih.';
+  window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}`, '_blank');
+};
+
+// Load Jobs and Settings from API (with Supabase fallback)
 async function loadAllJobs() {
   try {
     const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
     if (ok && json && json.success && Array.isArray(json.data)) {
-      allJobs = json.data;
+      allJobs = json.data.filter(j => j.status === 'active' || !j.status);
     }
   } catch (err) {
-    console.warn('Failed to load jobs for CV check:', err);
+    console.warn('API jobs fetch warning, checking direct cloud config:', err);
+  }
+
+  // Load config & settings
+  try {
+    const { ok, data: cfg } = await safeFetchJson(getApiEndpoint('/api/config'));
+    if (ok && cfg) {
+      if (cfg.cv_whatsapp) {
+        window.siteSettings.cv_whatsapp = cfg.cv_whatsapp;
+      }
+      if (cfg.cv_order_message) {
+        window.siteSettings.cv_order_message = cfg.cv_order_message;
+      }
+
+      // Fallback jobs from Supabase if API returned empty
+      if (allJobs.length === 0 && cfg.supabaseUrl && cfg.supabaseKey && window.supabase) {
+        const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+        const { data, error } = await sb.from('jobs').select('*').in('status', ['active']);
+        if (!error && Array.isArray(data)) {
+          allJobs = data;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Supabase fallback load warning:', e);
   }
 }
 
@@ -153,7 +236,7 @@ function setupCvMatcher() {
   }
 }
 
-// Handle File Upload
+// Handle File Upload (PDF, DOCX, TXT)
 async function handleCvFileUpload(file) {
   const titleEl = document.getElementById('cv-drop-title');
   const subtitleEl = document.getElementById('cv-drop-subtitle');
@@ -168,7 +251,7 @@ async function handleCvFileUpload(file) {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       let fullText = '';
-      const maxPages = Math.min(pdf.numPages, 5);
+      const maxPages = Math.min(pdf.numPages, 6);
       for (let i = 1; i <= maxPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
@@ -180,12 +263,12 @@ async function handleCvFileUpload(file) {
       text = await file.text();
     }
 
-    if (!text || text.trim().length < 20) {
+    if (!text || text.trim().length < 15) {
       text = file.name.replace(/[^a-zA-Z0-9 ]/g, ' ');
     }
 
     if (titleEl) titleEl.textContent = `Dokumen: ${file.name}`;
-    if (subtitleEl) subtitleEl.textContent = 'Analisis selesai! Rekomendasi lowongan ditampilkan di bawah.';
+    if (subtitleEl) subtitleEl.textContent = 'Analisis selesai! Rekomendasi akurat ditampilkan di bawah.';
 
     const pasteInput = document.getElementById('cv-paste-input');
     if (pasteInput && text.length > 30) {
@@ -201,110 +284,248 @@ async function handleCvFileUpload(file) {
   }
 }
 
-// Run CV Analysis
-function runCvAnalysis(rawText, sourceName) {
+// -------------------------------------------------------------
+// STRICT & ACCURATE CV MATCHING ENGINE
+// -------------------------------------------------------------
+function extractCvKeywords(rawText) {
   const lower = (rawText || '').toLowerCase();
 
-  // Detect candidate skills
-  const candidateSkills = [];
+  // 1. Match dictionary skills with word boundaries
+  const detectedSkills = [];
   SKILL_KEYWORDS_DICT.forEach(skill => {
-    const regex = new RegExp(`(^|[^a-z0-9])${skill.replace(/[+*?^$.()|[\]{}\\]/g, '\\$&')}([^a-z0-9]|$)`, 'i');
+    const escaped = skill.replace(/[+*?^$.()|[\]{}\\]/g, '\\$&');
+    const regex = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i');
     if (regex.test(lower)) {
-      if (!candidateSkills.includes(skill)) candidateSkills.push(skill);
+      if (!detectedSkills.includes(skill)) detectedSkills.push(skill);
     }
   });
 
-  analyzedSkills = candidateSkills;
+  // 2. Extract education mentions
+  const detectedEdu = [];
+  EDU_KEYWORDS.forEach(edu => {
+    const regex = new RegExp(`(^|[^a-z0-9])${edu}([^a-z0-9]|$)`, 'i');
+    if (regex.test(lower)) {
+      detectedEdu.push(edu);
+    }
+  });
 
-  // Show Skills Bar
+  // 3. Extract meaningful raw tokens (>= 4 chars, not stopwords)
+  const tokens = lower
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length >= 4 && !STOPWORDS.has(w));
+
+  const uniqueTokens = Array.from(new Set(tokens));
+
+  return {
+    rawText: lower,
+    detectedSkills,
+    detectedEdu,
+    uniqueTokens
+  };
+}
+
+// Run CV Analysis
+function runCvAnalysis(rawText, sourceName) {
+  const cvData = extractCvKeywords(rawText);
+  analyzedSkills = cvData.detectedSkills;
+
+  // Show Detected Skills Bar
   const skillsBar = document.getElementById('skills-detected-bar');
   const skillsWrap = document.getElementById('skills-pills-wrap');
   const skillsCount = document.getElementById('skills-count-text');
 
   if (skillsBar && skillsWrap) {
     skillsBar.style.display = 'block';
-    if (skillsCount) skillsCount.textContent = `${candidateSkills.length} Keahlian Teridentifikasi`;
+    if (skillsCount) {
+      skillsCount.textContent = `${cvData.detectedSkills.length} Keahlian Teridentifikasi`;
+    }
 
-    if (candidateSkills.length > 0) {
-      skillsWrap.innerHTML = candidateSkills.map(s => `
+    if (cvData.detectedSkills.length > 0) {
+      skillsWrap.innerHTML = cvData.detectedSkills.map(s => `
         <span class="skill-chip"><i class="fa-solid fa-check"></i> ${s.toUpperCase()}</span>
       `).join('');
     } else {
-      skillsWrap.innerHTML = `<span style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">Tidak ada kata kunci teknis standar yang terdeteksi, namun kecocokan dihitung dari judul dan ringkasan.</span>`;
+      skillsWrap.innerHTML = `
+        <span style="font-size: 0.82rem; color: var(--text-muted); font-style: italic;">
+          Tidak ada kata kunci teknis standar terdeteksi. Sistem menggunakan pencocokan kata kunci profil & posisi langsung.
+        </span>
+      `;
     }
   }
 
-  // Score each job
-  const scoredJobs = allJobs.map(job => {
-    const jobText = [
-      job.title,
-      job.category,
-      job.job_type,
-      job.location,
-      job.description,
-      Array.isArray(job.requirements) ? job.requirements.join(' ') : job.requirements,
-      Array.isArray(job.responsibilities) ? job.responsibilities.join(' ') : job.responsibilities
-    ].join(' ').toLowerCase();
+  // STRICT SCORING: Evaluate only active jobs against the CV keywords
+  const activeJobsList = allJobs.filter(j => j.status === 'active' || !j.status);
+  const matchedJobs = [];
 
+  for (const job of activeJobsList) {
+    const titleLower = (job.title || '').toLowerCase();
+    const catLower = (job.category || '').toLowerCase();
+    const descLower = (job.description || '').toLowerCase();
+    const parseList = (val) => Array.isArray(val) ? val : (typeof val === 'string' && val.startsWith('[') ? JSON.parse(val || '[]') : [val || '']);
+    const reqsText = parseList(job.requirements).join(' ').toLowerCase();
+    const respsText = parseList(job.responsibilities).join(' ').toLowerCase();
+
+    const jobFullText = [titleLower, catLower, descLower, reqsText, respsText].join(' ');
+
+    // 1. Check which detected candidate skills actually exist in this job
     const matchedSkills = [];
-    candidateSkills.forEach(s => {
-      const reg = new RegExp(`(^|[^a-z0-9])${s.replace(/[+*?^$.()|[\]{}\\]/g, '\\$&')}([^a-z0-9]|$)`, 'i');
-      if (reg.test(jobText)) {
+    cvData.detectedSkills.forEach(s => {
+      const escaped = s.replace(/[+*?^$.()|[\]{}\\]/g, '\\$&');
+      const reg = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i');
+      if (reg.test(jobFullText)) {
         matchedSkills.push(s);
       }
     });
 
-    let score = 35;
-    if (matchedSkills.length > 0) {
-      score += Math.min(matchedSkills.length * 15, 50);
+    // 2. Check title / role overlap
+    const titleWords = titleLower.split(/[\s/&\-]+/).filter(w => w.length >= 4 && !STOPWORDS.has(w));
+    const matchedTitleWords = titleWords.filter(w => cvData.rawText.includes(w));
+    const hasRoleMatch = matchedTitleWords.length > 0;
+
+    // 3. Check requirement token overlap
+    const matchedReqTokens = cvData.uniqueTokens.filter(t => reqsText.includes(t) || titleLower.includes(t));
+
+    // STRICT FILTER: If ZERO skills match and NO role/title words match, it is NOT A MATCH!
+    if (matchedSkills.length === 0 && !hasRoleMatch && matchedReqTokens.length === 0) {
+      continue; // Strictly omit job - zero match!
     }
 
-    const titleWords = (job.title || '').toLowerCase().split(/[\s/&-]+/);
-    const hasTitleWord = titleWords.some(w => w.length > 3 && lower.includes(w));
-    if (hasTitleWord) score += 14;
+    // Calculate score starting from 0 (NO arbitrary default base!)
+    let score = 0;
 
-    score = Math.min(score, 98);
+    // Skill match points
+    if (matchedSkills.length > 0) {
+      score += Math.min(matchedSkills.length * 20, 55);
+    }
 
-    return {
+    // Role / Title match points
+    if (hasRoleMatch) {
+      score += Math.min(matchedTitleWords.length * 20, 30);
+    }
+
+    // Specific requirements overlap
+    if (matchedReqTokens.length > 0) {
+      score += Math.min(matchedReqTokens.length * 6, 18);
+    }
+
+    // Category relevance
+    const catWords = catLower.split(/[\s/&\-]+/).filter(w => w.length >= 4 && !STOPWORDS.has(w));
+    if (catWords.some(w => cvData.rawText.includes(w))) {
+      score += 8;
+    }
+
+    // Education match
+    if (cvData.detectedEdu.some(e => reqsText.includes(e))) {
+      score += 7;
+    }
+
+    // STRICT THRESHOLD: Must have at least 40% match AND verified matches
+    if (score < 40) {
+      continue; // Drop jobs with weak or incidental matches
+    }
+
+    score = Math.min(Math.max(score, 45), 98);
+
+    matchedJobs.push({
       ...job,
       matchScore: score,
-      matchedSkills
-    };
-  });
+      matchedSkills,
+      matchedTitleWords
+    });
+  }
 
   // Sort descending by match score
-  scoredJobs.sort((a, b) => b.matchScore - a.matchScore);
+  matchedJobs.sort((a, b) => b.matchScore - a.matchScore);
 
-  // Show status bar
+  // Update Status Bar
   const statusBar = document.getElementById('cv-match-status-bar');
-  if (statusBar) statusBar.style.display = 'flex';
+  const statusTitle = document.getElementById('cv-match-title');
+  const statusSub = document.getElementById('cv-match-subtitle');
 
-  renderMatchedJobs(scoredJobs);
+  if (statusBar) {
+    statusBar.style.display = 'flex';
+    if (matchedJobs.length > 0) {
+      statusBar.style.background = 'rgba(16, 185, 129, 0.1)';
+      statusBar.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+      if (statusTitle) {
+        statusTitle.textContent = `Analisis Selesai: Menemukan ${matchedJobs.length} Lowongan yang Sangat Cocok!`;
+        statusTitle.style.color = '#059669';
+      }
+      if (statusSub) {
+        statusSub.textContent = 'Semua lowongan di bawah telah disaring akurat berdasarkan keahlian dan kualifikasi pada CV Anda.';
+      }
+    } else {
+      statusBar.style.background = 'rgba(239, 68, 68, 0.08)';
+      statusBar.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+      if (statusTitle) {
+        statusTitle.textContent = 'Analisis Selesai: 0 Lowongan Relevan';
+        statusTitle.style.color = '#dc2626';
+      }
+      if (statusSub) {
+        statusSub.textContent = 'Tidak ditemukan lowongan aktif di database yang memenuhi kualifikasi CV ini.';
+      }
+    }
+  }
 
-  // Scroll to results
+  renderMatchedJobs(matchedJobs);
+
+  // Smooth scroll to results
   document.getElementById('matched-jobs-container')?.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Render Matched Jobs
+// Render Matched Jobs (Strict Zero-Match Handling)
 function renderMatchedJobs(jobs) {
   const container = document.getElementById('matched-jobs-container');
   const countEl = document.getElementById('matched-results-count');
 
   if (!container) return;
 
-  if (countEl) {
-    countEl.textContent = `Menemukan ${jobs.length} lowongan, diurutkan dari persentase kecocokan tertinggi.`;
-  }
+  // ZERO MATCH STATE: If no jobs match, display clean zero-match state - NO unrelated jobs!
+  if (!jobs || jobs.length === 0) {
+    if (countEl) {
+      countEl.textContent = '0 lowongan cocok ditemukan (Penyaringan Ketat & Akurat)';
+    }
 
-  if (jobs.length === 0) {
     container.innerHTML = `
-      <div style="grid-column: 1 / -1; text-align: center; padding: 48px; background: var(--bg-surface); border-radius: var(--radius-md);">
-        <i class="fa-solid fa-magnifying-glass" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 12px;"></i>
-        <h3 style="color: var(--text-main);">Belum ada lowongan yang sesuai</h3>
-        <p style="color: var(--text-muted);">Coba tambahkan lebih banyak keahlian pada ringkasan CV Anda.</p>
+      <div class="cv-zero-matches" style="grid-column: 1 / -1; text-align: center; padding: 48px 24px; background: var(--bg-surface); border: 1.5px dashed var(--border-color); border-radius: var(--radius-lg); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
+        <div style="width: 68px; height: 68px; border-radius: 50%; background: rgba(239, 68, 68, 0.1); color: #ef4444; display: inline-flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 16px;">
+          <i class="fa-solid fa-file-circle-xmark"></i>
+        </div>
+        <h3 style="color: var(--text-main); font-size: 1.3rem; font-weight: 800; margin-bottom: 8px;">
+          Tidak Ada Lowongan yang Cocok dengan Kualifikasi CV Anda
+        </h3>
+        <p style="color: var(--text-muted); max-width: 540px; margin: 0 auto 18px; font-size: 0.92rem; line-height: 1.6;">
+          Sistem kami menyaring secara akurat berdasarkan kata kunci keahlian, posisi kerja, dan persyaratan lowongan. Saat ini belum ditemukan lowongan aktif di database yang membutuhkan spesifikasi keahlian yang tercantum pada dokumen ini.
+        </p>
+
+        <div style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 16px 20px; max-width: 520px; margin: 0 auto 24px; text-align: left; font-size: 0.85rem; color: var(--text-muted);">
+          <strong style="color: var(--primary); display: block; margin-bottom: 6px;">
+            <i class="fa-solid fa-lightbulb"></i> Tips Agar Hasil Lebih Akurat:
+          </strong>
+          <ul style="margin: 0; padding-left: 20px; line-height: 1.6;">
+            <li>Cantumkan nama posisi target yang jelas (misal: <em>Operator Produksi, Frontend Developer, Staf Akuntansi, Admin</em>).</li>
+            <li>Sertakan nama alat kerja, software, mesin, atau bahasa pemrograman (misal: <em>Excel, K3, Figma, React, Mesin CNC, SAP</em>).</li>
+            <li>Tuliskan riwayat pendidikan (SMA/SMK/D3/S1) dan jurusan secara lengkap.</li>
+          </ul>
+        </div>
+
+        <div style="display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('cv-paste-input').focus()">
+            <i class="fa-solid fa-pen-to-square"></i> Perbarui Teks CV
+          </button>
+          <a href="./#lowongan" class="btn btn-primary btn-sm">
+            <i class="fa-solid fa-briefcase"></i> Lihat Semua Lowongan di Portal
+          </a>
+        </div>
       </div>
     `;
     return;
+  }
+
+  // MATCHED JOBS FOUND
+  if (countEl) {
+    countEl.textContent = `Menemukan ${jobs.length} lowongan yang benar-benar cocok dengan kualifikasi CV Anda.`;
   }
 
   container.innerHTML = jobs.map(job => {
@@ -320,6 +541,9 @@ function renderMatchedJobs(jobs) {
 
     const contacts = extractJobContacts(job);
     const posterImg = job.poster_image ? (job.poster_image.startsWith('/uploads/') ? '.' + job.poster_image : job.poster_image) : '';
+    const skillsToDisplay = (job.matchedSkills && job.matchedSkills.length > 0)
+      ? job.matchedSkills
+      : (job.matchedTitleWords || []);
 
     return `
       <div class="job-card" style="position: relative;">
@@ -327,7 +551,7 @@ function renderMatchedJobs(jobs) {
           <span class="match-percent-badge ${badgeClass}">
             <i class="fa-solid fa-bolt"></i> ${job.matchScore}% ${badgeLabel}
           </span>
-          <span class="job-type-pill">${escapeHtml(job.job_type)}</span>
+          <span class="job-type-pill">${escapeHtml(job.job_type || 'Full Time')}</span>
         </div>
 
         <div class="job-card-header">
@@ -342,22 +566,26 @@ function renderMatchedJobs(jobs) {
             </div>
           `}
           <div class="job-title-box">
-            <span class="badge" style="margin-bottom: 4px;">${escapeHtml(job.category)}</span>
+            <span class="badge" style="margin-bottom: 4px;">${escapeHtml(job.category || 'Lowongan')}</span>
             <h3 class="job-title" onclick="openJobDetailModal(${job.id})">${escapeHtml(job.title)}</h3>
             <div class="job-company"><i class="fa-solid fa-building"></i> ${escapeHtml(job.company_name)}</div>
           </div>
         </div>
 
         <div class="job-meta-row">
-          <div class="job-meta-item"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location)}</div>
+          <div class="job-meta-item"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location || 'Indonesia')}</div>
           <div class="job-meta-item"><i class="fa-solid fa-user-graduate"></i> ${escapeHtml(job.experience_level || 'Semua Pengalaman')}</div>
           ${job.salary_display ? `<div class="job-meta-item salary"><i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(job.salary_display)}</div>` : ''}
         </div>
 
-        ${job.matchedSkills && job.matchedSkills.length > 0 ? `
-          <div style="margin: 10px 0 14px; font-size: 0.76rem; color: var(--text-muted);">
-            <strong style="color: var(--primary);"><i class="fa-solid fa-circle-check"></i> Skill Cocok:</strong>
-            ${job.matchedSkills.slice(0, 5).map(s => `<span style="background: rgba(99,102,241,0.1); color: var(--primary); font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 4px;">${s}</span>`).join('')}
+        ${skillsToDisplay.length > 0 ? `
+          <div style="margin: 10px 0 14px; font-size: 0.78rem; color: var(--text-muted);">
+            <strong style="color: var(--primary);"><i class="fa-solid fa-circle-check"></i> Kualifikasi Cocok:</strong>
+            ${skillsToDisplay.slice(0, 5).map(s => `
+              <span style="background: rgba(99,102,241,0.1); color: var(--primary); font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 4px; display: inline-block; margin-top: 2px;">
+                ${escapeHtml(s)}
+              </span>
+            `).join('')}
           </div>
         ` : ''}
 
@@ -393,6 +621,11 @@ function resetCvMatcher() {
   if (dropSubtitle) dropSubtitle.textContent = 'Klik di sini untuk menjelajah dokumen atau seret & lepas berkas langsung ke area ini';
   if (statusBar) statusBar.style.display = 'none';
   if (skillsBar) skillsBar.style.display = 'none';
+
+  const countEl = document.getElementById('matched-results-count');
+  if (countEl) {
+    countEl.textContent = 'Menampilkan lowongan resmi terurut berdasarkan kecocokan profil.';
+  }
 
   const container = document.getElementById('matched-jobs-container');
   if (container) {
@@ -450,7 +683,7 @@ window.openJobDetailModal = function(id) {
   const contacts = extractJobContacts(job);
   const posterImg = job.poster_image ? (job.poster_image.startsWith('/uploads/') ? '.' + job.poster_image : job.poster_image) : '';
 
-  const parseList = (val) => Array.isArray(val) ? val : (typeof val === 'string' && val.startsWith('[') ? JSON.parse(val) : []);
+  const parseList = (val) => Array.isArray(val) ? val : (typeof val === 'string' && val.startsWith('[') ? JSON.parse(val || '[]') : [val || '']);
   const reqs = parseList(job.requirements);
   const resps = parseList(job.responsibilities);
   const benefits = parseList(job.benefits);

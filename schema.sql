@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS public.jobs (
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS whatsapp TEXT DEFAULT '';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS email TEXT DEFAULT '';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS website_url TEXT DEFAULT '';
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS source_platform TEXT DEFAULT 'official';
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS source_label TEXT DEFAULT 'Resmi BUMN & Swasta';
 
 -- 2. Buat Index untuk pencarian dan filter cepat
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON public.jobs (status);

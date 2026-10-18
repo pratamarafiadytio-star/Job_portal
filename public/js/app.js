@@ -35,15 +35,68 @@ async function safeFetchJson(url, options = {}) {
   }
 }
 
+// Site Settings (WhatsApp CV Order, etc.)
+window.siteSettings = {
+  cv_whatsapp: '081234567890',
+  cv_order_message: 'Halo Admin KerjaHub, saya ingin memesan layanan pembuatan / review CV profesional berstandar ATS agar lolos seleksi kerja. Mohon informasi tarif dan prosedurnya. Terima kasih.'
+};
+
+window.openCvOrderWhatsApp = function() {
+  const settings = window.siteSettings || {};
+  let phone = (settings.cv_whatsapp || '081234567890').trim();
+  let clean = phone.replace(/[^0-9]/g, '');
+  if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+  else if (clean.startsWith('8')) clean = '62' + clean;
+  else if (!clean.startsWith('62')) clean = '62' + clean;
+
+  const msg = settings.cv_order_message || 'Halo Admin KerjaHub, saya ingin memesan layanan pembuatan / review CV profesional berstandar ATS agar lolos seleksi kerja. Mohon informasi tarif dan prosedurnya. Terima kasih.';
+  window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}`, '_blank');
+};
+
+window.resetCategoryFilter = function() {
+  activeFilters.category = 'Semua';
+  const sc = document.getElementById('search-category');
+  if (sc) sc.value = 'Semua';
+  const catDropdown = document.getElementById('dropdown-category');
+  if (catDropdown) {
+    catDropdown.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+    catDropdown.querySelector('.dropdown-item[data-value="Semua"]')?.classList.add('active');
+    const catText = catDropdown.querySelector('.dropdown-selected-text');
+    if (catText) catText.textContent = 'Semua Kategori';
+  }
+  const allCatRadio = document.querySelector('input[name="filter_category"][value="Semua"]');
+  if (allCatRadio) allCatRadio.checked = true;
+  applyFiltersAndRender();
+};
+
+window.filterByPlatform = function(plat) {
+  activeFilters.platform = plat;
+  const radio = document.querySelector(`input[name="filter_platform"][value="${plat}"]`);
+  if (radio) radio.checked = true;
+  document.querySelectorAll('.chip-plat').forEach(c => {
+    c.classList.toggle('active', c.dataset.platform === plat);
+  });
+  applyFiltersAndRender();
+  document.getElementById('lowongan')?.scrollIntoView({ behavior: 'smooth' });
+};
+
 async function initSupabaseClient() {
   let url = SUPABASE_FALLBACK_URL;
   let key = SUPABASE_FALLBACK_KEY;
 
   try {
     const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
-    if (ok && data && data.supabaseUrl && data.supabaseKey) {
-      url = data.supabaseUrl;
-      key = data.supabaseKey;
+    if (ok && data) {
+      if (data.supabaseUrl && data.supabaseKey) {
+        url = data.supabaseUrl;
+        key = data.supabaseKey;
+      }
+      if (data.cv_whatsapp) {
+        window.siteSettings.cv_whatsapp = data.cv_whatsapp;
+      }
+      if (data.cv_order_message) {
+        window.siteSettings.cv_order_message = data.cv_order_message;
+      }
     }
   } catch (err) {
     console.warn('Config fetch warning:', err);
@@ -252,6 +305,7 @@ let activeFilters = {
   job_type: 'Semua',
   location: 'Semua',
   experience: 'Semua',
+  platform: 'Semua',
   has_salary: false,
   tab: 'all',
   sort: 'newest'
@@ -370,6 +424,15 @@ function setupEventListeners() {
   // Trending Chips Click
   document.querySelectorAll('.chip-keyword').forEach(chip => {
     chip.addEventListener('click', () => {
+      if (chip.id === 'btn-search-all-cat') {
+        window.resetCategoryFilter();
+        return;
+      }
+      if (chip.classList.contains('chip-plat')) {
+        const plat = chip.dataset.platform || 'Semua';
+        window.filterByPlatform(plat);
+        return;
+      }
       const kw = chip.dataset.keyword || '';
       if (searchInput) {
         searchInput.value = kw;
@@ -389,6 +452,17 @@ function setupEventListeners() {
       document.querySelectorAll('.job-tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       activeFilters.tab = btn.dataset.tab || 'all';
+      applyFiltersAndRender();
+    });
+  });
+
+  // Sidebar Platform Radios (Medsos & Resmi)
+  document.querySelectorAll('input[name="filter_platform"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      activeFilters.platform = e.target.value;
+      document.querySelectorAll('.chip-plat').forEach(c => {
+        c.classList.toggle('active', c.dataset.platform === e.target.value);
+      });
       applyFiltersAndRender();
     });
   });
@@ -906,17 +980,62 @@ function applyFiltersAndRender() {
     list = list.filter(j => j.salary_display && j.salary_display.toLowerCase().includes('rp'));
   }
 
-  // Filter Search
+  // Filter Platform Sumber (LinkedIn, Instagram, Facebook, Resmi)
+  if (activeFilters.platform && activeFilters.platform !== 'Semua') {
+    const p = activeFilters.platform.toLowerCase();
+    list = list.filter(j => {
+      const sp = (j.source_platform || '').toLowerCase();
+      const comp = (j.company_name || '').toLowerCase();
+      const web = (j.website_url || j.contact_value || '').toLowerCase();
+      if (p === 'linkedin') return sp === 'linkedin' || comp.includes('linkedin') || web.includes('linkedin');
+      if (p === 'instagram') return sp === 'instagram' || comp.includes('instagram') || web.includes('instagram');
+      if (p === 'facebook') return sp === 'facebook' || comp.includes('facebook') || web.includes('facebook');
+      if (p === 'official') return sp === 'official' || (!sp.includes('linkedin') && !sp.includes('instagram') && !sp.includes('facebook') && !web.includes('linkedin') && !web.includes('instagram') && !web.includes('facebook'));
+      return true;
+    });
+  }
+
+  // Filter Search (Comprehensive Multi-Field & Smart Out-of-Category Matching)
+  window.isSearchingOutOfCategory = false;
   if (activeFilters.search) {
     const s = activeFilters.search.toLowerCase();
-    list = list.filter(j => {
+    const matchFunction = (j) => {
+      const parseList = (val) => Array.isArray(val) ? val.join(' ') : (typeof val === 'string' && val.startsWith('[') ? JSON.parse(val || '[]').join(' ') : String(val || ''));
+      const reqsText = parseList(j.requirements);
+      const respsText = parseList(j.responsibilities);
+      const benefitsText = parseList(j.benefits);
+
       const titleMatch = j.title && j.title.toLowerCase().includes(s);
       const companyMatch = j.company_name && j.company_name.toLowerCase().includes(s);
       const descMatch = j.description && j.description.toLowerCase().includes(s);
       const catMatch = j.category && j.category.toLowerCase().includes(s);
       const locMatch = j.location && j.location.toLowerCase().includes(s);
-      return titleMatch || companyMatch || descMatch || catMatch || locMatch;
-    });
+      const reqMatch = reqsText.toLowerCase().includes(s);
+      const respMatch = respsText.toLowerCase().includes(s);
+      const benMatch = benefitsText.toLowerCase().includes(s);
+      const salMatch = j.salary_display && j.salary_display.toLowerCase().includes(s);
+      const expMatch = j.experience_level && j.experience_level.toLowerCase().includes(s);
+
+      return titleMatch || companyMatch || descMatch || catMatch || locMatch || reqMatch || respMatch || benMatch || salMatch || expMatch;
+    };
+
+    const inCategoryList = list.filter(matchFunction);
+
+    // If zero matches inside currently selected category, but matches exist when searching across all categories:
+    if (inCategoryList.length === 0 && activeFilters.category && activeFilters.category !== 'Semua') {
+      const allCategoryMatches = rawAllJobs
+        .filter(j => j.status !== 'deleted' && j.status !== 'archived')
+        .filter(matchFunction);
+
+      if (allCategoryMatches.length > 0) {
+        list = allCategoryMatches;
+        window.isSearchingOutOfCategory = true;
+      } else {
+        list = [];
+      }
+    } else {
+      list = inCategoryList;
+    }
   }
 
   // Sorting
@@ -1063,6 +1182,24 @@ function renderActiveFilterChips() {
     });
   }
 
+  if (activeFilters.platform && activeFilters.platform !== 'Semua') {
+    const platLabels = {
+      linkedin: 'LinkedIn Recruiter',
+      instagram: 'Instagram Karir',
+      facebook: 'Facebook Jobs',
+      official: 'Resmi BUMN & Korporasi'
+    };
+    chips.push({
+      label: `Sumber: ${platLabels[activeFilters.platform] || activeFilters.platform}`,
+      action: () => {
+        activeFilters.platform = 'Semua';
+        const radio = document.querySelector('input[name="filter_platform"][value="Semua"]');
+        if (radio) radio.checked = true;
+        document.querySelectorAll('.chip-plat').forEach(c => c.classList.remove('active'));
+      }
+    });
+  }
+
   const mftBadge = document.getElementById('mft-active-badge');
 
   if (chips.length > 0) {
@@ -1118,6 +1255,21 @@ function renderJobs(jobs) {
     const timeAgo = formatTimeAgo(job.created_at);
     const urgencyBadge = calculateUrgencyBadge(job.deadline);
 
+    // Platform source pill (LinkedIn, IG, FB, Resmi)
+    const sp = (job.source_platform || '').toLowerCase();
+    const comp = (job.company_name || '').toLowerCase();
+    const web = (job.website_url || job.contact_value || '').toLowerCase();
+    let platformPill = '';
+    if (sp === 'linkedin' || comp.includes('linkedin') || web.includes('linkedin.com')) {
+      platformPill = '<span class="pill pill-platform pill-linkedin"><i class="fa-brands fa-linkedin"></i> LinkedIn</span>';
+    } else if (sp === 'instagram' || comp.includes('instagram') || web.includes('instagram.com')) {
+      platformPill = '<span class="pill pill-platform pill-instagram"><i class="fa-brands fa-instagram"></i> Instagram</span>';
+    } else if (sp === 'facebook' || comp.includes('facebook') || web.includes('facebook.com')) {
+      platformPill = '<span class="pill pill-platform pill-facebook"><i class="fa-brands fa-facebook"></i> Facebook</span>';
+    } else {
+      platformPill = '<span class="pill pill-platform pill-official"><i class="fa-solid fa-circle-check"></i> Resmi BUMN</span>';
+    }
+
     // Dynamic skill pills from category & job
     const skillTags = generateSkillPills(job);
     const safeTitle = (job.title || '').replace(/'/g, "\\'");
@@ -1148,6 +1300,7 @@ function renderJobs(jobs) {
           <h3 class="job-title" onclick="${isLocked ? `showLockedNotice('${safeTitle}')` : `openJobDetail(${job.id})`}" title="${isLocked ? 'Lowongan telah ditutup (Expired)' : 'Klik untuk rincian lengkap'}">${escapeHtml(job.title)}</h3>
 
           <div class="job-badges">
+            ${platformPill}
             <span class="pill pill-type"><i class="fa-regular fa-clock"></i> ${escapeHtml(job.job_type)}</span>
             ${job.salary_display ? `<span class="pill pill-salary"><i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(job.salary_display)}</span>` : ''}
             ${isLocked ? '<span class="pill pill-expired"><i class="fa-solid fa-ban"></i> Lowongan Berakhir / Terkunci</span>' : urgencyBadge}
@@ -1194,6 +1347,20 @@ function renderJobs(jobs) {
       </div>
     `;
   }).join('');
+
+  const noticeHtml = window.isSearchingOutOfCategory ? `
+    <div class="search-out-of-category-notice" style="grid-column: 1 / -1;">
+      <span class="search-out-of-cat-text">
+        <i class="fa-solid fa-arrows-to-dot" style="color: var(--primary); font-size: 1.15rem;"></i>
+        Menampilkan <strong>${jobs.length} lowongan</strong> untuk kata kunci <em>"${escapeHtml(activeFilters.search)}"</em> di <strong>Semua Kategori</strong> (karena tidak ada hasil di kategori <em>${escapeHtml(activeFilters.category)}</em>).
+      </span>
+      <button type="button" class="btn-clear-category-chip" onclick="resetCategoryFilter()">
+        <i class="fa-solid fa-layer-group"></i> Ubah ke Semua Kategori
+      </button>
+    </div>
+  ` : '';
+
+  container.innerHTML = noticeHtml + cardsHtml;
 }
 
 // Generate skill pills based on job properties
@@ -1591,7 +1758,7 @@ function extractJobContacts(job) {
         const parsed = JSON.parse(raw);
         if (parsed.whatsapp && !wa) wa = parsed.whatsapp;
         if (parsed.email && !email) email = parsed.email;
-        if (parsed.website_url && !website) website = parsed.website_url;
+        if ((parsed.website || parsed.website_url) && !website) website = parsed.website || parsed.website_url;
       } catch (e) {}
     } else {
       const type = job.contact_type || '';
@@ -1647,12 +1814,31 @@ function renderContactButton(job) {
     `);
   }
 
-  // 3. Website / Portal Button
+  // 3. Website / Portal / Medsos Direct Link Button
   if (contacts.website_url) {
     const webUrl = contacts.website_url.startsWith('http') ? contacts.website_url : `https://${contacts.website_url}`;
+    const sp = (job.source_platform || '').toLowerCase();
+    let btnClass = 'btn-web-direct';
+    let btnIcon = 'fa-solid fa-arrow-up-right-from-square';
+    let btnText = 'Buka Tautan Pendaftaran Resmi';
+
+    if (webUrl.includes('linkedin.com') || sp === 'linkedin') {
+      btnClass = 'btn-web-direct btn-linkedin-direct';
+      btnIcon = 'fa-brands fa-linkedin';
+      btnText = 'Lihat Postingan Lowongan di LinkedIn';
+    } else if (webUrl.includes('instagram.com') || sp === 'instagram') {
+      btnClass = 'btn-web-direct btn-instagram-direct';
+      btnIcon = 'fa-brands fa-instagram';
+      btnText = 'Lihat Postingan Lowongan di Instagram Karir';
+    } else if (webUrl.includes('facebook.com') || sp === 'facebook') {
+      btnClass = 'btn-web-direct btn-facebook-direct';
+      btnIcon = 'fa-brands fa-facebook';
+      btnText = 'Lihat Postingan Lowongan di Facebook Jobs';
+    }
+
     buttons.push(`
-      <a href="${webUrl}" target="_blank" rel="noopener noreferrer" class="btn-web-direct" title="Buka tautan formulir pendaftaran resmi">
-        <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Tautan Pendaftaran Resmi
+      <a href="${webUrl}" target="_blank" rel="noopener noreferrer" class="${btnClass}" title="${btnText}">
+        <i class="${btnIcon}"></i> ${btnText}
       </a>
     `);
   }
