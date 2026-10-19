@@ -2180,48 +2180,152 @@ function renderPosterCanvas() {
   ctx.font = '800 38px "Plus Jakarta Sans", Arial, sans-serif';
   ctx.fillText('LOWONGAN PEKERJAAN', width / 2, 88);
 
-  ctx.font = '800 46px "Plus Jakarta Sans", Arial, sans-serif';
+  // Dynamic Company Name Auto-Scale
+  const companyUpper = company.toUpperCase();
+  let compFontSize = 46;
+  ctx.font = `800 ${compFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+  while (ctx.measureText(companyUpper).width > 920 && compFontSize > 22) {
+    compFontSize -= 2;
+    ctx.font = `800 ${compFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+  }
   ctx.fillStyle = p.primary;
-  ctx.fillText(company.toUpperCase(), width / 2, 146);
+  ctx.fillText(companyUpper, width / 2, 146);
 
-  // 4. Position Banner Pill (Left-aligned)
+  // 4. Position Banner Pill (Intelligent Auto-Scale & Word Wrapping)
+  const hasMascot = (selectedMascot !== 'none');
   const badgeX = 60;
-  const badgeY = 196;
-  const badgeW = 500;
-  const badgeH = 68;
+  const badgeY = 192;
+  const badgeW = hasMascot ? 540 : (width - 120);
+  const maxContentW = badgeW - 48; // 24px padding inside pill
 
+  const titleUpper = title.trim();
+  const words = titleUpper.split(/\s+/).filter(Boolean);
+
+  let titleFontSize = 28;
+  let titleLines = [titleUpper];
+
+  // A. Check if fits on 1 line (test from 30px down to 22px)
+  let fitsOneLine = false;
+  for (let s = 30; s >= 22; s -= 2) {
+    ctx.font = `800 ${s}px "Plus Jakarta Sans", Arial, sans-serif`;
+    if (ctx.measureText(titleUpper).width <= maxContentW) {
+      titleFontSize = s;
+      titleLines = [titleUpper];
+      fitsOneLine = true;
+      break;
+    }
+  }
+
+  // B. If title doesn't fit on 1 line, find best balanced 2-line split
+  if (!fitsOneLine) {
+    let foundSplit = false;
+    for (let s = 26; s >= 18; s -= 2) {
+      ctx.font = `800 ${s}px "Plus Jakarta Sans", Arial, sans-serif`;
+
+      let bestSplit = null;
+      let minDiff = Infinity;
+      for (let i = 1; i < words.length; i++) {
+        const l1 = words.slice(0, i).join(' ');
+        const l2 = words.slice(i).join(' ');
+        const w1 = ctx.measureText(l1).width;
+        const w2 = ctx.measureText(l2).width;
+
+        if (w1 <= maxContentW && w2 <= maxContentW) {
+          const diff = Math.abs(w1 - w2);
+          if (diff < minDiff) {
+            minDiff = diff;
+            bestSplit = [l1, l2];
+          }
+        }
+      }
+
+      if (bestSplit) {
+        titleFontSize = s;
+        titleLines = bestSplit;
+        foundSplit = true;
+        break;
+      }
+    }
+
+    // C. If still doesn't fit in 2 lines, use 3 lines wrap with truncation safeguard
+    if (!foundSplit) {
+      titleFontSize = 18;
+      ctx.font = `800 ${titleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+      titleLines = [];
+      let curLine = '';
+      for (const w of words) {
+        const test = curLine ? curLine + ' ' + w : w;
+        if (ctx.measureText(test).width <= maxContentW) {
+          curLine = test;
+        } else {
+          if (curLine) titleLines.push(curLine);
+          curLine = w;
+        }
+      }
+      if (curLine) titleLines.push(curLine);
+      if (titleLines.length > 3) {
+        titleLines = titleLines.slice(0, 3);
+        while (ctx.measureText(titleLines[2] + '...').width > maxContentW && titleLines[2].length > 5) {
+          titleLines[2] = titleLines[2].slice(0, -1);
+        }
+        titleLines[2] = titleLines[2] + '...';
+      }
+    }
+  }
+
+  // Calculate dynamic badge height based on lines
+  const lineHeight = Math.round(titleFontSize * 1.3);
+  const badgeH = Math.max(68, (titleLines.length * lineHeight) + 26);
+
+  // Draw Badge Box
+  ctx.save();
   ctx.fillStyle = p.badgeBg;
-  roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 14, true, false);
+  roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 16, true, false);
 
   ctx.strokeStyle = p.badgeBorder;
-  ctx.lineWidth = 3;
-  roundRect(ctx, badgeX + 3, badgeY + 3, badgeW - 6, badgeH - 6, 12, false, true);
+  ctx.lineWidth = 3.5;
+  roundRect(ctx, badgeX + 2, badgeY + 2, badgeW - 4, badgeH - 4, 14, false, true);
 
+  // Strict clipping: guarantee nothing ever bleeds outside the pill
+  roundRect(ctx, badgeX + 4, badgeY + 4, badgeW - 8, badgeH - 8, 12, false, false);
+  ctx.clip();
+
+  // Render centered text inside pill
   ctx.fillStyle = p.badgeText;
   ctx.textAlign = 'center';
-  ctx.font = '800 32px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText(title, badgeX + badgeW / 2, badgeY + 45);
+  ctx.font = `800 ${titleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
 
-  // 5. Kualifikasi Section
+  const totalTextBlockH = (titleLines.length - 1) * lineHeight;
+  const startY = badgeY + (badgeH / 2) - (totalTextBlockH / 2) + (titleFontSize * 0.35);
+
+  titleLines.forEach((l, idx) => {
+    ctx.fillText(l, badgeX + (badgeW / 2), startY + (idx * lineHeight));
+  });
+  ctx.restore();
+
+  // 5. Kualifikasi Section (Dynamically offset below position badge)
+  const kualifikasiTitleY = badgeY + badgeH + 38;
   ctx.textAlign = 'left';
   ctx.fillStyle = p.textDark;
   ctx.font = '800 32px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText('Kualifikasi', 60, 310);
+  ctx.fillText('Kualifikasi', 60, kualifikasiTitleY);
 
   // Render requirement bullet points with icons
   const reqIcons = ['🎓', '🤝', '💻', '🕒', '🩺'];
-  let currentY = 360;
-  const maxReqW = 540;
+  let currentY = kualifikasiTitleY + 46;
+  const maxReqW = hasMascot ? 490 : (width - 180);
+  const appBoxY = 790;
 
   requirements.slice(0, 5).forEach((req, idx) => {
+    if (currentY + 40 > appBoxY - 20) return; // Prevent collision with application box
+
     const icon = reqIcons[idx % reqIcons.length];
     ctx.font = '24px "Segoe UI Emoji", Arial';
     ctx.fillText(icon, 60, currentY);
 
-    ctx.font = '600 24px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.font = '600 23px "Plus Jakarta Sans", Arial, sans-serif';
     ctx.fillStyle = '#334155';
 
-    // Text wrapping helper
     const words = req.split(' ');
     let line = '';
     let lineY = currentY;
@@ -2232,42 +2336,39 @@ function renderPosterCanvas() {
       if (metrics.width > maxReqW && n > 0) {
         ctx.fillText(line, 105, lineY);
         line = words[n] + ' ';
-        lineY += 34;
+        lineY += 32;
       } else {
         line = testLine;
       }
     }
     ctx.fillText(line, 105, lineY);
-    currentY = lineY + 44;
+    currentY = lineY + 42;
   });
 
   // 6. Draw Mascot Illustration (Right Column)
-  if (selectedMascot !== 'none') {
+  if (hasMascot) {
     const mascotImg = loadedMascotCache[selectedMascot];
     if (mascotImg && mascotImg.complete && mascotImg.naturalWidth > 0) {
-      drawMascotOnCanvas(ctx, mascotImg, 620, 220, 400, 520);
+      drawMascotOnCanvas(ctx, mascotImg, 620, 210, 400, 540);
     } else {
-      // Load and re-render
       const tempImg = new Image();
       tempImg.crossOrigin = 'anonymous';
       tempImg.src = MASCOT_IMAGES[selectedMascot];
       tempImg.onload = () => {
         loadedMascotCache[selectedMascot] = tempImg;
-        drawMascotOnCanvas(ctx, tempImg, 620, 220, 400, 520);
+        renderPosterCanvas();
       };
     }
   }
 
   // 7. Application Box (Left-aligned bottom)
   const appBoxX = 60;
-  const appBoxY = 790;
   const appBoxW = 630;
   const appBoxH = 195;
 
   ctx.fillStyle = p.applyBoxBg;
   roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 22, true, false);
 
-  // Double accent border (Orange prominent, like user's photo!)
   ctx.strokeStyle = p.applyBoxBorder;
   ctx.lineWidth = 5;
   roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 22, false, true);
@@ -2275,17 +2376,21 @@ function renderPosterCanvas() {
   // Application texts inside box
   ctx.textAlign = 'left';
   ctx.fillStyle = '#0f172a';
-  ctx.font = '800 27px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText('Kirim CV/Lamaran melalui website', appBoxX + 26, appBoxY + 52);
+  ctx.font = '800 26px "Plus Jakarta Sans", Arial, sans-serif';
+  ctx.fillText('Kirim CV/Lamaran melalui website', appBoxX + 26, appBoxY + 50);
 
   ctx.fillStyle = p.primary;
-  ctx.font = '800 29px "Plus Jakarta Sans", Arial, sans-serif';
-  const shortComp = company.length > 32 ? company.substring(0, 32) + '...' : company;
-  ctx.fillText(`${shortComp}.`, appBoxX + 26, appBoxY + 98);
+  ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
+  let shortComp = company;
+  while (ctx.measureText(shortComp).width > appBoxW - 60 && shortComp.length > 10) {
+    shortComp = shortComp.slice(0, -1);
+  }
+  if (shortComp !== company) shortComp += '...';
+  ctx.fillText(shortComp, appBoxX + 26, appBoxY + 96);
 
   ctx.fillStyle = p.accentOrange;
   ctx.font = '800 32px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText(`Deadline ${deadline}.`, appBoxX + 26, appBoxY + 155);
+  ctx.fillText(`Deadline ${deadline}.`, appBoxX + 26, appBoxY + 154);
 
   // 8. QR Code Generation & Drawing (Right-aligned next to apply box)
   const qrBoxX = 735;
@@ -2303,13 +2408,24 @@ function renderPosterCanvas() {
   // 9. Brand Watermark & Hashtags
   ctx.textAlign = 'left';
   ctx.fillStyle = p.primary;
-  ctx.font = '800 36px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText(company.length > 25 ? company.split(' ')[1] || company : company, 60, 1075);
+  ctx.font = '800 34px "Plus Jakarta Sans", Arial, sans-serif';
+  let brandComp = company;
+  while (ctx.measureText(brandComp).width > 640 && brandComp.length > 10) {
+    brandComp = brandComp.slice(0, -1);
+  }
+  if (brandComp !== company) brandComp += '...';
+  ctx.fillText(brandComp, 60, 1075);
 
   ctx.fillStyle = '#64748b';
   ctx.font = '700 21px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText(company, 60, 1110);
-  ctx.fillText(hashtag, 60, 1150);
+  ctx.fillText('Portal Lowongan Kerja Resmi KerjaHub Indonesia', 60, 1110);
+
+  ctx.fillStyle = p.primary;
+  let cleanHashtag = hashtag;
+  while (ctx.measureText(cleanHashtag).width > 640 && cleanHashtag.length > 10) {
+    cleanHashtag = cleanHashtag.slice(0, -1);
+  }
+  ctx.fillText(cleanHashtag, 60, 1148);
 
   // 10. Anti-Penipuan Warning Footer Banner (Prominent at bottom!)
   const footX = 50;
@@ -2400,9 +2516,12 @@ function downloadPosterAsPng() {
   const canvas = document.getElementById('poster-canvas');
   if (!canvas) return;
 
-  const company = (document.getElementById('poster-input-company')?.value || 'PT_Niterra').replace(/[^a-zA-Z0-9]/g, '_');
-  const title = (document.getElementById('poster-input-title')?.value || 'Operator_Produksi').replace(/[^a-zA-Z0-9]/g, '_');
-  const filename = `poster_loker_${company}_${title}.png`.toLowerCase();
+  const rawComp = document.getElementById('poster-input-company')?.value || 'PT_KerjaHub';
+  const rawTitle = document.getElementById('poster-input-title')?.value || 'Lowongan_Kerja';
+
+  const cleanComp = rawComp.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').substring(0, 25);
+  const cleanTitle = rawTitle.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').substring(0, 30);
+  const filename = `poster_loker_${cleanComp}_${cleanTitle}.png`.toLowerCase();
 
   const dataUrl = canvas.toDataURL('image/png');
   const link = document.createElement('a');
