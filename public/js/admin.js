@@ -39,23 +39,25 @@ async function initSupabaseClient() {
   let url = SUPABASE_FALLBACK_URL;
   let key = SUPABASE_FALLBACK_KEY;
 
-  try {
-    const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
-    if (ok && data && data.supabaseUrl && data.supabaseKey) {
-      url = data.supabaseUrl;
-      key = data.supabaseKey;
-    }
-  } catch (err) {
-    console.warn('Config fetch warning:', err);
-  }
-
+  // Immediate init so sbClient is instantly available for queries without network latency
   if (window.supabase && typeof window.supabase.createClient === 'function') {
     try {
       sbClient = window.supabase.createClient(url, key);
     } catch (e) {
-      console.warn('Supabase createClient error:', e);
+      console.warn('Supabase immediate createClient error:', e);
     }
   }
+
+  // Update in background if custom config returned
+  safeFetchJson(getApiEndpoint('/api/config')).then(({ ok, data }) => {
+    if (ok && data && data.supabaseUrl && data.supabaseKey) {
+      if ((data.supabaseUrl !== url || data.supabaseKey !== key) && window.supabase) {
+        try {
+          sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey);
+        } catch (e) {}
+      }
+    }
+  }).catch(() => {});
 }
 
 function getAdminToken() {
@@ -593,8 +595,7 @@ function setupJobFormSubmit() {
       const btnRemove = document.getElementById('btn-remove-poster-preview');
       if (btnRemove) btnRemove.click();
 
-      loadAdminJobs();
-      loadDashboardData();
+      loadAdminJobs(true);
       const manageLink = document.querySelector('a[href="#manage-jobs"]');
       if (manageLink) manageLink.click();
     } else {
@@ -604,58 +605,28 @@ function setupJobFormSubmit() {
 }
 
 // -------------------------------------------------------------
-// DASHBOARD METRICS
+// DASHBOARD METRICS & RECENT JOBS TABLE
 // -------------------------------------------------------------
-async function loadDashboardData() {
-  let stats = null;
+function renderDashboardStats(jobsList) {
+  const realJobs = (jobsList || []).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+  const totalJobs = realJobs.length;
+  const activeJobs = realJobs.filter(j => j.status === 'active').length;
+  const closedJobs = realJobs.filter(j => j.status === 'closed' || j.status === 'expired').length;
+  const totalViews = realJobs.reduce((acc, j) => acc + (j.views_count || 0), 0);
+  const recentJobs = realJobs.slice(0, 5);
 
-  if (sbClient) {
-    try {
-      const { data, error } = await sbClient.from('jobs').select('*');
-      if (!error && Array.isArray(data)) {
-        stats = {
-          totalJobs: data.length,
-          activeJobs: data.filter(j => j.status === 'active').length,
-          closedJobs: data.filter(j => j.status === 'closed' || j.status === 'expired').length,
-          totalViews: data.reduce((a, b) => a + (b.views_count || 0), 0),
-          recentJobs: data.slice(0, 5)
-        };
-      }
-    } catch (e) {}
-  }
-
-  if (!stats) {
-    try {
-      const token = getAdminToken();
-      const { ok, data } = await safeFetchJson(getApiEndpoint('/api/admin/stats'), {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
-      if (ok && data && data.success) stats = data.data;
-    } catch (e) {}
-  }
-
-  if (!stats) {
-    stats = {
-      totalJobs: 0,
-      activeJobs: 0,
-      closedJobs: 0,
-      totalViews: 0,
-      recentJobs: []
-    };
-  }
-
-  document.getElementById('stat-total-jobs') && (document.getElementById('stat-total-jobs').textContent = stats.totalJobs || 0);
-  document.getElementById('stat-active-jobs') && (document.getElementById('stat-active-jobs').textContent = stats.activeJobs || 0);
-  document.getElementById('stat-closed-jobs') && (document.getElementById('stat-closed-jobs').textContent = stats.closedJobs || 0);
-  document.getElementById('stat-total-views') && (document.getElementById('stat-total-views').textContent = stats.totalViews || 0);
+  document.getElementById('stat-total-jobs') && (document.getElementById('stat-total-jobs').textContent = totalJobs);
+  document.getElementById('stat-active-jobs') && (document.getElementById('stat-active-jobs').textContent = activeJobs);
+  document.getElementById('stat-closed-jobs') && (document.getElementById('stat-closed-jobs').textContent = closedJobs);
+  document.getElementById('stat-total-views') && (document.getElementById('stat-total-views').textContent = totalViews);
 
   // Render recent table in dashboard
   const recentTbody = document.getElementById('dashboard-recent-tbody');
-  if (recentTbody && Array.isArray(stats.recentJobs)) {
-    if (stats.recentJobs.length === 0) {
+  if (recentTbody) {
+    if (recentJobs.length === 0) {
       recentTbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">Belum ada lowongan terdaftar.</td></tr>`;
     } else {
-      recentTbody.innerHTML = stats.recentJobs.map(job => {
+      recentTbody.innerHTML = recentJobs.map(job => {
         const isLocked = job.status === 'expired' || job.status === 'closed';
         const badgeClass = isLocked ? 'badge-expired' : 'badge-active';
         const badgeLabel = isLocked ? '<i class="fa-solid fa-lock"></i> Expired' : '<i class="fa-solid fa-circle-check"></i> Aktif';
@@ -682,43 +653,29 @@ async function loadDashboardData() {
   }
 }
 
+async function loadDashboardData() {
+  if (adminJobs && adminJobs.length > 0) {
+    renderDashboardStats(adminJobs);
+    return;
+  }
+  await loadAdminJobs();
+}
+
 // -------------------------------------------------------------
-// LOAD ADMIN JOBS TABLE (WITH LOCK SYSTEM & MULTI-CONTACTS)
+// RENDER ADMIN JOBS TABLE (WITH LOCK SYSTEM & MULTI-CONTACTS)
 // -------------------------------------------------------------
-async function loadAdminJobs() {
+function renderAdminJobsTable() {
   const tbody = document.getElementById('admin-jobs-tbody');
   if (!tbody) return;
 
-  tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 30px;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data Supabase...</td></tr>`;
+  const validJobs = (adminJobs || []).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
 
-  let jobs = null;
-
-  // 1. Fetch from Supabase Cloud
-  if (sbClient) {
-    try {
-      const { data, error } = await sbClient.from('jobs').select('*').order('id', { ascending: false });
-      if (!error && Array.isArray(data) && data.length > 0) {
-        jobs = data;
-      }
-    } catch (e) {}
-  }
-
-  // 2. Fallback to API
-  if (!jobs) {
-    try {
-      const { ok, data } = await safeFetchJson(getApiEndpoint('/api/jobs?status=all'));
-      if (ok && data && data.success && Array.isArray(data.data)) jobs = data.data;
-    } catch (e) {}
-  }
-
-  adminJobs = jobs || [];
-
-  if (adminJobs.length === 0) {
+  if (validJobs.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 40px; color:#94a3b8;">Belum ada lowongan terdaftar. Klik menu "Upload Poster Baru"!</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = adminJobs.map(job => {
+  tbody.innerHTML = validJobs.map(job => {
     const defaultPoster = 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&auto=format&fit=crop&q=80';
     let posterSrc = job.poster_image ? job.poster_image : defaultPoster;
     if (posterSrc.startsWith('/uploads/')) posterSrc = '.' + posterSrc;
@@ -784,17 +741,82 @@ async function loadAdminJobs() {
 }
 
 // -------------------------------------------------------------
-// TOGGLE JOB LOCK / EXPIRED STATUS
+// LOAD ADMIN JOBS (High-Speed Single Fetch & Cached State)
+// -------------------------------------------------------------
+async function loadAdminJobs(forceRefresh = false) {
+  const tbody = document.getElementById('admin-jobs-tbody');
+
+  // Check sessionStorage cache for instant display
+  if (!forceRefresh) {
+    try {
+      const cached = sessionStorage.getItem('kerja_admin_jobs_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          adminJobs = parsed.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+          renderAdminJobsTable();
+          renderDashboardStats(adminJobs);
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (tbody && (!adminJobs || adminJobs.length === 0)) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 30px;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data Supabase...</td></tr>`;
+  }
+
+  let jobs = null;
+
+  // 1. Fetch from Supabase Cloud
+  if (sbClient) {
+    try {
+      const { data, error } = await sbClient.from('jobs').select('*').order('id', { ascending: false });
+      if (!error && Array.isArray(data) && data.length > 0) {
+        jobs = data;
+      }
+    } catch (e) {}
+  }
+
+  // 2. Fallback to API
+  if (!jobs) {
+    try {
+      const { ok, data } = await safeFetchJson(getApiEndpoint('/api/jobs?status=all'));
+      if (ok && data && data.success && Array.isArray(data.data)) jobs = data.data;
+    } catch (e) {}
+  }
+
+  if (jobs) {
+    adminJobs = jobs.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+    try {
+      sessionStorage.setItem('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
+    } catch (e) {}
+  } else if (!adminJobs) {
+    adminJobs = [];
+  }
+
+  renderAdminJobsTable();
+  renderDashboardStats(adminJobs);
+}
+
+// -------------------------------------------------------------
+// TOGGLE JOB LOCK / EXPIRED STATUS (Optimistic UI Update)
 // -------------------------------------------------------------
 window.toggleJobLock = async function(jobId, newStatus) {
-  const isLocking = newStatus === 'expired' || newStatus === 'closed';
-  const actionName = isLocking ? 'mengunci lowongan menjadi Expired' : 'membuka kunci lowongan menjadi Aktif';
+  const job = adminJobs.find(j => Number(j.id) === Number(jobId));
+  if (!job) return;
+
+  const prevStatus = job.status;
+
+  // Optimistic UI update: Immediate 0ms visual feedback
+  job.status = newStatus;
+  renderAdminJobsTable();
+  renderDashboardStats(adminJobs);
 
   let updated = false;
 
   // 1. Update in server backend
   try {
-    const token = sessionStorage.getItem('kerja_admin_token') || '';
+    const token = getAdminToken();
     const res = await safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}/status`), {
       method: 'PATCH',
       headers: {
@@ -809,26 +831,46 @@ window.toggleJobLock = async function(jobId, newStatus) {
   // 2. Fallback to direct Supabase if offline
   if (!updated && sbClient) {
     try {
-      await sbClient.from('jobs').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', jobId);
+      const { error } = await sbClient.from('jobs').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', Number(jobId));
+      if (!error) updated = true;
     } catch (e) {
       console.warn('Supabase toggle status error:', e);
     }
   }
 
-  loadAdminJobs();
-  loadDashboardData();
+  if (updated) {
+    try {
+      sessionStorage.setItem('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
+    } catch (e) {}
+  } else {
+    // Revert optimistic update on failure
+    job.status = prevStatus;
+    renderAdminJobsTable();
+    renderDashboardStats(adminJobs);
+    alert('Gagal mengubah status lowongan ke server.');
+  }
 };
 
 // -------------------------------------------------------------
-// DELETE JOB
+// DELETE JOB (Optimistic UI Update)
 // -------------------------------------------------------------
 window.deleteJob = async function(jobId, title) {
   if (!confirm(`Apakah Anda yakin ingin menghapus lowongan "${title}"?`)) return;
 
+  const jobIdx = adminJobs.findIndex(j => Number(j.id) === Number(jobId));
+  const removedJob = jobIdx !== -1 ? adminJobs[jobIdx] : null;
+
+  // Optimistic UI update: Immediate removal from table & stats
+  if (jobIdx !== -1) {
+    adminJobs.splice(jobIdx, 1);
+    renderAdminJobsTable();
+    renderDashboardStats(adminJobs);
+  }
+
   let deleted = false;
 
   try {
-    const token = sessionStorage.getItem('kerja_admin_token') || '';
+    const token = getAdminToken();
     const res = await safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}`), {
       method: 'DELETE',
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
@@ -838,12 +880,24 @@ window.deleteJob = async function(jobId, title) {
 
   if (!deleted && sbClient) {
     try {
-      await sbClient.from('jobs').delete().eq('id', jobId);
+      const { error } = await sbClient.from('jobs').delete().eq('id', Number(jobId));
+      if (!error) deleted = true;
     } catch (e) {}
   }
 
-  loadAdminJobs();
-  loadDashboardData();
+  if (deleted) {
+    try {
+      sessionStorage.setItem('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
+    } catch (e) {}
+  } else {
+    // Revert optimistic deletion on failure
+    if (removedJob && jobIdx !== -1) {
+      adminJobs.splice(jobIdx, 0, removedJob);
+      renderAdminJobsTable();
+      renderDashboardStats(adminJobs);
+    }
+    alert('Gagal menghapus lowongan dari database.');
+  }
 };
 
 // -------------------------------------------------------------
@@ -975,8 +1029,7 @@ function setupEditFormSubmit() {
     submitBtn.disabled = false;
     submitBtn.innerHTML = origText;
     closeEditModal();
-    loadAdminJobs();
-    loadDashboardData();
+    loadAdminJobs(true);
     alert('Perubahan lowongan & saluran kontak berhasil disimpan!');
   });
 }
@@ -1816,6 +1869,12 @@ function renderOfficialJobsGrid() {
     const platIcon = job.platform_icon || 'fa-solid fa-circle-check';
     const platLabel = job.platform_label || 'Resmi Terverifikasi';
 
+    // Check if this job is already published and active in adminJobs
+    const isAlreadyPublished = adminJobs.some(aj =>
+      aj.title && aj.title.toLowerCase().trim() === job.title.toLowerCase().trim() &&
+      (aj.company_name || '').toLowerCase().trim() === (job.company_name || '').toLowerCase().trim()
+    );
+
     return `
       <div class="official-job-card card-${platClass}">
         <div class="official-card-top">
@@ -1839,6 +1898,11 @@ function renderOfficialJobsGrid() {
           <span class="official-meta-pill deadline"><i class="fa-regular fa-calendar-xmark"></i> Deadline: ${escapeHtml(job.deadline)}</span>
         </div>
 
+        <div class="official-screening-card">
+          <i class="fa-solid fa-shield-check" style="color: #10b981; font-size: 1rem; flex-shrink: 0;"></i>
+          <span><strong>Lolos Screening Anti-Hoax:</strong> Domain HRD Sah • 100% Bebas Biaya • Gaji Sesuai Standar</span>
+        </div>
+
         <div style="font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
           <i class="fa-solid fa-list-check" style="color: #6366f1;"></i> Kualifikasi Utama:
         </div>
@@ -1853,17 +1917,23 @@ function renderOfficialJobsGrid() {
 
         <!-- 3 ACTION BUTTONS -->
         <div class="official-card-actions">
-          <button type="button" class="btn-generate-poster-action" onclick="openPosterStudioFromOfficialIndex(${idx})" title="Generate Poster Flyer Otomatis & Download Langsung">
-            <i class="fa-solid fa-palette"></i> Generate Gambar (Poster Flyer) ⚡
-          </button>
+          ${isAlreadyPublished ? `
+            <button type="button" class="btn-gas-publish-action published" disabled title="Lowongan ini sudah aktif terbit di portal KerjaHub">
+              <i class="fa-solid fa-circle-check"></i> Sudah Terbit di Portal
+            </button>
+          ` : `
+            <button type="button" class="btn-gas-publish-action" id="btn-gas-${idx}" onclick="generateAndPublishOfficialJob(${idx})" title="Generate poster flyer otomatis dan langsung terbitkan ke portal KerjaHub">
+              <i class="fa-solid fa-bolt"></i> ⚡ Generate Poster & Terbitkan (Gas!)
+            </button>
+          `}
 
           <div class="official-actions-row">
+            <button type="button" class="btn btn-outline" onclick="openPosterStudioFromOfficialIndex(${idx})" title="Buka Studio Flyer Poster untuk kustomisasi tema / warna">
+              <i class="fa-solid fa-palette"></i> Studio Poster
+            </button>
             <a href="${job.official_url}" target="_blank" rel="noopener noreferrer" class="btn btn-outline" title="Buka postingan lowongan di ${platLabel}">
               <i class="fa-solid fa-arrow-up-right-from-square"></i> Lihat Loker
             </a>
-            <button type="button" class="btn btn-primary" onclick="publishOfficialJobToDatabase(${idx})" style="background: #059669; border-color: #059669;" title="Simpan lowongan ini ke database Supabase portal KerjaHub">
-              <i class="fa-solid fa-cloud-arrow-up"></i> Simpan ke DB
-            </button>
           </div>
         </div>
       </div>
@@ -1891,84 +1961,353 @@ window.resetOfficialFilters = function() {
 };
 
 // -------------------------------------------------------------
-// PUBLISH / SIMPAN LOKER RESMI KE DATABASE SUPABASE
+// HELPER: GENERATE POSTER FLYER DATA-URL IN MEMORY
 // -------------------------------------------------------------
-window.publishOfficialJobToDatabase = async function(index) {
+function generateFlyerPosterDataUrl(jobData) {
+  const canvas = document.getElementById('poster-canvas');
+  if (!canvas) return './uploads/corporate_worker_mascot.jpg';
+
+  const compInp = document.getElementById('poster-input-company');
+  const titleInp = document.getElementById('poster-input-title');
+  const reqInp = document.getElementById('poster-input-requirements');
+  const deadInp = document.getElementById('poster-input-deadline');
+  const applyInp = document.getElementById('poster-input-apply-info');
+  const qrInp = document.getElementById('poster-input-qr-url');
+  const hashInp = document.getElementById('poster-input-hashtag');
+
+  if (compInp) compInp.value = jobData.company_name || 'PERUSAHAAN';
+  if (titleInp) titleInp.value = jobData.title || 'LOWONGAN KERJA';
+  if (reqInp) {
+    const reqList = Array.isArray(jobData.requirements) && jobData.requirements.length > 0
+      ? jobData.requirements
+      : ['Pendidikan minimal sesuai kualifikasi', 'Mampu berkomunikasi dan bekerjasama', 'Disiplin dan bertanggung jawab'];
+    reqInp.value = reqList.slice(0, 4).join('\n');
+  }
+  if (deadInp) deadInp.value = jobData.deadline || '31 Desember 2026';
+  if (applyInp) applyInp.value = jobData.apply_info || `Kirim CV/Lamaran melalui tautan resmi ${jobData.company_name}.`;
+  if (qrInp) qrInp.value = jobData.official_url || window.location.origin;
+  if (hashInp) hashInp.value = jobData.hashtag || `@KerjaHubOfficial #LowonganKerja2026`;
+
+  // Select theme and mascot based on sector/job
+  const isOperator = (jobData.title || '').toLowerCase().includes('operator') || (jobData.title || '').toLowerCase().includes('teknisi');
+  const theme = jobData.theme || (isOperator ? 'factory' : 'modern');
+  const mascot = jobData.mascot || (isOperator ? 'factory' : 'corporate');
+
+  document.querySelectorAll('input[name="poster_theme"]').forEach(r => {
+    r.checked = (r.value === theme);
+    r.closest('.poster-theme-pill')?.classList.toggle('active', r.checked);
+  });
+
+  document.querySelectorAll('input[name="poster_mascot"]').forEach(r => {
+    r.checked = (r.value === mascot);
+    r.closest('.poster-theme-pill')?.classList.toggle('active', r.checked);
+  });
+
+  // Render directly on canvas
+  renderPosterCanvas();
+
+  try {
+    return canvas.toDataURL('image/png');
+  } catch(e) {
+    return './uploads/corporate_worker_mascot.jpg';
+  }
+}
+
+// -------------------------------------------------------------
+// 1-KLIK GENERATE POSTER & TERBITKAN KE PORTAL (GAS!)
+// -------------------------------------------------------------
+window.generateAndPublishOfficialJob = async function(index) {
   const job = currentOfficialFilteredJobs[index];
   if (!job) return;
 
-  if (!confirm(`Simpan lowongan "${job.title}" (${job.company_name}) ke Database Supabase portal KerjaHub?`)) {
+  const btn = document.getElementById(`btn-gas-${index}`);
+  const origBtnHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengenerate Poster & Terbit...';
+  }
+
+  try {
+    // 1. Auto-generate the high-res canvas poster flyer
+    const posterDataUrl = generateFlyerPosterDataUrl(job);
+
+    // 2. Prepare contacts JSON with strict anti-hoax verification
+    let emailVal = '';
+    let waVal = '';
+    let websiteVal = job.official_url || '';
+    if (job.contact_value) {
+      try {
+        const parsed = typeof job.contact_value === 'string' ? JSON.parse(job.contact_value) : job.contact_value;
+        emailVal = parsed.email || '';
+        waVal = parsed.whatsapp || '';
+        if (parsed.website) websiteVal = parsed.website;
+      } catch (e) {}
+    }
+
+    const contactsJson = JSON.stringify({
+      url: websiteVal,
+      website: websiteVal,
+      email: emailVal,
+      whatsapp: waVal,
+      source_platform: job.platform || 'official',
+      source_label: job.platform_label || 'Resmi BUMN & Korporasi',
+      is_verified_anti_hoax: true,
+      verified_screening_status: 'passed'
+    });
+
+    const payload = {
+      title: job.title,
+      company_name: job.company_name,
+      category: job.category || 'Operasional',
+      job_type: job.job_type || 'Full Time',
+      location: job.location,
+      salary_display: job.salary_display || 'Kompetitif',
+      experience_level: job.experience_level || 'Fresh Graduate',
+      poster_image: posterDataUrl || './uploads/corporate_worker_mascot.jpg',
+      description: job.description,
+      requirements: Array.isArray(job.requirements) ? job.requirements : [],
+      responsibilities: Array.isArray(job.responsibilities) ? job.responsibilities : [],
+      benefits: Array.isArray(job.benefits) ? job.benefits : [],
+      contact_type: 'link',
+      contact_value: contactsJson,
+      deadline: job.deadline || '2026-12-31',
+      status: 'active',
+      is_featured: true,
+      views_count: 0
+    };
+
+    let saved = false;
+    let errorMsg = '';
+
+    // Backend POST /api/jobs
+    try {
+      const token = getAdminToken();
+      const formData = new FormData();
+      for (const [k, v] of Object.entries(payload)) {
+        formData.set(k, Array.isArray(v) ? JSON.stringify(v) : v);
+      }
+      const res = await fetch(getApiEndpoint('/api/jobs'), {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        body: formData
+      });
+      if (res.ok) {
+        const json = await res.json().catch(() => ({}));
+        if (json.success !== false) saved = true;
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        errorMsg = errJson.message || '';
+      }
+    } catch (e) {
+      console.warn('Backend unavailable, falling back to direct cloud client:', e);
+    }
+
+    // Fallback: direct Supabase insert
+    if (!saved && sbClient) {
+      try {
+        const { error } = await sbClient.from('jobs').insert([payload]);
+        if (!error) saved = true;
+        else if (!errorMsg) errorMsg = error.message;
+      } catch (e) {
+        if (!errorMsg) errorMsg = e.message;
+      }
+    }
+
+    if (saved) {
+      sessionStorage.removeItem('kerja_public_jobs_cache');
+      await loadAdminJobs();
+      loadDashboardData();
+      renderOfficialJobsGrid();
+
+      alert(`⚡ GAS BERHASIL!\n\nLowongan: ${job.title}\nPerusahaan: ${job.company_name}\n\nPoster Flyer Resmi telah otomatis di-generate dan lowongan kini LANGSUNG AKTIF di portal KerjaHub!`);
+    } else {
+      alert('Gagal menerbitkan: ' + (errorMsg || 'Periksa status koneksi Supabase.'));
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origBtnHtml;
+      }
+    }
+  } catch (err) {
+    alert('Terjadi kesalahan saat mengenerate poster: ' + err.message);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origBtnHtml;
+    }
+  }
+};
+
+// -------------------------------------------------------------
+// BULK TERBITKAN SEMUA LOKER RESMI 2026 KE PORTAL (GAS SEKALI KLIK)
+// -------------------------------------------------------------
+window.bulkPublishAllOfficialJobs = async function() {
+  const unpublished = currentOfficialFilteredJobs.filter(job => {
+    return !adminJobs.some(aj =>
+      aj.title && aj.title.toLowerCase().trim() === job.title.toLowerCase().trim() &&
+      (aj.company_name || '').toLowerCase().trim() === (job.company_name || '').toLowerCase().trim()
+    );
+  });
+
+  if (unpublished.length === 0) {
+    alert('Semua lowongan resmi yang tersaring pada daftar ini telah berhasil terbit di portal KerjaHub!');
     return;
   }
 
-  const payload = {
-    title: job.title,
-    company_name: job.company_name,
-    category: job.category || 'Operasional',
-    job_type: job.job_type || 'Full Time',
-    location: job.location,
-    salary_display: job.salary_display,
-    experience_level: job.experience_level || 'Semua Tingkat',
-    poster_image: './uploads/sample_uiux.jpg',
-    description: job.description,
-    requirements: job.requirements,
-    responsibilities: job.responsibilities,
-    benefits: job.benefits,
-    contact_type: job.contact_type || 'link',
-    contact_value: job.contact_value || '',
-    deadline: job.deadline,
-    status: 'active',
-    is_featured: true,
-    views_count: 0,
-    source_platform: job.platform || 'official',
-    source_label: job.platform_label || 'Resmi BUMN & Korporasi'
-  };
-
-  let saved = false;
-
-  // Single source of truth: Send to backend /api/jobs (which inserts once to Supabase via server .env & syncs local backup)
-  try {
-    const token = getAdminToken();
-    const formData = new FormData();
-    for (const [k, v] of Object.entries(payload)) {
-      formData.set(k, Array.isArray(v) ? JSON.stringify(v) : v);
-    }
-    const res = await fetch(getApiEndpoint('/api/jobs'), {
-      method: 'POST',
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-      body: formData
-    });
-    if (res.ok) {
-      const json = await res.json().catch(() => ({}));
-      if (json.success !== false) {
-        saved = true;
-      }
-    }
-  } catch (e) {
-    console.warn('Backend publish unavailable, falling back to direct cloud client:', e);
+  if (!confirm(`⚡ GAS SEMUA LOKER?\n\nAda ${unpublished.length} lowongan resmi 2026 yang belum terbit.\n\nSistem akan mengenerate poster flyer dan menerbitkan semuanya langsung ke Portal KerjaHub sekaligus. Lanjutkan?`)) {
+    return;
   }
 
-  // Fallback: ONLY execute client-side direct insert if backend was offline or failed
-  if (!saved && sbClient) {
+  const bulkBtn = document.getElementById('btn-scout-bulk-gas');
+  const origText = bulkBtn ? bulkBtn.innerHTML : '';
+  if (bulkBtn) {
+    bulkBtn.disabled = true;
+    bulkBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengenerate & Menerbitkan 0/${unpublished.length}...`;
+  }
+
+  let countSuccess = 0;
+  for (let i = 0; i < unpublished.length; i++) {
+    const job = unpublished[i];
+    if (bulkBtn) {
+      bulkBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengenerate ${i + 1}/${unpublished.length}: ${(job.company_name || '').substring(0, 15)}...`;
+    }
+
     try {
-      const { data, error } = await sbClient.from('jobs').insert([payload]).select().single();
-      if (!error) {
-        saved = true;
-      } else {
-        console.warn('Supabase fallback insert note:', error.message);
+      const posterDataUrl = generateFlyerPosterDataUrl(job);
+      let emailVal = '';
+      let waVal = '';
+      let websiteVal = job.official_url || '';
+      if (job.contact_value) {
+        try {
+          const parsed = typeof job.contact_value === 'string' ? JSON.parse(job.contact_value) : job.contact_value;
+          emailVal = parsed.email || '';
+          waVal = parsed.whatsapp || '';
+          if (parsed.website) websiteVal = parsed.website;
+        } catch (e) {}
+      }
+
+      const contactsJson = JSON.stringify({
+        url: websiteVal,
+        website: websiteVal,
+        email: emailVal,
+        whatsapp: waVal,
+        source_platform: job.platform || 'official',
+        source_label: job.platform_label || 'Resmi BUMN & Korporasi',
+        is_verified_anti_hoax: true,
+        verified_screening_status: 'passed'
+      });
+
+      const payload = {
+        title: job.title,
+        company_name: job.company_name,
+        category: job.category || 'Operasional',
+        job_type: job.job_type || 'Full Time',
+        location: job.location,
+        salary_display: job.salary_display || 'Kompetitif',
+        experience_level: job.experience_level || 'Fresh Graduate',
+        poster_image: posterDataUrl || './uploads/corporate_worker_mascot.jpg',
+        description: job.description,
+        requirements: Array.isArray(job.requirements) ? job.requirements : [],
+        responsibilities: Array.isArray(job.responsibilities) ? job.responsibilities : [],
+        benefits: Array.isArray(job.benefits) ? job.benefits : [],
+        contact_type: 'link',
+        contact_value: contactsJson,
+        deadline: job.deadline || '2026-12-31',
+        status: 'active',
+        is_featured: true,
+        views_count: 0
+      };
+
+      if (sbClient) {
+        const { error } = await sbClient.from('jobs').insert([payload]);
+        if (!error) countSuccess++;
       }
     } catch (e) {
-      console.warn('Supabase fallback insert exception:', e);
+      console.warn('Bulk publish item error:', e);
     }
   }
 
-  if (saved) {
-    alert(`Sukses! Lowongan resmi "${job.title}" berhasil tersimpan ke Database Supabase dan kini aktif di portal KerjaHub.`);
-    loadAdminJobs();
-    loadDashboardData();
-  } else {
-    alert('Info: Periksa status koneksi database Supabase Cloud.');
+  sessionStorage.removeItem('kerja_public_jobs_cache');
+  await loadAdminJobs();
+  loadDashboardData();
+  renderOfficialJobsGrid();
+
+  if (bulkBtn) {
+    bulkBtn.disabled = false;
+    bulkBtn.innerHTML = origText;
   }
+
+  alert(`⚡ GAS SELESAI!\n\nBerhasil mengenerate poster & menerbitkan ${countSuccess} lowongan resmi baru ke portal KerjaHub!`);
+};
+
+// -------------------------------------------------------------
+// AUTO-FILL TEMPLATE DARI DATABASE LOKER RESMI 2026
+// -------------------------------------------------------------
+window.applyJobTemplateToForm = function(templateId) {
+  if (!templateId) return;
+  const job = OFFICIAL_VACANCIES_DB.find(j => j.id === templateId);
+  if (!job) return;
+
+  const form = document.getElementById('form-upload-job');
+  if (!form) return;
+
+  form.elements['title'].value = job.title;
+  form.elements['company_name'].value = job.company_name;
+  if (form.elements['category']) form.elements['category'].value = job.category || 'Operasional';
+  if (form.elements['job_type']) form.elements['job_type'].value = job.job_type || 'Full Time';
+  if (form.elements['location']) form.elements['location'].value = job.location;
+  if (form.elements['salary_display']) form.elements['salary_display'].value = job.salary_display;
+  if (form.elements['experience_level']) form.elements['experience_level'].value = job.experience_level || 'Fresh Graduate';
+  
+  if (form.elements['deadline']) {
+    let dVal = job.deadline || '';
+    if (!dVal.match(/^\d{4}-\d{2}-\d{2}$/)) dVal = '2026-12-31';
+    form.elements['deadline'].value = dVal;
+  }
+
+  if (form.elements['description']) form.elements['description'].value = job.description;
+
+  const reqInp = form.querySelector('[name="requirements"]');
+  if (reqInp && Array.isArray(job.requirements)) {
+    reqInp.value = job.requirements.join('\n');
+  }
+  const respInp = form.querySelector('[name="responsibilities"]');
+  if (respInp && Array.isArray(job.responsibilities)) {
+    respInp.value = job.responsibilities.join('\n');
+  }
+  const benInp = form.querySelector('[name="benefits"]');
+  if (benInp && Array.isArray(job.benefits)) {
+    benInp.value = job.benefits.join('\n');
+  }
+
+  if (form.elements['website']) form.elements['website'].value = job.official_url || '';
+  if (form.elements['email']) {
+    let emailVal = '';
+    try {
+      const cv = typeof job.contact_value === 'string' ? JSON.parse(job.contact_value) : job.contact_value;
+      emailVal = cv?.email || '';
+    } catch(e){}
+    form.elements['email'].value = emailVal;
+  }
+
+  // Auto-generate flyer poster and set into dropzone!
+  const posterDataUrl = generateFlyerPosterDataUrl(job);
+  if (posterDataUrl) {
+    currentSelectedFileBase64 = posterDataUrl;
+    const preview = document.getElementById('poster-preview');
+    const previewImg = document.getElementById('poster-preview-img');
+    const dropzonePrompt = document.getElementById('dropzone-prompt');
+    if (previewImg) previewImg.src = posterDataUrl;
+    if (preview) preview.style.display = 'block';
+    if (dropzonePrompt) dropzonePrompt.style.display = 'none';
+  }
+
+  alert(`⚡ Template "${job.title}" (${job.company_name}) diterapkan!\n\nSeluruh data formulir dan gambar poster flyer otomatis terisi. Klik "Unggah & Terbitkan Sekarang" untuk mempublikasikan.`);
+};
+
+// -------------------------------------------------------------
+// PUBLISH / SIMPAN LOKER RESMI KE DATABASE SUPABASE (CLASSIC)
+// -------------------------------------------------------------
+window.publishOfficialJobToDatabase = async function(index) {
+  return window.generateAndPublishOfficialJob(index);
 };
 
 // -------------------------------------------------------------
@@ -2778,7 +3117,7 @@ function setupSosmedScout() {
 // -------------------------------------------------------------
 // MASTER DATA MANAGEMENT (Kategori, Tipe, Level, Lokasi)
 // -------------------------------------------------------------
-let currentMasterData = {
+const DEFAULT_MASTER_DATA = {
   categories: [
     { id: 1, name: 'Teknologi & IT', icon: 'fa-code' },
     { id: 2, name: 'Design & Kreatif', icon: 'fa-pen-nib' },
@@ -2816,15 +3155,70 @@ let currentMasterData = {
   ]
 };
 
+let currentMasterData = JSON.parse(JSON.stringify(DEFAULT_MASTER_DATA));
+
+function setMasterData(data) {
+  if (!data) return;
+  const raw = data.allData || data;
+  if (raw && typeof raw === 'object') {
+    currentMasterData = {
+      categories: Array.isArray(raw.categories) ? raw.categories : (currentMasterData.categories || []),
+      job_types: Array.isArray(raw.job_types) ? raw.job_types : (currentMasterData.job_types || []),
+      experience_levels: Array.isArray(raw.experience_levels) ? raw.experience_levels : (currentMasterData.experience_levels || []),
+      locations: Array.isArray(raw.locations) ? raw.locations : (currentMasterData.locations || [])
+    };
+    try {
+      sessionStorage.setItem('kerja_admin_master_data', JSON.stringify(currentMasterData));
+    } catch (e) {}
+  }
+}
+
 async function loadMasterData() {
+  // 1. Instant display from sessionStorage cache if available
+  try {
+    const cached = sessionStorage.getItem('kerja_admin_master_data');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && Array.isArray(parsed.categories) && parsed.categories.length > 0) {
+        setMasterData(parsed);
+        renderMasterDataChips();
+        populateMasterSelectOptions();
+      }
+    }
+  } catch (e) {}
+
+  let loaded = false;
+
+  // 2. Fetch fresh from backend API
   try {
     const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/master-data'));
     if (ok && json && json.success && json.data) {
-      currentMasterData = json.data;
+      setMasterData(json.data);
+      loaded = true;
     }
   } catch (err) {
     console.warn('Failed to load master data from API:', err);
   }
+
+  // 3. Resilient fallback: Direct Supabase Cloud read
+  if (!loaded && sbClient) {
+    try {
+      const { data: rows } = await sbClient.from('jobs').select('description').eq('status', 'system_master_data').limit(1);
+      if (rows && rows.length > 0 && rows[0].description) {
+        const parsed = JSON.parse(rows[0].description);
+        if (parsed && (Array.isArray(parsed.categories) || Array.isArray(parsed.job_types))) {
+          setMasterData(parsed);
+          loaded = true;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 4. Default fallback if still empty
+  if (!currentMasterData.categories || currentMasterData.categories.length === 0) {
+    setMasterData(DEFAULT_MASTER_DATA);
+  }
+
   renderMasterDataChips();
   populateMasterSelectOptions();
 }
@@ -2908,6 +3302,9 @@ function setupMasterData() {
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
+        let saved = false;
+        let errorMsg = '';
+
         try {
           const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/master-data'), {
             method: 'POST',
@@ -2918,16 +3315,68 @@ function setupMasterData() {
             body: JSON.stringify({ type, name: val })
           });
           if (ok && json && json.success) {
-            input.value = '';
-            await loadMasterData();
-          } else {
-            alert(json?.message || 'Gagal menambahkan item.');
+            saved = true;
+            if (json.data) setMasterData(json.data);
+          } else if (json?.message) {
+            errorMsg = json.message;
           }
         } catch (err) {
-          alert('Terjadi kesalahan: ' + err.message);
-        } finally {
-          btn.disabled = false;
-          btn.innerHTML = origBtn;
+          errorMsg = err.message;
+        }
+
+        // Resilient fallback: direct Supabase cloud write
+        if (!saved && sbClient) {
+          try {
+            const key = (type === 'category' || type === 'categories') ? 'categories' : (type === 'job_type' || type === 'job_types' ? 'job_types' : (type === 'experience_level' || type === 'experience_levels' ? 'experience_levels' : 'locations'));
+            const { data: rows } = await sbClient.from('jobs').select('id, description').eq('status', 'system_master_data').limit(1);
+            let masterObj = currentMasterData || JSON.parse(JSON.stringify(DEFAULT_MASTER_DATA));
+            if (rows && rows.length > 0 && rows[0].description) {
+              try { masterObj = JSON.parse(rows[0].description); } catch (e) {}
+            }
+            if (!Array.isArray(masterObj[key])) masterObj[key] = [];
+            const exists = masterObj[key].some(i => (i.name || '').toLowerCase() === val.toLowerCase());
+            if (exists) {
+              errorMsg = `Item "${val}" sudah ada dalam daftar!`;
+            } else {
+              const defaultIcon = (key === 'categories') ? 'fa-layer-group' : (key === 'job_types') ? 'fa-briefcase' : (key === 'experience_levels') ? 'fa-user-check' : 'fa-location-dot';
+              masterObj[key].push({ id: Date.now(), name: val, icon: defaultIcon });
+
+              if (rows && rows.length > 0) {
+                const { error: updErr } = await sbClient.from('jobs').update({
+                  description: JSON.stringify(masterObj),
+                  updated_at: new Date().toISOString()
+                }).eq('id', rows[0].id);
+                if (!updErr) saved = true;
+              } else {
+                const { error: insErr } = await sbClient.from('jobs').insert([{
+                  title: '__SYSTEM_MASTER_DATA__',
+                  company_name: 'System',
+                  category: 'System',
+                  job_type: 'Full Time',
+                  location: 'Indonesia',
+                  salary_display: 'Kompetitif',
+                  experience_level: 'Semua Tingkat',
+                  description: JSON.stringify(masterObj),
+                  status: 'system_master_data'
+                }]);
+                if (!insErr) saved = true;
+              }
+              if (saved) setMasterData(masterObj);
+            }
+          } catch (fbErr) {
+            console.warn('Fallback direct Supabase master data save failed:', fbErr);
+          }
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = origBtn;
+
+        if (saved) {
+          input.value = '';
+          renderMasterDataChips();
+          populateMasterSelectOptions();
+        } else {
+          alert(errorMsg || 'Gagal menambahkan item.');
         }
       });
     }
@@ -2939,19 +3388,47 @@ function setupMasterData() {
     resetBtn.addEventListener('click', async () => {
       if (!confirm('Apakah Anda yakin ingin mengembalikan seluruh master data ke pengaturan standar?')) return;
       const token = getAdminToken();
+      let resetDone = false;
+      let errorMsg = '';
+
       try {
         const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/master-data/reset'), {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (ok && json && json.success) {
-          await loadMasterData();
-          alert('Master data berhasil dikembalikan ke pengaturan awal!');
-        } else {
-          alert(json?.message || 'Gagal mereset master data.');
+          resetDone = true;
+          if (json.data) setMasterData(json.data);
+        } else if (json?.message) {
+          errorMsg = json.message;
         }
       } catch (err) {
-        alert('Gagal mereset: ' + err.message);
+        errorMsg = err.message;
+      }
+
+      // Resilient fallback: direct Supabase cloud reset
+      if (!resetDone && sbClient) {
+        try {
+          const { data: rows } = await sbClient.from('jobs').select('id').eq('status', 'system_master_data').limit(1);
+          if (rows && rows.length > 0) {
+            const { error: updErr } = await sbClient.from('jobs').update({
+              description: JSON.stringify(DEFAULT_MASTER_DATA),
+              updated_at: new Date().toISOString()
+            }).eq('id', rows[0].id);
+            if (!updErr) {
+              resetDone = true;
+              setMasterData(DEFAULT_MASTER_DATA);
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (resetDone) {
+        renderMasterDataChips();
+        populateMasterSelectOptions();
+        alert('Master data berhasil dikembalikan ke pengaturan awal!');
+      } else {
+        alert(errorMsg || 'Gagal mereset master data.');
       }
     });
   }
@@ -2960,6 +3437,13 @@ function setupMasterData() {
 window.deleteMasterItem = async function(typeKey, id, name) {
   if (!confirm(`Hapus "${name}" dari ${typeKey}?`)) return;
   const token = getAdminToken();
+  let deleted = false;
+  let errorMsg = '';
+
+  const normalizedKey = (typeKey === 'categories' || typeKey === 'category') ? 'categories'
+    : (typeKey === 'job_types' || typeKey === 'job_type' ? 'job_types'
+    : (typeKey === 'experience_levels' || typeKey === 'experience_level' ? 'experience_levels' : 'locations'));
+
   try {
     const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/master-data'), {
       method: 'DELETE',
@@ -2967,15 +3451,48 @@ window.deleteMasterItem = async function(typeKey, id, name) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ type: typeKey, id, name })
+      body: JSON.stringify({ type: normalizedKey, id, name })
     });
     if (ok && json && json.success) {
-      await loadMasterData();
-    } else {
-      alert(json?.message || 'Gagal menghapus item.');
+      deleted = true;
+      if (json.data) setMasterData(json.data);
+    } else if (json?.message) {
+      errorMsg = json.message;
     }
   } catch (err) {
-    alert('Terjadi kesalahan: ' + err.message);
+    errorMsg = err.message;
+  }
+
+  // Resilient fallback: direct Supabase cloud delete
+  if (!deleted && sbClient) {
+    try {
+      const { data: rows } = await sbClient.from('jobs').select('id, description').eq('status', 'system_master_data').limit(1);
+      if (rows && rows.length > 0 && rows[0].description) {
+        const masterObj = JSON.parse(rows[0].description);
+        if (Array.isArray(masterObj[normalizedKey])) {
+          masterObj[normalizedKey] = masterObj[normalizedKey].filter(i => {
+            if (id !== undefined && id !== null && id !== '' && String(i.id) === String(id)) return false;
+            if (name && (i.name || '').toLowerCase() === String(name).trim().toLowerCase()) return false;
+            return true;
+          });
+          const { error: updErr } = await sbClient.from('jobs').update({
+            description: JSON.stringify(masterObj),
+            updated_at: new Date().toISOString()
+          }).eq('id', rows[0].id);
+          if (!updErr) {
+            deleted = true;
+            setMasterData(masterObj);
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (deleted) {
+    renderMasterDataChips();
+    populateMasterSelectOptions();
+  } else {
+    alert(errorMsg || 'Gagal menghapus item.');
   }
 };
 

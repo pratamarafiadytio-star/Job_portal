@@ -76,6 +76,16 @@ function handleCors() {
   });
 }
 
+function normalizeMasterType(type) {
+  if (!type) return 'categories';
+  const t = String(type).toLowerCase().trim();
+  if (t === 'category' || t === 'categories' || t === 'kategori') return 'categories';
+  if (t === 'job_type' || t === 'job_types' || t === 'tipe') return 'job_types';
+  if (t === 'experience_level' || t === 'experience_levels' || t === 'level' || t === 'pengalaman') return 'experience_levels';
+  if (t === 'location' || t === 'locations' || t === 'lokasi') return 'locations';
+  return 'categories';
+}
+
 // Helper: Fetch Site Settings from Supabase
 async function fetchSiteSettings(supabaseUrl, supabaseKey) {
   try {
@@ -168,6 +178,84 @@ async function saveSiteSettings(supabaseUrl, supabaseKey, newSettings) {
   }
 
   return updated;
+}
+
+// Helper: Fetch Master Data from Supabase
+async function fetchMasterData(supabaseUrl, supabaseKey) {
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/jobs?status=eq.system_master_data&select=id,description&limit=1`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`
+      }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (rows && rows.length > 0 && rows[0].description) {
+        try {
+          const parsed = JSON.parse(rows[0].description);
+          if (parsed && Array.isArray(parsed.categories)) {
+            return parsed;
+          }
+        } catch (e) {}
+      }
+    }
+  } catch (err) {}
+  return DEFAULT_MASTER_DATA;
+}
+
+// Helper: Save Master Data to Supabase
+async function saveMasterData(supabaseUrl, supabaseKey, masterData) {
+  try {
+    const checkRes = await fetch(`${supabaseUrl}/rest/v1/jobs?status=eq.system_master_data&select=id&limit=1`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`
+      }
+    });
+    const checkRows = checkRes.ok ? await checkRes.json() : [];
+
+    if (checkRows && checkRows.length > 0) {
+      await fetch(`${supabaseUrl}/rest/v1/jobs?id=eq.${checkRows[0].id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          description: JSON.stringify(masterData),
+          updated_at: new Date().toISOString()
+        })
+      });
+    } else {
+      await fetch(`${supabaseUrl}/rest/v1/jobs`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          title: '__SYSTEM_MASTER_DATA__',
+          company_name: 'System',
+          category: 'System',
+          job_type: 'Full Time',
+          location: 'Indonesia',
+          salary_display: 'Kompetitif',
+          experience_level: 'Semua Tingkat',
+          poster_image: '',
+          description: JSON.stringify(masterData),
+          status: 'system_master_data'
+        })
+      });
+    }
+  } catch (e) {
+    console.error('Error saving master data to Supabase:', e);
+  }
+  return masterData;
 }
 
 export async function onRequest(context) {
@@ -280,25 +368,86 @@ export async function onRequest(context) {
 
   // 7. GET /api/master-data
   if (pathname === '/api/master-data' && method === 'GET') {
+    const master = await fetchMasterData(supabaseUrl, supabaseKey);
     return jsonResponse({
       success: true,
-      data: DEFAULT_MASTER_DATA
+      data: master
     });
   }
 
-  // 8. POST /api/master-data / RESET
+  // 8. POST /api/master-data (Add Item)
+  if (pathname === '/api/master-data' && method === 'POST') {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const { type, name, icon } = body;
+      const cleanName = String(name || '').trim();
+      if (!cleanName) {
+        return jsonResponse({ success: false, message: 'Nama item tidak boleh kosong!' }, 400);
+      }
+
+      const key = normalizeMasterType(type);
+      const master = await fetchMasterData(supabaseUrl, supabaseKey);
+      if (!Array.isArray(master[key])) master[key] = [];
+
+      const exists = master[key].some(i => (i.name || '').toLowerCase() === cleanName.toLowerCase());
+      if (exists) {
+        return jsonResponse({ success: false, message: `Item "${cleanName}" sudah ada!` }, 400);
+      }
+
+      const defaultIcon = (key === 'categories') ? 'fa-layer-group' : (key === 'job_types') ? 'fa-briefcase' : (key === 'experience_levels') ? 'fa-user-check' : 'fa-location-dot';
+      const newItem = {
+        id: Date.now(),
+        name: cleanName,
+        icon: icon || defaultIcon
+      };
+
+      master[key].push(newItem);
+      await saveMasterData(supabaseUrl, supabaseKey, master);
+
+      return jsonResponse({
+        success: true,
+        message: `Item "${cleanName}" berhasil ditambahkan!`,
+        data: master
+      }, 201);
+    } catch (err) {
+      return jsonResponse({ success: false, message: 'Gagal menambahkan master data: ' + err.message }, 500);
+    }
+  }
+
+  // 8b. DELETE /api/master-data (Delete Item)
+  if (pathname === '/api/master-data' && method === 'DELETE') {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const { type, id, name } = body;
+      const key = normalizeMasterType(type);
+      const master = await fetchMasterData(supabaseUrl, supabaseKey);
+
+      if (Array.isArray(master[key])) {
+        master[key] = master[key].filter(i => {
+          if (id && String(i.id) === String(id)) return false;
+          if (name && (i.name || '').toLowerCase() === String(name).toLowerCase()) return false;
+          return true;
+        });
+        await saveMasterData(supabaseUrl, supabaseKey, master);
+      }
+
+      return jsonResponse({
+        success: true,
+        message: 'Item berhasil dihapus!',
+        data: master
+      });
+    } catch (err) {
+      return jsonResponse({ success: false, message: 'Gagal menghapus master data: ' + err.message }, 500);
+    }
+  }
+
+  // 8c. POST /api/master-data/reset (Reset to default)
   if (pathname === '/api/master-data/reset' && method === 'POST') {
+    await saveMasterData(supabaseUrl, supabaseKey, DEFAULT_MASTER_DATA);
     return jsonResponse({
       success: true,
       message: 'Master data berhasil dikembalikan ke pengaturan standar.',
       data: DEFAULT_MASTER_DATA
-    });
-  }
-
-  if (pathname === '/api/master-data' && (method === 'POST' || method === 'DELETE')) {
-    return jsonResponse({
-      success: true,
-      message: 'Perubahan master data tersimpan.'
     });
   }
 
@@ -313,7 +462,7 @@ export async function onRequest(context) {
       });
       if (sbRes.ok) {
         let jobs = await sbRes.json();
-        jobs = (jobs || []).filter(j => j.status !== 'system_settings');
+        jobs = (jobs || []).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
         const activeJobs = jobs.filter(j => j.status === 'active').length;
         const closedJobs = jobs.filter(j => j.status === 'closed' || j.status === 'expired').length;
         const totalViews = jobs.reduce((sum, j) => sum + (j.views_count || 0), 0);
@@ -406,7 +555,7 @@ export async function onRequest(context) {
       });
       if (sbRes.ok) {
         let jobs = await sbRes.json();
-        jobs = (jobs || []).filter(j => j.status !== 'system_settings');
+        jobs = (jobs || []).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
         return jsonResponse({ success: true, data: jobs });
       }
     } catch (err) {}
@@ -451,10 +600,27 @@ export async function onRequest(context) {
       const wa = (whatsapp || '').trim();
       const em = (email || '').trim();
       const wb = (website_url || website || '').trim();
-      let finalContactVal = contact_value ? contact_value.trim() : '';
-      if (!finalContactVal && (wa || em || wb)) {
-        finalContactVal = JSON.stringify({ whatsapp: wa, email: em, website: wb });
+
+      // Safely pack contact info and platform metadata into contact_value JSON
+      const contactObj = {
+        whatsapp: wa,
+        email: em,
+        website: wb,
+        source_platform: source_platform || (wb.includes('linkedin.com') ? 'linkedin' : (wb.includes('instagram.com') ? 'instagram' : (wb.includes('facebook.com') ? 'facebook' : 'official'))),
+        source_label: source_label || 'Resmi BUMN & Swasta'
+      };
+
+      if (contact_value) {
+        try {
+          const parsed = JSON.parse(contact_value);
+          if (parsed && typeof parsed === 'object') {
+            Object.assign(contactObj, parsed);
+          }
+        } catch (e) {
+          contactObj.raw = contact_value;
+        }
       }
+      const finalContactVal = JSON.stringify(contactObj);
 
       const parseJsonList = (val) => {
         if (!val) return [];
@@ -466,6 +632,7 @@ export async function onRequest(context) {
         return String(val).split('\n').map(s => s.trim()).filter(Boolean);
       };
 
+      // Only include valid Supabase table schema columns
       const jobRecord = {
         title: title.trim(),
         company_name: company_name.trim(),
@@ -478,17 +645,13 @@ export async function onRequest(context) {
         description: description.trim(),
         requirements: parseJsonList(requirements),
         responsibilities: parseJsonList(responsibilities),
-        benefits: parseList ? parseJsonList(benefits) : [],
-        whatsapp: wa,
-        email: em,
-        website_url: wb,
+        benefits: parseJsonList(benefits),
         contact_type: contact_type || (wa ? 'whatsapp' : (em ? 'email' : 'link')),
         contact_value: finalContactVal,
         deadline: deadline || '',
         status: status || 'active',
         is_featured: is_featured === true || is_featured === 'true' || is_featured === '1' || is_featured === 1,
-        source_platform: source_platform || (wb.includes('linkedin.com') ? 'linkedin' : (wb.includes('instagram.com') ? 'instagram' : (wb.includes('facebook.com') ? 'facebook' : 'official'))),
-        source_label: source_label || ''
+        views_count: 0
       };
 
       const sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs`, {
@@ -558,7 +721,7 @@ export async function onRequest(context) {
         });
         if (sbRes.ok) {
           const rows = await sbRes.json();
-          if (rows && rows.length > 0 && rows[0].status !== 'system_settings') {
+          if (rows && rows.length > 0 && rows[0].status !== 'system_settings' && rows[0].status !== 'system_master_data') {
             return jsonResponse({ success: true, data: rows[0] });
           }
         }
@@ -585,8 +748,19 @@ export async function onRequest(context) {
           bodyData = await request.json().catch(() => ({}));
         }
 
-        const updateData = { ...bodyData, updated_at: new Date().toISOString() };
-        delete updateData.id;
+        const allowedColumns = [
+          'title', 'company_name', 'category', 'job_type', 'location',
+          'salary_display', 'experience_level', 'poster_image', 'description',
+          'requirements', 'responsibilities', 'benefits', 'contact_type',
+          'contact_value', 'deadline', 'status', 'is_featured', 'views_count'
+        ];
+
+        const updateData = { updated_at: new Date().toISOString() };
+        for (const col of allowedColumns) {
+          if (bodyData[col] !== undefined) {
+            updateData[col] = bodyData[col];
+          }
+        }
 
         const sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs?id=eq.${jobId}`, {
           method: 'PATCH',

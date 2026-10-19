@@ -1115,6 +1115,54 @@ body {
   color: #34d399;
 }
 
+/* Anti-Hoax Shield Pill on Job Cards */
+.pill-anti-hoax {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+[data-theme="dark"] .pill-anti-hoax {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+/* Modal Anti-Hoax Guarantee Banner */
+.modal-anti-hoax-banner {
+  background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+  border: 1.5px solid #a7f3d0;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-anti-hoax-banner i {
+  font-size: 1.5rem;
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.modal-anti-hoax-banner .title {
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: #065f46;
+  margin-bottom: 2px;
+}
+
+.modal-anti-hoax-banner .desc {
+  font-size: 0.78rem;
+  color: #047857;
+  line-height: 1.4;
+}
+
 .job-excerpt {
   font-size: 0.88rem;
   color: var(--text-muted);
@@ -2884,6 +2932,176 @@ textarea.form-control {
 }
 .btn-facebook-direct:hover {
   background: #0c5dc7 !important;
+}
+
+/* ============================================================== */
+/* MODAL CONTACT CHANNELS & DIRECT WEBMAIL BUTTONS                */
+/* ============================================================== */
+.modal-contact-channels {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.contact-channel-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.btn-wa-direct {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #25d366;
+  color: white !important;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 13px 18px;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  text-decoration: none !important;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+}
+
+.btn-wa-direct:hover {
+  background: #1eb956;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.45);
+}
+
+.contact-sub-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+.contact-sub-info a {
+  color: var(--primary);
+  text-decoration: underline;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-email-direct {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #ea4335 0%, #db4437 100%);
+  color: white !important;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 13px 18px;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  text-decoration: none !important;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 14px rgba(234, 67, 53, 0.35);
+}
+
+.btn-email-direct:hover {
+  background: linear-gradient(135deg, #d93025 0%, #c5221f 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(234, 67, 53, 0.45);
+}
+
+.email-providers-quick-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  padding: 0 2px;
+}
+
+.ep-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.ep-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none !important;
+}
+
+.ep-pill:hover {
+  transform: translateY(-1px);
+}
+
+.ep-pill.ep-gmail:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.ep-pill.ep-outlook:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #0284c7;
+}
+
+.ep-pill.ep-yahoo:hover {
+  background: #f5f3ff;
+  border-color: #c4b5fd;
+  color: #7c3aed;
+}
+
+.ep-pill.ep-client:hover, .ep-pill.ep-copy:hover {
+  background: var(--bg-surface-alt);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-web-direct {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: white !important;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 13px 18px;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  text-decoration: none !important;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+}
+
+.btn-web-direct:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
 }
 
 

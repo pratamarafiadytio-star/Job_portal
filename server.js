@@ -626,6 +626,35 @@ app.get('/api/admin/stats', requireAdminAuth, async (req, res) => {
 });
 
 // -------------------------------------------------------------
+// PUBLIC API: GET /api/settings (CV WhatsApp & message)
+// -------------------------------------------------------------
+app.get('/api/settings', async (req, res) => {
+  try {
+    const settings = await db.getSettings();
+    res.json({ success: true, data: settings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// ADMIN PROTECTED API: POST /api/settings (Save CV WhatsApp)
+// -------------------------------------------------------------
+app.post('/api/settings', requireAdminAuth, async (req, res) => {
+  try {
+    const { cv_whatsapp, cv_order_message } = req.body || {};
+    const updated = await db.saveSettings({ cv_whatsapp, cv_order_message });
+    res.json({
+      success: true,
+      message: 'Pengaturan nomor WhatsApp pemesanan CV berhasil disimpan!',
+      data: updated
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// -------------------------------------------------------------
 // PUBLIC API: GET /api/master-data (Kategori, Tipe, Level, Lokasi)
 // -------------------------------------------------------------
 app.get('/api/master-data', async (req, res) => {
@@ -647,10 +676,11 @@ app.post('/api/master-data', requireAdminAuth, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Tipe dan nama master data wajib diisi!' });
     }
     const result = await db.addMasterDataItem({ type, name, icon });
+    const fullData = result.allData || (result.categories ? result : await db.getMasterData());
     res.status(201).json({
       success: true,
       message: `Berhasil menambahkan "${name.trim()}" ke master data!`,
-      data: result
+      data: fullData
     });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
@@ -668,10 +698,11 @@ app.delete('/api/master-data', requireAdminAuth, async (req, res) => {
     const qId = id || req.query.id;
 
     const result = await db.deleteMasterDataItem({ type: qType, name: qName, id: qId });
+    const fullData = result.allData || (result.categories ? result : await db.getMasterData());
     res.json({
       success: true,
       message: 'Item master data berhasil dihapus!',
-      data: result
+      data: fullData
     });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
@@ -684,7 +715,8 @@ app.delete('/api/master-data', requireAdminAuth, async (req, res) => {
 app.post('/api/master-data/reset', requireAdminAuth, async (req, res) => {
   try {
     const result = await db.resetMasterData();
-    res.json({ success: true, message: 'Master data berhasil dikembalikan ke default!', data: result });
+    const fullData = result.allData || (result.categories ? result : await db.getMasterData());
+    res.json({ success: true, message: 'Master data berhasil dikembalikan ke default!', data: fullData });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

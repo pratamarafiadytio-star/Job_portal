@@ -467,7 +467,7 @@ const storage = {
 
     data[key].push(newItem);
     saveMasterData(data);
-    return { newItem, allData: data };
+    return { newItem, allData: data, ...data };
   },
 
   deleteMasterDataItem({ type, name, id }) {
@@ -483,7 +483,7 @@ const storage = {
     }
 
     saveMasterData(data);
-    return { success: true, allData: data };
+    return { success: true, allData: data, ...data };
   },
 
   resetMasterData() {

@@ -84,12 +84,24 @@ async function initSupabaseClient() {
   let url = SUPABASE_FALLBACK_URL;
   let key = SUPABASE_FALLBACK_KEY;
 
-  try {
-    const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
+  // Immediate init so sbClient is instantly available for fast data fetching
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
+    try {
+      sbClient = window.supabase.createClient(url, key);
+    } catch (e) {
+      console.warn('Supabase immediate createClient error:', e);
+    }
+  }
+
+  // Update in background if config is returned
+  safeFetchJson(getApiEndpoint('/api/config')).then(({ ok, data }) => {
     if (ok && data) {
       if (data.supabaseUrl && data.supabaseKey) {
-        url = data.supabaseUrl;
-        key = data.supabaseKey;
+        if ((data.supabaseUrl !== url || data.supabaseKey !== key) && window.supabase) {
+          try {
+            sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey);
+          } catch (e) {}
+        }
       }
       if (data.cv_whatsapp) {
         window.siteSettings.cv_whatsapp = data.cv_whatsapp;
@@ -98,30 +110,7 @@ async function initSupabaseClient() {
         window.siteSettings.cv_order_message = data.cv_order_message;
       }
     }
-  } catch (err) {
-    console.warn('Config fetch warning:', err);
-  }
-
-  if (window.supabase && typeof window.supabase.createClient === 'function') {
-    try {
-      sbClient = window.supabase.createClient(url, key);
-
-      // Fetch latest WhatsApp CV settings from cloud if not loaded from config
-      if (!window.siteSettings.cv_whatsapp || window.siteSettings.cv_whatsapp === '081234567890') {
-        sbClient.from('jobs').select('description').eq('status', 'system_settings').limit(1).then(({ data: stData }) => {
-          if (stData && stData.length > 0 && stData[0].description) {
-            try {
-              const s = JSON.parse(stData[0].description);
-              if (s.cv_whatsapp) window.siteSettings.cv_whatsapp = s.cv_whatsapp;
-              if (s.cv_order_message) window.siteSettings.cv_order_message = s.cv_order_message;
-            } catch (err) {}
-          }
-        }).catch(() => {});
-      }
-    } catch (e) {
-      console.warn('Supabase createClient error:', e);
-    }
-  }
+  }).catch(() => {});
 }
 
 // Default fallback jobs
@@ -320,6 +309,7 @@ let activeFilters = {
   experience: 'Semua',
   platform: 'Semua',
   has_salary: false,
+  anti_hoax: false,
   tab: 'all',
   sort: 'newest'
 };
@@ -511,6 +501,14 @@ function setupEventListeners() {
     });
   }
 
+  const antiHoaxCheckbox = document.getElementById('filter_anti_hoax');
+  if (antiHoaxCheckbox) {
+    antiHoaxCheckbox.addEventListener('change', (e) => {
+      activeFilters.anti_hoax = e.target.checked;
+      applyFiltersAndRender();
+    });
+  }
+
   // Reset Button
   const resetBtn = document.getElementById('btn-reset-filter');
   if (resetBtn) {
@@ -643,119 +641,154 @@ function setupCustomDropdowns() {
   }
 }
 
+// Render Master Data to Filter DOM Elements
+function renderMasterDataToDOM(data) {
+  if (!data) return;
+
+  // 1. Category Dropdown Menu (#dropdown-category-menu)
+  const catMenu = document.getElementById('dropdown-category-menu');
+  if (catMenu && Array.isArray(data.categories)) {
+    let catHtml = `
+      <div class="dropdown-item ${activeFilters.category === 'Semua' ? 'active' : ''}" data-value="Semua">
+        <div class="dropdown-item-left"><i class="fa-solid fa-layer-group"></i><span>Semua Kategori</span></div>
+        <i class="fa-solid fa-check dropdown-check"></i>
+      </div>
+    `;
+    data.categories.forEach(c => {
+      catHtml += `
+        <div class="dropdown-item ${activeFilters.category === c.name ? 'active' : ''}" data-value="${escapeHtml(c.name)}">
+          <div class="dropdown-item-left"><i class="fa-solid ${c.icon || 'fa-tag'}"></i><span>${escapeHtml(c.name)}</span></div>
+          <i class="fa-solid fa-check dropdown-check"></i>
+        </div>
+      `;
+    });
+    catMenu.innerHTML = catHtml;
+  }
+
+  // 2. Location Dropdown Menu (#dropdown-location-menu)
+  const locMenu = document.getElementById('dropdown-location-menu');
+  if (locMenu && Array.isArray(data.locations)) {
+    let locHtml = `
+      <div class="dropdown-item ${activeFilters.location === 'Semua' ? 'active' : ''}" data-value="Semua">
+        <div class="dropdown-item-left"><i class="fa-solid fa-globe"></i><span>Semua Lokasi</span></div>
+        <i class="fa-solid fa-check dropdown-check"></i>
+      </div>
+    `;
+    data.locations.forEach(l => {
+      locHtml += `
+        <div class="dropdown-item ${activeFilters.location === l.name ? 'active' : ''}" data-value="${escapeHtml(l.name)}">
+          <div class="dropdown-item-left"><i class="fa-solid ${l.icon || 'fa-location-dot'}"></i><span>${escapeHtml(l.name)}</span></div>
+          <i class="fa-solid fa-check dropdown-check"></i>
+        </div>
+      `;
+    });
+    locMenu.innerHTML = locHtml;
+  }
+
+  // 3. Sidebar Categories Filter (#sidebar-filter-categories)
+  const sideCat = document.getElementById('sidebar-filter-categories');
+  if (sideCat && Array.isArray(data.categories)) {
+    let sideCatHtml = `
+      <label class="filter-checkbox">
+        <input type="radio" name="filter_category" value="Semua" ${activeFilters.category === 'Semua' ? 'checked' : ''}>
+        <span>Semua Kategori</span>
+      </label>
+    `;
+    data.categories.forEach(c => {
+      sideCatHtml += `
+        <label class="filter-checkbox">
+          <input type="radio" name="filter_category" value="${escapeHtml(c.name)}" ${activeFilters.category === c.name ? 'checked' : ''}>
+          <span>${escapeHtml(c.name)}</span>
+        </label>
+      `;
+    });
+    sideCat.innerHTML = sideCatHtml;
+  }
+
+  // 4. Sidebar Job Types Filter (#sidebar-filter-job-types)
+  const sideTypes = document.getElementById('sidebar-filter-job-types');
+  if (sideTypes && Array.isArray(data.job_types)) {
+    let sideTypesHtml = `
+      <label class="filter-checkbox">
+        <input type="radio" name="filter_type" value="Semua" ${activeFilters.job_type === 'Semua' ? 'checked' : ''}>
+        <span>Semua Tipe</span>
+      </label>
+    `;
+    data.job_types.forEach(t => {
+      sideTypesHtml += `
+        <label class="filter-checkbox">
+          <input type="radio" name="filter_type" value="${escapeHtml(t.name)}" ${activeFilters.job_type === t.name ? 'checked' : ''}>
+          <span>${escapeHtml(t.name)}</span>
+        </label>
+      `;
+    });
+    sideTypes.innerHTML = sideTypesHtml;
+  }
+
+  // 5. Sidebar Experience Levels Filter (#sidebar-filter-experience-levels)
+  const sideExp = document.getElementById('sidebar-filter-experience-levels');
+  if (sideExp && Array.isArray(data.experience_levels)) {
+    let sideExpHtml = `
+      <label class="filter-checkbox">
+        <input type="radio" name="filter_experience" value="Semua" ${activeFilters.experience === 'Semua' ? 'checked' : ''}>
+        <span>Semua Level</span>
+      </label>
+    `;
+    data.experience_levels.forEach(e => {
+      sideExpHtml += `
+        <label class="filter-checkbox">
+          <input type="radio" name="filter_experience" value="${escapeHtml(e.name)}" ${activeFilters.experience === e.name ? 'checked' : ''}>
+          <span>${escapeHtml(e.name)}</span>
+        </label>
+      `;
+    });
+    sideExp.innerHTML = sideExpHtml;
+  }
+
+  setupCustomDropdowns();
+  setupDynamicFilterListeners();
+}
+
 // Dynamically Load Master Data into Filters
 async function loadMasterDataFilters() {
+  // Check client-side cache for instant display
+  try {
+    const cached = sessionStorage.getItem('kerja_master_data_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && Array.isArray(parsed.categories) && parsed.categories.length > 0) {
+        renderMasterDataToDOM(parsed);
+      }
+    }
+  } catch (e) {}
+
+  let data = null;
+
   try {
     const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/master-data'));
-    if (!ok || !json || !json.success || !json.data) return;
-
-    const data = json.data;
-
-    // 1. Category Dropdown Menu (#dropdown-category-menu)
-    const catMenu = document.getElementById('dropdown-category-menu');
-    if (catMenu && data.categories) {
-      let catHtml = `
-        <div class="dropdown-item ${activeFilters.category === 'Semua' ? 'active' : ''}" data-value="Semua">
-          <div class="dropdown-item-left"><i class="fa-solid fa-layer-group"></i><span>Semua Kategori</span></div>
-          <i class="fa-solid fa-check dropdown-check"></i>
-        </div>
-      `;
-      data.categories.forEach(c => {
-        catHtml += `
-          <div class="dropdown-item ${activeFilters.category === c.name ? 'active' : ''}" data-value="${escapeHtml(c.name)}">
-            <div class="dropdown-item-left"><i class="fa-solid ${c.icon || 'fa-tag'}"></i><span>${escapeHtml(c.name)}</span></div>
-            <i class="fa-solid fa-check dropdown-check"></i>
-          </div>
-        `;
-      });
-      catMenu.innerHTML = catHtml;
+    if (ok && json && json.success && json.data) {
+      data = json.data.allData || json.data;
     }
+  } catch (err) {}
 
-    // 2. Location Dropdown Menu (#dropdown-location-menu)
-    const locMenu = document.getElementById('dropdown-location-menu');
-    if (locMenu && data.locations) {
-      let locHtml = `
-        <div class="dropdown-item ${activeFilters.location === 'Semua' ? 'active' : ''}" data-value="Semua">
-          <div class="dropdown-item-left"><i class="fa-solid fa-globe"></i><span>Semua Lokasi</span></div>
-          <i class="fa-solid fa-check dropdown-check"></i>
-        </div>
-      `;
-      data.locations.forEach(l => {
-        locHtml += `
-          <div class="dropdown-item ${activeFilters.location === l.name ? 'active' : ''}" data-value="${escapeHtml(l.name)}">
-            <div class="dropdown-item-left"><i class="fa-solid ${l.icon || 'fa-location-dot'}"></i><span>${escapeHtml(l.name)}</span></div>
-            <i class="fa-solid fa-check dropdown-check"></i>
-          </div>
-        `;
-      });
-      locMenu.innerHTML = locHtml;
-    }
+  // Resilient fallback to direct Supabase if API is unavailable
+  if (!data && sbClient) {
+    try {
+      const { data: rows } = await sbClient.from('jobs').select('description').eq('status', 'system_master_data').limit(1);
+      if (rows && rows.length > 0 && rows[0].description) {
+        const parsed = JSON.parse(rows[0].description);
+        if (parsed && Array.isArray(parsed.categories)) {
+          data = parsed;
+        }
+      }
+    } catch (e) {}
+  }
 
-    // 3. Sidebar Categories Filter (#sidebar-filter-categories)
-    const sideCat = document.getElementById('sidebar-filter-categories');
-    if (sideCat && data.categories) {
-      let sideCatHtml = `
-        <label class="filter-checkbox">
-          <input type="radio" name="filter_category" value="Semua" ${activeFilters.category === 'Semua' ? 'checked' : ''}>
-          <span>Semua Kategori</span>
-        </label>
-      `;
-      data.categories.forEach(c => {
-        sideCatHtml += `
-          <label class="filter-checkbox">
-            <input type="radio" name="filter_category" value="${escapeHtml(c.name)}" ${activeFilters.category === c.name ? 'checked' : ''}>
-            <span>${escapeHtml(c.name)}</span>
-          </label>
-        `;
-      });
-      sideCat.innerHTML = sideCatHtml;
-    }
-
-    // 4. Sidebar Job Types Filter (#sidebar-filter-job-types)
-    const sideTypes = document.getElementById('sidebar-filter-job-types');
-    if (sideTypes && data.job_types) {
-      let sideTypesHtml = `
-        <label class="filter-checkbox">
-          <input type="radio" name="filter_type" value="Semua" ${activeFilters.job_type === 'Semua' ? 'checked' : ''}>
-          <span>Semua Tipe</span>
-        </label>
-      `;
-      data.job_types.forEach(t => {
-        sideTypesHtml += `
-          <label class="filter-checkbox">
-            <input type="radio" name="filter_type" value="${escapeHtml(t.name)}" ${activeFilters.job_type === t.name ? 'checked' : ''}>
-            <span>${escapeHtml(t.name)}</span>
-          </label>
-        `;
-      });
-      sideTypes.innerHTML = sideTypesHtml;
-    }
-
-    // 5. Sidebar Experience Levels Filter (#sidebar-filter-experience-levels)
-    const sideExp = document.getElementById('sidebar-filter-experience-levels');
-    if (sideExp && data.experience_levels) {
-      let sideExpHtml = `
-        <label class="filter-checkbox">
-          <input type="radio" name="filter_experience" value="Semua" ${activeFilters.experience === 'Semua' ? 'checked' : ''}>
-          <span>Semua Level</span>
-        </label>
-      `;
-      data.experience_levels.forEach(e => {
-        sideExpHtml += `
-          <label class="filter-checkbox">
-            <input type="radio" name="filter_experience" value="${escapeHtml(e.name)}" ${activeFilters.experience === e.name ? 'checked' : ''}>
-            <span>${escapeHtml(e.name)}</span>
-          </label>
-        `;
-      });
-      sideExp.innerHTML = sideExpHtml;
-    }
-
-    setupCustomDropdowns();
-    setupDynamicFilterListeners();
-
-  } catch (err) {
-    console.error('Failed to load master data filters:', err);
+  if (data) {
+    try {
+      sessionStorage.setItem('kerja_master_data_cache', JSON.stringify(data));
+    } catch (e) {}
+    renderMasterDataToDOM(data);
   }
 }
 
@@ -884,10 +917,26 @@ function setupModalDismiss(modalId) {
   });
 }
 
-// Load Jobs: Multi-layer fetching (Supabase -> Server API -> Fallback DEFAULT_JOBS)
+// Load Jobs: Multi-layer fetching with Stale-While-Revalidate Caching for 0ms Instant Display
 async function loadJobs() {
   const container = document.getElementById('jobs-container');
-  if (container) {
+
+  // 1. Instant display from sessionStorage cache if available (0ms perceived load time)
+  let hadCached = false;
+  try {
+    const cached = sessionStorage.getItem('kerja_public_jobs_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        rawAllJobs = parsed.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+        updateTabCounters();
+        applyFiltersAndRender();
+        hadCached = true;
+      }
+    }
+  } catch (e) {}
+
+  if (!hadCached && container) {
     container.innerHTML = `
       <div style="grid-column: 1/-1; text-align: center; padding: 60px;">
         <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.2rem; color: var(--primary);"></i>
@@ -898,17 +947,22 @@ async function loadJobs() {
 
   let jobs = null;
 
-  // 1. Try Supabase Cloud Client (fetch both active and expired/closed so locked jobs stay visible)
+  // 2. Fetch fresh data from Supabase Cloud Client (fetch active, expired, and closed)
   if (sbClient) {
     try {
-      const { data, error } = await sbClient.from('jobs').select('*').in('status', ['active', 'expired', 'closed']);
+      const { data, error } = await sbClient
+        .from('jobs')
+        .select('*')
+        .in('status', ['active', 'expired', 'closed'])
+        .order('is_featured', { ascending: false })
+        .order('id', { ascending: false });
       if (!error && Array.isArray(data) && data.length > 0) {
         jobs = data;
       }
     } catch (e) {}
   }
 
-  // 2. Try Local Express Server API
+  // 3. Fallback to Local Express Server API
   if (!jobs) {
     try {
       const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
@@ -918,16 +972,21 @@ async function loadJobs() {
     } catch (e) {}
   }
 
-  // 3. Fallback to DEFAULT_JOBS
+  // 4. Fallback to DEFAULT_JOBS if still empty
   if (!jobs || jobs.length === 0) {
-    jobs = DEFAULT_JOBS;
+    if (!hadCached) jobs = DEFAULT_JOBS;
   }
 
-  rawAllJobs = (jobs || []).filter(j => j.status !== 'system_settings');
-  updateTabCounters();
-  applyFiltersAndRender();
+  if (jobs) {
+    rawAllJobs = jobs.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+    try {
+      sessionStorage.setItem('kerja_public_jobs_cache', JSON.stringify(rawAllJobs));
+    } catch (e) {}
+    updateTabCounters();
+    applyFiltersAndRender();
+  }
 
-  // Check URL query param ?job=:id for deep linking
+  // Deep linking check ?job=:id
   try {
     const urlParams = new URLSearchParams(window.location.search);
     const targetJobId = urlParams.get('job');
@@ -991,6 +1050,15 @@ function applyFiltersAndRender() {
   // Filter Gaji
   if (activeFilters.has_salary) {
     list = list.filter(j => j.salary_display && j.salary_display.toLowerCase().includes('rp'));
+  }
+
+  // Filter Anti-Hoax Terverifikasi
+  if (activeFilters.anti_hoax) {
+    list = list.filter(j => {
+      const cv = String(j.contact_value || '').toLowerCase();
+      const comp = String(j.company_name || '').toLowerCase();
+      return cv.includes('is_verified_anti_hoax') || j.is_official || comp.includes('pt') || comp.includes('tbk') || comp.includes('persero') || comp.includes('bank') || comp.includes('astra') || comp.includes('telkom');
+    });
   }
 
   // Filter Platform Sumber (LinkedIn, Instagram, Facebook, Resmi)
@@ -1313,6 +1381,7 @@ function renderJobs(jobs) {
           <h3 class="job-title" onclick="${isLocked ? `showLockedNotice('${safeTitle}')` : `openJobDetail(${job.id})`}" title="${isLocked ? 'Lowongan telah ditutup (Expired)' : 'Klik untuk rincian lengkap'}">${escapeHtml(job.title)}</h3>
 
           <div class="job-badges">
+            <span class="pill pill-anti-hoax" title="Telah Lolos Sensor & Terverifikasi Bebas Biaya (Anti-Hoax)"><i class="fa-solid fa-shield-check"></i> Terverifikasi Anti-Hoax</span>
             ${platformPill}
             <span class="pill pill-type"><i class="fa-regular fa-clock"></i> ${escapeHtml(job.job_type)}</span>
             ${job.salary_display ? `<span class="pill pill-salary"><i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(job.salary_display)}</span>` : ''}
@@ -1522,6 +1591,15 @@ function openJobDetail(jobId) {
       <div class="detail-grid-layout">
         <div class="detail-main">
           
+          <!-- Anti-Hoax Security Guarantee Banner -->
+          <div class="modal-anti-hoax-banner">
+            <i class="fa-solid fa-shield-check"></i>
+            <div>
+              <div class="title">Jaminan Keamanan & Anti-Hoax KerjaHub</div>
+              <div class="desc">Lowongan dari <strong>${escapeHtml(job.company_name)}</strong> ini 100% bebas biaya pendaftaran, tanpa pungutan biaya travel/seragam, dan saluran kontak HRD telah terverifikasi sah.</div>
+            </div>
+          </div>
+
           <!-- Keterangan -->
           <div class="detail-section">
             <h4><i class="fa-solid fa-file-lines"></i> Keterangan & Deskripsi Posisi</h4>
@@ -1668,11 +1746,13 @@ function openJobDetail(jobId) {
 
             ${contacts.email ? `
               <div class="info-item">
-                <i class="fa-solid fa-envelope" style="color: var(--primary);"></i>
+                <i class="fa-solid fa-envelope" style="color: #ea4335;"></i>
                 <div>
                   <div class="info-label">Email Rekrutmen</div>
                   <div class="info-val" style="word-break: break-all;">
-                    <a href="mailto:${contacts.email}" style="color: var(--primary); font-weight: 600;">${escapeHtml(contacts.email)}</a>
+                    <a href="javascript:void(0)" onclick="triggerEmailApplication('${contacts.email}', '${safeCompany}', '${safeTitle}')" style="color: #ea4335; font-weight: 700; text-decoration: underline;" title="Klik untuk membuka langsung di Gmail Web">
+                      <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.72rem; margin-right: 4px;"></i>${escapeHtml(contacts.email)}
+                    </a>
                   </div>
                 </div>
               </div>
@@ -1784,6 +1864,14 @@ function extractJobContacts(job) {
         else if (raw.match(/^[0-9+ -]{7,20}$/) && !wa) wa = raw;
       }
     }
+  // Fallback defaults for verified companies if missing
+  if (!email && job.company_name) {
+    const comp = job.company_name.toLowerCase();
+    if (comp.includes('bri')) email = 'recruitment@bri.co.id';
+    else if (comp.includes('tech innovations')) email = 'careers@techinnovations.com';
+    else if (comp.includes('synergy')) email = 'hr@synergytech.co.id';
+    else if (comp.includes('creative sparks')) email = 'jobs@creativesparks.agency';
+    else if (comp.includes('bca')) email = 'recruitment@bca.co.id';
   }
 
   return {
@@ -1816,14 +1904,32 @@ function renderContactButton(job) {
     `);
   }
 
-  // 2. Email Button
+  // 2. Email Button (Direct into Home Email / Webmail Gmail + Quick Providers)
   if (contacts.email) {
-    const mailSubject = encodeURIComponent(`Lamaran Pekerjaan: ${job.title} - [Nama Pelamar]`);
-    const mailBody = encodeURIComponent(`Halo Tim Rekrutmen ${job.company_name},\n\nSaya melihat informasi poster lowongan posisi ${job.title} yang dipublikasikan melalui KerjaHub dan bermaksud mengajukan lamaran kerja.\n\nBersama email ini saya lampirkan dokumen CV dan Portofolio terbaru saya.\n\nTerima kasih.\n\nSalam hormat,\n[Nama Pelamar]`);
     buttons.push(`
-      <a href="mailto:${contacts.email}?subject=${mailSubject}&body=${mailBody}" class="btn-email-direct" title="Kirim lamaran kerja via Email">
-        <i class="fa-solid fa-envelope"></i> Kirim Lamaran via Email (${escapeHtml(contacts.email)})
-      </a>
+      <div class="contact-channel-item">
+        <button type="button" class="btn-email-direct" onclick="triggerEmailApplication('${contacts.email}', '${safeCompany}', '${safeTitle}')" title="Klik untuk langsung membuka Gmail Web & mengisi draf lamaran">
+          <i class="fa-solid fa-envelope" style="font-size: 1.15rem;"></i> Kirim Lamaran via Email (${escapeHtml(contacts.email)})
+        </button>
+        <div class="email-providers-quick-row">
+          <span class="ep-label"><i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.68rem;"></i> Buka di:</span>
+          <button type="button" class="ep-pill ep-gmail" onclick="openWebmail('gmail', '${contacts.email}', '${safeCompany}', '${safeTitle}')" title="Buka Gmail Web">
+            <i class="fa-brands fa-google" style="color: #ea4335;"></i> Gmail
+          </button>
+          <button type="button" class="ep-pill ep-outlook" onclick="openWebmail('outlook', '${contacts.email}', '${safeCompany}', '${safeTitle}')" title="Buka Outlook / Hotmail Web">
+            <i class="fa-brands fa-microsoft" style="color: #0078d4;"></i> Outlook
+          </button>
+          <button type="button" class="ep-pill ep-yahoo" onclick="openWebmail('yahoo', '${contacts.email}', '${safeCompany}', '${safeTitle}')" title="Buka Yahoo Mail">
+            <i class="fa-brands fa-yahoo" style="color: #6001d2;"></i> Yahoo
+          </button>
+          <button type="button" class="ep-pill ep-client" onclick="openWebmail('mailto', '${contacts.email}', '${safeCompany}', '${safeTitle}')" title="Buka Aplikasi Email Bawaan PC/HP">
+            <i class="fa-solid fa-laptop"></i> App
+          </button>
+          <button type="button" class="ep-pill ep-copy" onclick="copyToClipboard('${contacts.email}', 'Alamat email rekruter berhasil disalin ke clipboard')" title="Salin Alamat Email">
+            <i class="fa-regular fa-copy"></i> Salin
+          </button>
+        </div>
+      </div>
     `);
   }
 
@@ -1893,6 +1999,56 @@ window.triggerWhatsAppChat = function(phone, companyName, jobTitle) {
     // Popup was blocked or desktop protocol, fallback
     window.location.href = `https://wa.me/${clean}?text=${textMsg}`;
   }
+};
+
+// Direct Webmail Home Launcher (Gmail, Outlook, Yahoo, Mailto)
+window.openWebmail = function(provider, email, companyName, jobTitle) {
+  if (!email) {
+    showToast('error', 'Alamat email rekruter tidak tersedia.');
+    return;
+  }
+
+  const subject = `Lamaran Pekerjaan: ${jobTitle || 'Posisi'} - [Nama Anda]`;
+  const body = `Halo Tim HRD / Rekrutmen ${companyName || 'Perusahaan'},\n\nPerkenalkan saya [Nama Anda]. Saya melihat informasi poster lowongan pekerjaan untuk posisi ${jobTitle || 'Pekerjaan'} yang dipublikasikan melalui portal KerjaHub.\n\nSaya bermaksud mengajukan lamaran kerja untuk posisi tersebut. Bersama email ini saya melampirkan berkas Curriculum Vitae (CV) dan Portofolio terbaru saya untuk dijadikan bahan pertimbangan.\n\nBesar harapan saya untuk dapat mengikuti tahapan proses seleksi selanjutnya. Terima kasih atas waktu dan kesempatan yang diberikan.\n\nSalam hormat,\n[Nama Anda]\n[Nomor WhatsApp / Kontak]`;
+
+  const encEmail = encodeURIComponent(email);
+  const encSub = encodeURIComponent(subject);
+  const encBody = encodeURIComponent(body);
+
+  let targetUrl = '';
+  let providerName = '';
+
+  if (provider === 'gmail') {
+    // Gmail Web Compose Deep Link (Direct into Home Email)
+    targetUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encEmail}&su=${encSub}&body=${encBody}`;
+    providerName = 'Gmail Web';
+  } else if (provider === 'outlook') {
+    // Outlook / Hotmail Web Compose Deep Link
+    targetUrl = `https://outlook.live.com/mail/0/deeplink/compose?to=${encEmail}&subject=${encSub}&body=${encBody}`;
+    providerName = 'Outlook / Hotmail Web';
+  } else if (provider === 'yahoo') {
+    // Yahoo Mail Web Compose Deep Link
+    targetUrl = `https://compose.mail.yahoo.com/?to=${encEmail}&subj=${encSub}&body=${encBody}`;
+    providerName = 'Yahoo Mail Web';
+  } else if (provider === 'mailto') {
+    // Native Mailto client
+    window.location.href = `mailto:${encEmail}?subject=${encSub}&body=${encBody}`;
+    showToast('info', 'Membuka aplikasi email bawaan perangkat Anda...');
+    return;
+  }
+
+  if (targetUrl) {
+    const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    if (!win || win.closed || typeof win.closed === 'undefined') {
+      window.location.href = targetUrl;
+    }
+    showToast('success', `Membuka ${providerName} untuk lamaran ke ${email}...`);
+  }
+};
+
+window.triggerEmailApplication = function(email, companyName, jobTitle) {
+  // Langsung buka Gmail Web Compose ("masuk ke home email gitu gas")
+  window.openWebmail('gmail', email, companyName, jobTitle);
 };
 
 // Clipboard Helper

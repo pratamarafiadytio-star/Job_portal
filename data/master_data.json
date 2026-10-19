@@ -39,6 +39,11 @@
       "id": 8,
       "name": "Lainnya",
       "icon": "fa-folder"
+    },
+    {
+      "id": 1792430767972,
+      "name": "tuio",
+      "icon": "fa-layer-group"
     }
   ],
   "job_types": [
@@ -140,6 +145,11 @@
       "id": 9,
       "name": "Hybrid",
       "icon": "fa-building-user"
+    },
+    {
+      "id": 1792429795726,
+      "name": "KotaTestId",
+      "icon": "fa-location-dot"
     }
   ]
 }
