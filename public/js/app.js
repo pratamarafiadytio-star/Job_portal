@@ -105,6 +105,19 @@ async function initSupabaseClient() {
   if (window.supabase && typeof window.supabase.createClient === 'function') {
     try {
       sbClient = window.supabase.createClient(url, key);
+
+      // Fetch latest WhatsApp CV settings from cloud if not loaded from config
+      if (!window.siteSettings.cv_whatsapp || window.siteSettings.cv_whatsapp === '081234567890') {
+        sbClient.from('jobs').select('description').eq('status', 'system_settings').limit(1).then(({ data: stData }) => {
+          if (stData && stData.length > 0 && stData[0].description) {
+            try {
+              const s = JSON.parse(stData[0].description);
+              if (s.cv_whatsapp) window.siteSettings.cv_whatsapp = s.cv_whatsapp;
+              if (s.cv_order_message) window.siteSettings.cv_order_message = s.cv_order_message;
+            } catch (err) {}
+          }
+        }).catch(() => {});
+      }
     } catch (e) {
       console.warn('Supabase createClient error:', e);
     }
@@ -910,7 +923,7 @@ async function loadJobs() {
     jobs = DEFAULT_JOBS;
   }
 
-  rawAllJobs = jobs;
+  rawAllJobs = (jobs || []).filter(j => j.status !== 'system_settings');
   updateTabCounters();
   applyFiltersAndRender();
 

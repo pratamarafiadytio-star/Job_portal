@@ -87,7 +87,7 @@ const db = {
         return localStorage.getJobs(filters);
       }
 
-      let list = (data || []).map(enrichJobPlatform);
+      let list = (data || []).filter(j => j.status !== 'system_settings').map(enrichJobPlatform);
       if (filters.platform && filters.platform !== 'Semua' && filters.platform !== 'all') {
         const plat = filters.platform.toLowerCase();
         list = list.filter(j => j.source_platform === plat);
@@ -106,8 +106,8 @@ const db = {
 
     try {
       const { data, error } = await supabase.from('jobs').select('*').eq('id', id).single();
-      if (error || !data) {
-        return localStorage.getJobById(id);
+      if (error || !data || data.status === 'system_settings') {
+        return null;
       }
 
       // Increment views count in background

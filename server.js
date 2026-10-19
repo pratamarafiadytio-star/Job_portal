@@ -221,6 +221,47 @@ function saveSiteSettings(newSettings) {
       updated_at: new Date().toISOString()
     };
     fs.writeFileSync(settingsFilePath, JSON.stringify(updated, null, 2), 'utf-8');
+
+    // Async sync to Supabase Cloud
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (sbUrl && sbKey) {
+      (async () => {
+        try {
+          const checkRes = await fetch(`${sbUrl}/rest/v1/jobs?status=eq.system_settings&select=id&limit=1`, {
+            headers: { 'apikey': sbKey, 'Authorization': `Bearer ${sbKey}` }
+          });
+          const rows = checkRes.ok ? await checkRes.json() : [];
+          if (rows && rows.length > 0) {
+            await fetch(`${sbUrl}/rest/v1/jobs?id=eq.${rows[0].id}`, {
+              method: 'PATCH',
+              headers: { 'apikey': sbKey, 'Authorization': `Bearer ${sbKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ description: JSON.stringify(updated), updated_at: updated.updated_at })
+            });
+          } else {
+            await fetch(`${sbUrl}/rest/v1/jobs`, {
+              method: 'POST',
+              headers: { 'apikey': sbKey, 'Authorization': `Bearer ${sbKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: '__SYSTEM_SETTINGS__',
+                company_name: 'System',
+                category: 'System',
+                job_type: 'Full Time',
+                location: 'Indonesia',
+                salary_display: 'Kompetitif',
+                experience_level: 'Semua Tingkat',
+                poster_image: '',
+                description: JSON.stringify(updated),
+                status: 'system_settings'
+              })
+            });
+          }
+        } catch (err) {
+          console.warn('Could not sync settings to Supabase:', err.message);
+        }
+      })();
+    }
+
     return updated;
   } catch (e) {
     console.error('Error writing settings.json:', e);

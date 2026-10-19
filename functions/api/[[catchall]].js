@@ -7,6 +7,12 @@ const DEFAULT_SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co";
 const DEFAULT_SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
 const DEFAULT_ADMIN_PASSWORD = "admin_supersecret_portal_2026";
 
+const DEFAULT_SETTINGS = {
+  cv_whatsapp: '089503222835',
+  cv_order_message: 'Halo Admin KerjaHub, saya ingin memesan layanan pembuatan / review CV profesional berstandar ATS.',
+  updated_at: new Date().toISOString()
+};
+
 const DEFAULT_MASTER_DATA = {
   categories: [
     { id: 1, name: 'Teknologi & IT', icon: 'fa-code' },
@@ -70,6 +76,100 @@ function handleCors() {
   });
 }
 
+// Helper: Fetch Site Settings from Supabase
+async function fetchSiteSettings(supabaseUrl, supabaseKey) {
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/jobs?status=eq.system_settings&select=id,description,updated_at&limit=1`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`
+      }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (rows && rows.length > 0 && rows[0].description) {
+        try {
+          const parsed = JSON.parse(rows[0].description);
+          return {
+            ...DEFAULT_SETTINGS,
+            ...parsed,
+            updated_at: rows[0].updated_at || parsed.updated_at || DEFAULT_SETTINGS.updated_at
+          };
+        } catch (e) {}
+      }
+    }
+  } catch (err) {}
+  return { ...DEFAULT_SETTINGS };
+}
+
+// Helper: Save Site Settings to Supabase
+async function saveSiteSettings(supabaseUrl, supabaseKey, newSettings) {
+  const current = await fetchSiteSettings(supabaseUrl, supabaseKey);
+  const updated = {
+    ...current,
+    ...newSettings,
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    const checkRes = await fetch(`${supabaseUrl}/rest/v1/jobs?status=eq.system_settings&select=id&limit=1`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`
+      }
+    });
+    const checkRows = checkRes.ok ? await checkRes.json() : [];
+
+    if (checkRows && checkRows.length > 0) {
+      const patchRes = await fetch(`${supabaseUrl}/rest/v1/jobs?id=eq.${checkRows[0].id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          description: JSON.stringify(updated),
+          updated_at: updated.updated_at
+        })
+      });
+      if (patchRes.ok) {
+        return updated;
+      }
+    } else {
+      const insertRes = await fetch(`${supabaseUrl}/rest/v1/jobs`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          title: '__SYSTEM_SETTINGS__',
+          company_name: 'System',
+          category: 'System',
+          job_type: 'Full Time',
+          location: 'Indonesia',
+          salary_display: 'Kompetitif',
+          experience_level: 'Semua Tingkat',
+          poster_image: '',
+          description: JSON.stringify(updated),
+          status: 'system_settings'
+        })
+      });
+      if (insertRes.ok) {
+        return updated;
+      }
+    }
+  } catch (e) {
+    console.error('Error saving settings to Supabase:', e);
+  }
+
+  return updated;
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -91,13 +191,53 @@ export async function onRequest(context) {
 
   // 1. GET /api/config
   if (pathname === '/api/config' && method === 'GET') {
+    const settings = await fetchSiteSettings(supabaseUrl, supabaseKey);
     return jsonResponse({
+      success: true,
       supabaseUrl,
-      supabaseKey
+      supabaseKey,
+      cv_whatsapp: settings.cv_whatsapp || '089503222835',
+      cv_order_message: settings.cv_order_message || 'Halo Admin KerjaHub, saya ingin memesan layanan pembuatan / review CV profesional berstandar ATS.'
     });
   }
 
-  // 2. POST /api/admin/login
+  // 2. GET /api/settings
+  if (pathname === '/api/settings' && method === 'GET') {
+    const settings = await fetchSiteSettings(supabaseUrl, supabaseKey);
+    return jsonResponse({
+      success: true,
+      data: settings
+    });
+  }
+
+  // 3. POST /api/settings
+  if (pathname === '/api/settings' && method === 'POST') {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const { cv_whatsapp, cv_order_message } = body;
+      let cleanWa = (cv_whatsapp || '').trim().replace(/[^0-9+]/g, '');
+      if (cleanWa.startsWith('+')) cleanWa = cleanWa.slice(1);
+      const cleanMsg = (cv_order_message || '').trim();
+
+      const saved = await saveSiteSettings(supabaseUrl, supabaseKey, {
+        cv_whatsapp: cleanWa,
+        cv_order_message: cleanMsg
+      });
+
+      return jsonResponse({
+        success: true,
+        message: 'Pengaturan nomor WhatsApp pemesanan CV berhasil disimpan!',
+        data: saved
+      });
+    } catch (err) {
+      return jsonResponse({
+        success: false,
+        message: 'Gagal memperbarui pengaturan: ' + err.message
+      }, 500);
+    }
+  }
+
+  // 4. POST /api/admin/login
   if (pathname === '/api/admin/login' && method === 'POST') {
     try {
       const body = await request.json().catch(() => ({}));
@@ -122,7 +262,7 @@ export async function onRequest(context) {
     }
   }
 
-  // 3. POST /api/admin/verify
+  // 5. POST /api/admin/verify
   if (pathname === '/api/admin/verify' && method === 'POST') {
     const authHeader = request.headers.get('Authorization') || '';
     const body = await request.json().catch(() => ({}));
@@ -133,12 +273,12 @@ export async function onRequest(context) {
     return jsonResponse({ success: false, valid: false }, 401);
   }
 
-  // 4. POST /api/admin/logout
+  // 6. POST /api/admin/logout
   if (pathname === '/api/admin/logout') {
     return jsonResponse({ success: true, message: 'Logout berhasil' });
   }
 
-  // 5. GET /api/master-data
+  // 7. GET /api/master-data
   if (pathname === '/api/master-data' && method === 'GET') {
     return jsonResponse({
       success: true,
@@ -146,7 +286,7 @@ export async function onRequest(context) {
     });
   }
 
-  // 6. POST /api/master-data / RESET
+  // 8. POST /api/master-data / RESET
   if (pathname === '/api/master-data/reset' && method === 'POST') {
     return jsonResponse({
       success: true,
@@ -162,7 +302,7 @@ export async function onRequest(context) {
     });
   }
 
-  // 7. GET /api/admin/stats
+  // 9. GET /api/admin/stats
   if (pathname === '/api/admin/stats' && method === 'GET') {
     try {
       const sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs?select=*&order=id.desc`, {
@@ -172,7 +312,8 @@ export async function onRequest(context) {
         }
       });
       if (sbRes.ok) {
-        const jobs = await sbRes.json();
+        let jobs = await sbRes.json();
+        jobs = (jobs || []).filter(j => j.status !== 'system_settings');
         const activeJobs = jobs.filter(j => j.status === 'active').length;
         const closedJobs = jobs.filter(j => j.status === 'closed' || j.status === 'expired').length;
         const totalViews = jobs.reduce((sum, j) => sum + (j.views_count || 0), 0);
@@ -195,7 +336,7 @@ export async function onRequest(context) {
     });
   }
 
-  // 8. GET /api/admin/scout-jobs
+  // 10. GET /api/admin/scout-jobs
   if (pathname === '/api/admin/scout-jobs' && method === 'GET') {
     const keyword = url.searchParams.get('keyword') || 'UI UX Designer';
     const location = url.searchParams.get('location') || 'Jakarta';
@@ -248,7 +389,7 @@ export async function onRequest(context) {
     });
   }
 
-  // 9. /api/jobs (GET / POST / PUT / PATCH / DELETE via Supabase REST)
+  // 11. /api/jobs (GET)
   if (pathname === '/api/jobs' && method === 'GET') {
     const statusParam = url.searchParams.get('status');
     let sbPath = `${supabaseUrl}/rest/v1/jobs?select=*&order=id.desc`;
@@ -264,11 +405,117 @@ export async function onRequest(context) {
         }
       });
       if (sbRes.ok) {
-        const jobs = await sbRes.json();
+        let jobs = await sbRes.json();
+        jobs = (jobs || []).filter(j => j.status !== 'system_settings');
         return jsonResponse({ success: true, data: jobs });
       }
     } catch (err) {}
     return jsonResponse({ success: true, data: [] });
+  }
+
+  // 12. POST /api/jobs (Create job)
+  if (pathname === '/api/jobs' && method === 'POST') {
+    try {
+      const contentType = request.headers.get('content-type') || '';
+      let bodyData = {};
+      if (contentType.includes('application/json')) {
+        bodyData = await request.json().catch(() => ({}));
+      } else if (contentType.includes('multipart/form-data') || contentType.includes('application/x-www-form-urlencoded')) {
+        const formData = await request.formData().catch(() => null);
+        if (formData) {
+          for (const [key, value] of formData.entries()) {
+            if (typeof value === 'string') {
+              bodyData[key] = value;
+            }
+          }
+        }
+      } else {
+        bodyData = await request.json().catch(() => ({}));
+      }
+
+      const {
+        title, company_name, category, job_type, location, salary_display,
+        experience_level, poster_image, description, requirements,
+        responsibilities, benefits, whatsapp, email, website_url, website,
+        contact_type, contact_value, deadline, status, is_featured,
+        source_platform, source_label
+      } = bodyData;
+
+      if (!title || !company_name || !description) {
+        return jsonResponse({
+          success: false,
+          message: 'Judul lowongan, nama perusahaan, dan deskripsi wajib diisi!'
+        }, 400);
+      }
+
+      const wa = (whatsapp || '').trim();
+      const em = (email || '').trim();
+      const wb = (website_url || website || '').trim();
+      let finalContactVal = contact_value ? contact_value.trim() : '';
+      if (!finalContactVal && (wa || em || wb)) {
+        finalContactVal = JSON.stringify({ whatsapp: wa, email: em, website: wb });
+      }
+
+      const parseJsonList = (val) => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (e) {}
+        return String(val).split('\n').map(s => s.trim()).filter(Boolean);
+      };
+
+      const jobRecord = {
+        title: title.trim(),
+        company_name: company_name.trim(),
+        category: category || 'Lainnya',
+        job_type: job_type || 'Full Time',
+        location: location || 'Indonesia',
+        salary_display: salary_display || 'Kompetitif',
+        experience_level: experience_level || 'Semua Tingkat',
+        poster_image: poster_image || '',
+        description: description.trim(),
+        requirements: parseJsonList(requirements),
+        responsibilities: parseJsonList(responsibilities),
+        benefits: parseList ? parseJsonList(benefits) : [],
+        whatsapp: wa,
+        email: em,
+        website_url: wb,
+        contact_type: contact_type || (wa ? 'whatsapp' : (em ? 'email' : 'link')),
+        contact_value: finalContactVal,
+        deadline: deadline || '',
+        status: status || 'active',
+        is_featured: is_featured === true || is_featured === 'true' || is_featured === '1' || is_featured === 1,
+        source_platform: source_platform || (wb.includes('linkedin.com') ? 'linkedin' : (wb.includes('instagram.com') ? 'instagram' : (wb.includes('facebook.com') ? 'facebook' : 'official'))),
+        source_label: source_label || ''
+      };
+
+      const sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(jobRecord)
+      });
+
+      if (sbRes.ok) {
+        const created = await sbRes.json();
+        return jsonResponse({
+          success: true,
+          message: 'Poster lowongan berhasil diunggah & dipublikasikan ke Supabase Cloud!',
+          data: created[0] || jobRecord
+        }, 201);
+      } else {
+        const errText = await sbRes.text();
+        return jsonResponse({ success: false, message: 'Gagal menyimpan ke Supabase: ' + errText }, 500);
+      }
+    } catch (err) {
+      return jsonResponse({ success: false, message: 'Server error: ' + err.message }, 500);
+    }
   }
 
   // Handle status update: PATCH /api/jobs/:id/status
@@ -296,20 +543,82 @@ export async function onRequest(context) {
     return jsonResponse({ success: true, message: 'Status updated' });
   }
 
-  // Handle single job delete: DELETE /api/jobs/:id
+  // Handle single job operations: /api/jobs/:id (GET, PUT, DELETE)
   const idMatch = pathname.match(/^\/api\/jobs\/([^/]+)$/);
-  if (idMatch && method === 'DELETE') {
+  if (idMatch) {
     const jobId = idMatch[1];
-    try {
-      await fetch(`${supabaseUrl}/rest/v1/jobs?id=eq.${jobId}`, {
-        method: 'DELETE',
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`
+
+    if (method === 'GET') {
+      try {
+        const sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs?id=eq.${jobId}&select=*&limit=1`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`
+          }
+        });
+        if (sbRes.ok) {
+          const rows = await sbRes.json();
+          if (rows && rows.length > 0 && rows[0].status !== 'system_settings') {
+            return jsonResponse({ success: true, data: rows[0] });
+          }
         }
-      });
-    } catch (err) {}
-    return jsonResponse({ success: true, message: 'Lowongan berhasil dihapus' });
+      } catch (err) {}
+      return jsonResponse({ success: false, message: 'Lowongan tidak ditemukan' }, 404);
+    }
+
+    if (method === 'PUT') {
+      try {
+        const contentType = request.headers.get('content-type') || '';
+        let bodyData = {};
+        if (contentType.includes('application/json')) {
+          bodyData = await request.json().catch(() => ({}));
+        } else if (contentType.includes('multipart/form-data') || contentType.includes('application/x-www-form-urlencoded')) {
+          const formData = await request.formData().catch(() => null);
+          if (formData) {
+            for (const [key, value] of formData.entries()) {
+              if (typeof value === 'string') {
+                bodyData[key] = value;
+              }
+            }
+          }
+        } else {
+          bodyData = await request.json().catch(() => ({}));
+        }
+
+        const updateData = { ...bodyData, updated_at: new Date().toISOString() };
+        delete updateData.id;
+
+        const sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs?id=eq.${jobId}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(updateData)
+        });
+
+        if (sbRes.ok) {
+          const updated = await sbRes.json();
+          return jsonResponse({ success: true, message: 'Lowongan berhasil diperbarui', data: updated[0] || null });
+        }
+      } catch (err) {}
+      return jsonResponse({ success: false, message: 'Gagal memperbarui lowongan' }, 500);
+    }
+
+    if (method === 'DELETE') {
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/jobs?id=eq.${jobId}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`
+          }
+        });
+      } catch (err) {}
+      return jsonResponse({ success: true, message: 'Lowongan berhasil dihapus' });
+    }
   }
 
   // Fallback 404 for any other /api/* route

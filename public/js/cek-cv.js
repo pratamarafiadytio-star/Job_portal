@@ -155,12 +155,27 @@ async function loadAllJobs() {
         window.siteSettings.cv_order_message = cfg.cv_order_message;
       }
 
-      // Fallback jobs from Supabase if API returned empty
-      if (allJobs.length === 0 && cfg.supabaseUrl && cfg.supabaseKey && window.supabase) {
+      // Fallback settings & jobs from Supabase
+      if (cfg.supabaseUrl && cfg.supabaseKey && window.supabase) {
         const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
-        const { data, error } = await sb.from('jobs').select('*').in('status', ['active']);
-        if (!error && Array.isArray(data)) {
-          allJobs = data;
+
+        if (!cfg.cv_whatsapp || cfg.cv_whatsapp === '081234567890') {
+          sb.from('jobs').select('description').eq('status', 'system_settings').limit(1).then(({ data: stData }) => {
+            if (stData && stData.length > 0 && stData[0].description) {
+              try {
+                const s = JSON.parse(stData[0].description);
+                if (s.cv_whatsapp) window.siteSettings.cv_whatsapp = s.cv_whatsapp;
+                if (s.cv_order_message) window.siteSettings.cv_order_message = s.cv_order_message;
+              } catch (err) {}
+            }
+          }).catch(() => {});
+        }
+
+        if (allJobs.length === 0) {
+          const { data, error } = await sb.from('jobs').select('*').in('status', ['active']);
+          if (!error && Array.isArray(data)) {
+            allJobs = data.filter(j => j.status !== 'system_settings');
+          }
         }
       }
     }

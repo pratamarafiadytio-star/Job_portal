@@ -185,3 +185,26 @@ INSERT INTO public.master_data (type, name, icon) VALUES
 ('location', 'Remote', 'fa-laptop-code'),
 ('location', 'Hybrid', 'fa-building-user');
 
+-- ==============================================================
+-- 7. Buat Tabel settings (Pengaturan WhatsApp Pesan CV, dll.)
+-- ==============================================================
+CREATE TABLE IF NOT EXISTS public.settings (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public Read Settings"
+ON public.settings
+FOR SELECT
+USING (true);
+
+CREATE POLICY "Enable Full Access Settings"
+ON public.settings
+FOR ALL
+USING (true)
+WITH CHECK (true);
+
+

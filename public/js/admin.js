@@ -2884,9 +2884,25 @@ async function loadCvSettings() {
       if (inputWa) inputWa.value = s.cv_whatsapp || '';
       if (inputMsg) inputMsg.value = s.cv_order_message || '';
       updateCvSettingsPreview(s.cv_whatsapp, s.cv_order_message);
+      return;
     }
   } catch (e) {
-    console.warn('Gagal memuat pengaturan CV:', e);
+    console.warn('Gagal memuat pengaturan CV dari API:', e);
+  }
+
+  // Resilient fallback: direct Supabase read
+  if (sbClient) {
+    try {
+      const { data: rows } = await sbClient.from('jobs').select('description').eq('status', 'system_settings').limit(1);
+      if (rows && rows.length > 0 && rows[0].description) {
+        const s = JSON.parse(rows[0].description);
+        if (inputWa) inputWa.value = s.cv_whatsapp || '';
+        if (inputMsg) inputMsg.value = s.cv_order_message || '';
+        updateCvSettingsPreview(s.cv_whatsapp, s.cv_order_message);
+      }
+    } catch (err) {
+      console.warn('Gagal memuat pengaturan CV dari Supabase:', err);
+    }
   }
 }
 
@@ -2948,6 +2964,9 @@ function setupCvSettings() {
       const wa = inputWa?.value.trim() || '';
       const msg = inputMsg?.value.trim() || '';
 
+      let saved = false;
+      let errorMsg = '';
+
       try {
         const token = getAdminToken();
         const res = await safeFetchJson(getApiEndpoint('/api/settings'), {
@@ -2963,16 +2982,57 @@ function setupCvSettings() {
         });
 
         if (res.ok && res.data && res.data.success) {
-          alert(`Berhasil! Nomor WhatsApp pemesanan CV (${wa}) berhasil disimpan dan langsung aktif di tombol "Pesan CV" website publik.`);
-          updateCvSettingsPreview(wa, msg);
-        } else {
-          alert('Gagal menyimpan pengaturan: ' + (res.data?.message || 'Server menolak request.'));
+          saved = true;
+        } else if (res.data?.message) {
+          errorMsg = res.data.message;
         }
       } catch (err) {
-        alert('Gagal menghubungi server: ' + err.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = origHtml;
+        errorMsg = err.message;
+      }
+
+      // Resilient fallback: direct Supabase save
+      if (!saved && sbClient) {
+        try {
+          const { data: existingRows } = await sbClient.from('jobs').select('id').eq('status', 'system_settings').limit(1);
+          const payload = {
+            cv_whatsapp: wa,
+            cv_order_message: msg,
+            updated_at: new Date().toISOString()
+          };
+          if (existingRows && existingRows.length > 0) {
+            const { error: patchErr } = await sbClient.from('jobs').update({
+              description: JSON.stringify(payload),
+              updated_at: new Date().toISOString()
+            }).eq('id', existingRows[0].id);
+            if (!patchErr) saved = true;
+          } else {
+            const { error: insErr } = await sbClient.from('jobs').insert([{
+              title: '__SYSTEM_SETTINGS__',
+              company_name: 'System',
+              category: 'System',
+              job_type: 'Full Time',
+              location: 'Indonesia',
+              salary_display: 'Kompetitif',
+              experience_level: 'Semua Tingkat',
+              poster_image: '',
+              description: JSON.stringify(payload),
+              status: 'system_settings'
+            }]);
+            if (!insErr) saved = true;
+          }
+        } catch (fbErr) {
+          console.warn('Fallback direct Supabase save failed:', fbErr);
+        }
+      }
+
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = origHtml;
+
+      if (saved) {
+        alert(`Berhasil! Nomor WhatsApp pemesanan CV (${wa}) berhasil disimpan dan langsung aktif di tombol "Pesan CV" website publik.`);
+        updateCvSettingsPreview(wa, msg);
+      } else {
+        alert('Gagal menyimpan pengaturan: ' + (errorMsg || 'Server menolak request.'));
       }
     });
   }
