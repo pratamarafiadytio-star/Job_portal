@@ -138,7 +138,7 @@ function isTokenValid(token) {
     try {
       const decoded = Buffer.from(token.replace('cf_token_', ''), 'base64').toString('utf-8');
       const [pwd] = decoded.split(':');
-      if (pwd === (process.env.ADMIN_PASSWORD || 'admin_supersecret_portal_2026')) {
+      if (ADMIN_PASSWORD && pwd === ADMIN_PASSWORD) {
         return true;
       }
     } catch (e) {}
@@ -338,8 +338,8 @@ app.post('/api/admin/login', (req, res) => {
       return res.status(400).json({ success: false, message: 'Password admin wajib diisi!' });
     }
 
-    const currentAdminPassword = process.env.ADMIN_PASSWORD || 'admin_supersecret_portal_2026';
-    if (password !== currentAdminPassword) {
+    const currentAdminPassword = ADMIN_PASSWORD;
+    if (!currentAdminPassword || password !== currentAdminPassword) {
       recordLoginFailure(ip);
       return res.status(401).json({
         success: false,

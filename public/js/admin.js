@@ -7,6 +7,15 @@ const SUPABASE_FALLBACK_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
 
 let sbClient = null;
 
+// Immediate fallback initialization so admin queries are ready at startup
+if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
+  try {
+    sbClient = window.supabase.createClient(SUPABASE_FALLBACK_URL, SUPABASE_FALLBACK_KEY);
+  } catch (e) {
+    console.warn('Initial admin Supabase client init warning:', e);
+  }
+}
+
 function getApiEndpoint(endpoint) {
   if (!endpoint) return '';
   const clean = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
@@ -39,25 +48,28 @@ async function initSupabaseClient() {
   let url = SUPABASE_FALLBACK_URL;
   let key = SUPABASE_FALLBACK_KEY;
 
-  // Immediate init so sbClient is instantly available for queries without network latency
-  if (window.supabase && typeof window.supabase.createClient === 'function') {
+  if (!sbClient && window.supabase && typeof window.supabase.createClient === 'function') {
     try {
       sbClient = window.supabase.createClient(url, key);
     } catch (e) {
-      console.warn('Supabase immediate createClient error:', e);
+      console.warn('Supabase fallback createClient error in admin:', e);
     }
   }
 
-  // Update in background if custom config returned
-  safeFetchJson(getApiEndpoint('/api/config')).then(({ ok, data }) => {
-    if (ok && data && data.supabaseUrl && data.supabaseKey) {
-      if ((data.supabaseUrl !== url || data.supabaseKey !== key) && window.supabase) {
+  try {
+    const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
+    if (ok && data && data.supabaseUrl && data.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function') {
+      if (data.supabaseUrl !== url || data.supabaseKey !== key || !sbClient) {
         try {
           sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey);
-        } catch (e) {}
+        } catch (e) {
+          console.warn('Supabase createClient error in admin:', e);
+        }
       }
     }
-  }).catch(() => {});
+  } catch (e) {
+    console.warn('Init Supabase config error in admin:', e);
+  }
 }
 
 function getAdminToken() {

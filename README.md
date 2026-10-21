@@ -16,7 +16,7 @@ Aplikasi ini memisahkan link antara pengunjung publik (pencari kerja) dan pengel
 2. **Panel Admin (Khusus Pengelola & Upload Poster)**:
    - **Local Node.js**: [http://localhost:5000/admin](http://localhost:5000/admin)
    - **Apache XAMPP**: [http://localhost/job_portal/public/admin.html](http://localhost/job_portal/public/admin.html)
-   - **Password Admin**: `admin_supersecret_portal_2026`
+   - **Password Admin**: Sesuai konfigurasi di `.env` (`ADMIN_PASSWORD`)
    - *Area terbatas mandiri dengan Dashboard statistik, Drag-and-drop Poster Uploader, dan Manajemen lowongan (Edit, Toggle Aktif/Tutup, Hapus).*
 
 ---

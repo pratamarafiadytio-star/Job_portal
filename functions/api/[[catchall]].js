@@ -7,6 +7,7 @@ const DEFAULT_SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co";
 const DEFAULT_SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
 const DEFAULT_ADMIN_PASSWORD = "admin_supersecret_portal_2026";
 
+
 const DEFAULT_SETTINGS = {
   cv_whatsapp: '089503222835',
   cv_order_message: 'Halo Admin KerjaHub, saya ingin memesan layanan pembuatan / review CV profesional berstandar ATS.',
@@ -279,7 +280,7 @@ export async function onRequest(context) {
 
   // 1. GET /api/config
   if (pathname === '/api/config' && method === 'GET') {
-    const settings = await fetchSiteSettings(supabaseUrl, supabaseKey);
+    const settings = (supabaseUrl && supabaseKey) ? await fetchSiteSettings(supabaseUrl, supabaseKey) : DEFAULT_SETTINGS;
     return jsonResponse({
       success: true,
       supabaseUrl,

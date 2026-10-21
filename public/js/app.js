@@ -9,6 +9,15 @@ const SUPABASE_FALLBACK_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
 
 let sbClient = null;
 
+// Immediate fallback initialization so client queries are ready at startup
+if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
+  try {
+    sbClient = window.supabase.createClient(SUPABASE_FALLBACK_URL, SUPABASE_FALLBACK_KEY);
+  } catch (e) {
+    console.warn('Initial Supabase client init warning:', e);
+  }
+}
+
 function getApiEndpoint(endpoint) {
   if (!endpoint) return '';
   const clean = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
@@ -84,23 +93,24 @@ async function initSupabaseClient() {
   let url = SUPABASE_FALLBACK_URL;
   let key = SUPABASE_FALLBACK_KEY;
 
-  // Immediate init so sbClient is instantly available for fast data fetching
-  if (window.supabase && typeof window.supabase.createClient === 'function') {
+  if (!sbClient && window.supabase && typeof window.supabase.createClient === 'function') {
     try {
       sbClient = window.supabase.createClient(url, key);
     } catch (e) {
-      console.warn('Supabase immediate createClient error:', e);
+      console.warn('Supabase fallback createClient error:', e);
     }
   }
 
-  // Update in background if config is returned
-  safeFetchJson(getApiEndpoint('/api/config')).then(({ ok, data }) => {
+  try {
+    const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
     if (ok && data) {
-      if (data.supabaseUrl && data.supabaseKey) {
-        if ((data.supabaseUrl !== url || data.supabaseKey !== key) && window.supabase) {
+      if (data.supabaseUrl && data.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function') {
+        if (data.supabaseUrl !== url || data.supabaseKey !== key || !sbClient) {
           try {
             sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey);
-          } catch (e) {}
+          } catch (e) {
+            console.warn('Supabase createClient error:', e);
+          }
         }
       }
       if (data.cv_whatsapp) {
@@ -110,7 +120,21 @@ async function initSupabaseClient() {
         window.siteSettings.cv_order_message = data.cv_order_message;
       }
     }
-  }).catch(() => {});
+  } catch (e) {
+    console.warn('Init Supabase config error:', e);
+  }
+
+  // Resilient fallback for site settings directly from Supabase if needed
+  if (sbClient && window.siteSettings && (!window.siteSettings.cv_whatsapp || window.siteSettings.cv_whatsapp === '081234567890')) {
+    try {
+      const { data: stRows } = await sbClient.from('jobs').select('description').eq('status', 'system_settings').limit(1);
+      if (stRows && stRows.length > 0 && stRows[0].description) {
+        const parsed = JSON.parse(stRows[0].description);
+        if (parsed.cv_whatsapp) window.siteSettings.cv_whatsapp = parsed.cv_whatsapp;
+        if (parsed.cv_order_message) window.siteSettings.cv_order_message = parsed.cv_order_message;
+      }
+    } catch (e) {}
+  }
 }
 
 // Default fallback jobs
@@ -953,13 +977,18 @@ async function loadJobs() {
       const { data, error } = await sbClient
         .from('jobs')
         .select('*')
-        .in('status', ['active', 'expired', 'closed'])
+        .neq('status', 'system_master_data')
+        .neq('status', 'system_settings')
         .order('is_featured', { ascending: false })
         .order('id', { ascending: false });
       if (!error && Array.isArray(data) && data.length > 0) {
-        jobs = data;
+        jobs = data.filter(j => j.status !== 'system_master_data' && j.status !== 'system_settings');
+      } else if (error) {
+        console.warn('Supabase query error in loadJobs:', error.message);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('Supabase query exception in loadJobs:', e);
+    }
   }
 
   // 3. Fallback to Local Express Server API
@@ -1324,7 +1353,7 @@ function renderJobs(jobs) {
     return;
   }
 
-  container.innerHTML = jobs.map(job => {
+  const cardsHtml = jobs.map(job => {
     const defaultPoster = 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&auto=format&fit=crop&q=80';
     let posterSrc = job.poster_image ? job.poster_image : defaultPoster;
     if (posterSrc.startsWith('/uploads/')) {
@@ -1864,6 +1893,7 @@ function extractJobContacts(job) {
         else if (raw.match(/^[0-9+ -]{7,20}$/) && !wa) wa = raw;
       }
     }
+  }
   // Fallback defaults for verified companies if missing
   if (!email && job.company_name) {
     const comp = job.company_name.toLowerCase();
