@@ -263,44 +263,7 @@
     "updated_at": "2026-10-18T17:59:57.139329+00:00",
     "source_platform": "official",
     "source_label": "Resmi BUMN & Swasta"
-  },
-  {
-    "id": 13,
-    "title": "OPERATOR PRODUKSI",
-    "company_name": "PT NITERRA MOBILITY INDONESIA",
-    "category": "Operasional",
-    "job_type": "Full Time",
-    "location": "Cikarang / Karawang, Jawa Barat",
-    "salary_display": "Rp 5.200.000 - Rp 6.800.000 / bln",
-    "experience_level": "Fresh Graduate",
-    "poster_image": "",
-    "description": "PT Niterra Mobility Indonesia (produsen busi NGK & sensor otomotif terkemuka) membuka lowongan kerja resmi Operator Produksi untuk penempatan fasilitas perakitan dan manufaktur berstandar Jepang.",
-    "requirements": [
-      "Pendidikan minimal SMA/SMK sederajat",
-      "Memiliki kemampuan Komunikasi, Kerja sama tim, dan Kedisiplinan yang baik",
-      "Dapat mengoperasikan Microsoft word, Excel dan Sistem Produksi",
-      "Bersedia bekerja dalam sistem shift"
-    ],
-    "responsibilities": [
-      "Menjalankan proses perakitan komponen otomotif sesuai SOP",
-      "Menjaga ketelitian dan mutu kualitas produk tanpa cacat",
-      "Mematuhi standar K3 (Keselamatan & Kesehatan Kerja) dan 5R"
-    ],
-    "benefits": [
-      "Gaji pokok sesuai UMK kawasan industri + Lembur normatif",
-      "BPJS Kesehatan & Ketenagakerjaan lengkap",
-      "Fasilitas jemputan bus karyawan & makan siang"
-    ],
-    "contact_type": "link",
-    "contact_value": "{\"whatsapp\":\"\",\"email\":\"recruitment@niterra.co.id\",\"website\":\"https://www.ngkbusi.com/career\"}",
-    "deadline": "2026-12-31",
-    "status": "active",
-    "is_featured": true,
-    "views_count": 2,
-    "created_at": "2026-10-18T17:54:22.892485+00:00",
-    "updated_at": "2026-10-18T17:54:22.892485+00:00",
-    "source_platform": "official",
-    "source_label": "Resmi BUMN & Swasta"
+
   },
   {
     "id": 2,

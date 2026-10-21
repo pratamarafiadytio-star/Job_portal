@@ -1360,7 +1360,9 @@ function renderJobs(jobs) {
       posterSrc = '.' + posterSrc;
     }
 
-    const isLocked = (job.status === 'expired' || job.status === 'closed');
+    const dObj = parseDateSafe(job.deadline);
+    const isPassedDeadline = dObj ? (dObj.getTime() < Date.now()) : false;
+    const isLocked = (job.status === 'expired' || job.status === 'closed' || isPassedDeadline);
     const initial = job.company_name ? job.company_name.charAt(0).toUpperCase() : 'C';
     const timeAgo = formatTimeAgo(job.created_at);
     const urgencyBadge = calculateUrgencyBadge(job.deadline);
@@ -1488,17 +1490,59 @@ function generateSkillPills(job) {
   return pills.slice(0, 3);
 }
 
+// Smart Date Parser (handles ISO YYYY-MM-DD and Indonesian Date Formats)
+function parseDateSafe(str) {
+  if (!str) return null;
+  if (typeof str !== 'string') {
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10) - 1;
+    const day = parseInt(isoMatch[3], 10);
+    return new Date(year, month, day, 23, 59, 59);
+  }
+  const months = {
+    januari: 0, jan: 0, january: 0,
+    februari: 1, feb: 1, february: 1,
+    maret: 2, mar: 2, march: 2,
+    april: 3, apr: 3,
+    mei: 4, may: 4,
+    juni: 5, jun: 5, june: 5,
+    juli: 6, jul: 6, july: 6,
+    agustus: 7, agu: 7, ags: 7, august: 7, aug: 7,
+    september: 8, sep: 8, sept: 8,
+    oktober: 9, okt: 9, oct: 9, october: 9,
+    november: 10, nov: 10,
+    desember: 11, des: 11, dec: 11, december: 11
+  };
+  const m = str.match(/(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})/);
+  if (m) {
+    const day = parseInt(m[1], 10);
+    const monStr = m[2].toLowerCase();
+    const year = parseInt(m[3], 10);
+    if (months[monStr] !== undefined) {
+      return new Date(year, months[monStr], day, 23, 59, 59);
+    }
+  }
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 // Urgency badge calculation
 function calculateUrgencyBadge(deadlineStr) {
   if (!deadlineStr) return '<span class="pill pill-urgency"><i class="fa-solid fa-circle-check"></i> Terbuka</span>';
   try {
-    const deadline = new Date(deadlineStr);
+    const deadline = parseDateSafe(deadlineStr);
+    if (!deadline) return '<span class="pill pill-urgency"><i class="fa-solid fa-circle-check"></i> Terbuka</span>';
     const now = new Date();
-    const diffDays = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDays < 0) {
-      return '<span class="pill" style="background: rgba(239, 68, 68, 0.12); color: #ef4444;"><i class="fa-solid fa-clock-rotate-left"></i> Segera Berakhir</span>';
+      return '<span class="pill pill-expired" style="background: rgba(239, 68, 68, 0.12); color: #ef4444;"><i class="fa-solid fa-ban"></i> Batas Waktu Terlewat</span>';
     } else if (diffDays <= 7) {
-      return `<span class="pill pill-urgency"><i class="fa-solid fa-hourglass-half"></i> Sisa ${diffDays} Hari</span>`;
+      return `<span class="pill pill-urgency" style="background: rgba(245, 158, 11, 0.12); color: #d97706;"><i class="fa-solid fa-hourglass-half"></i> Sisa ${diffDays} Hari</span>`;
     } else {
       return `<span class="pill pill-urgency"><i class="fa-regular fa-calendar-check"></i> Sisa ${diffDays} Hari</span>`;
     }
@@ -1913,6 +1957,18 @@ function extractJobContacts(job) {
 
 // Render Multi-Channel Contact Buttons
 function renderContactButton(job) {
+  const dObj = parseDateSafe(job.deadline);
+  const isPassed = dObj ? (dObj.getTime() < Date.now()) : false;
+  if (job.status === 'expired' || job.status === 'closed' || isPassed) {
+    return `
+      <div class="locked-contact-card" style="padding: 16px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; text-align: center; margin-bottom: 12px;">
+        <i class="fa-solid fa-lock" style="font-size: 1.5rem; color: #ef4444; margin-bottom: 8px;"></i>
+        <div style="font-weight: 700; color: #991b1b; font-size: 0.95rem;">Pendaftaran Lowongan Telah Ditutup</div>
+        <div style="font-size: 0.8rem; color: #b91c1c; margin-top: 4px;">Batas pengumpulan berkas lamaran telah berakhir pada ${escapeHtml(job.deadline || 'periode sebelumnya')}. Silakan cek lowongan aktif lainnya.</div>
+      </div>
+    `;
+  }
+
   const contacts = extractJobContacts(job);
   const buttons = [];
 

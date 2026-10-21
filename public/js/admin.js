@@ -485,7 +485,7 @@ function setupJobFormSubmit() {
   if (btnGenPoster) {
     btnGenPoster.addEventListener('click', () => {
       const title = form.querySelector('[name="title"]')?.value.trim() || 'OPERATOR PRODUKSI';
-      const company = form.querySelector('[name="company_name"]')?.value.trim() || 'PT NITERRA MOBILITY INDONESIA';
+      const company = form.querySelector('[name="company_name"]')?.value.trim() || 'PT TOYOTA MOTOR MANUFACTURING INDONESIA';
       const reqLines = (form.querySelector('[name="requirements"]')?.value || '').split(/\r?\n/).map(s => s.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
       const deadline = form.querySelector('[name="deadline"]')?.value.trim() || '30 Oktober 2026';
       const website = form.querySelector('[name="website"]')?.value.trim() || '';
@@ -1047,48 +1047,126 @@ function setupEditFormSubmit() {
 }
 
 // ==============================================================
+// SMART DATE & DEADLINE VALIDATION HELPERS (ANTI-EXPIRED)
+// ==============================================================
+function parseDateSafe(str) {
+  if (!str) return null;
+  str = String(str).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const months = {
+    januari: 0, jan: 0, january: 0,
+    februari: 1, feb: 1, february: 1,
+    maret: 2, mar: 2, march: 2,
+    april: 3, apr: 3,
+    mei: 4, may: 4,
+    juni: 5, jun: 5, june: 5,
+    juli: 6, jul: 6, july: 6,
+    agustus: 7, agu: 7, aug: 7, august: 7,
+    september: 8, sep: 8, sept: 8,
+    oktober: 9, okt: 9, oct: 9, october: 9,
+    november: 10, nov: 10,
+    desember: 11, des: 11, dec: 11, december: 11
+  };
+  const m = str.match(/(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})/);
+  if (m) {
+    const day = parseInt(m[1], 10);
+    const monStr = m[2].toLowerCase();
+    const year = parseInt(m[3], 10);
+    if (months[monStr] !== undefined) {
+      return new Date(year, months[monStr], day, 23, 59, 59);
+    }
+  }
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function formatIndoDate(dateObj) {
+  if (!dateObj) return '';
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+  return `${dateObj.getDate()} ${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+}
+
+function toIsoDate(d) {
+  if (!d) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getDeadlineMeta(deadlineStr, fallbackDaysAhead = 30) {
+  let d = parseDateSafe(deadlineStr);
+  if (!d) {
+    const future = new Date();
+    future.setDate(future.getDate() + fallbackDaysAhead);
+    return {
+      isValid: true,
+      isExpired: false,
+      daysLeft: fallbackDaysAhead,
+      displayDate: formatIndoDate(future),
+      isoDate: toIsoDate(future)
+    };
+  }
+  const now = new Date();
+  const diffDays = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  return {
+    isValid: true,
+    isExpired: diffDays < 0,
+    daysLeft: diffDays,
+    displayDate: formatIndoDate(d),
+    isoDate: toIsoDate(d)
+  };
+}
+
+// ==============================================================
 // GENERATOR LOWONGAN RESMI (ANTI-HOAX) & STUDIO POSTER FLYER
 // ==============================================================
 
 const OFFICIAL_VACANCIES_DB = [
   {
-    id: 'off_niterra_01',
-    title: 'OPERATOR PRODUKSI',
-    company_name: 'PT NITERRA MOBILITY INDONESIA',
+    id: 'off_toyota_01',
+    title: 'OPERATOR PRODUKSI & LOGISTIK MANUFAKTUR',
+    company_name: 'PT TOYOTA MOTOR MANUFACTURING INDONESIA (TMMIN)',
     sector: 'manufaktur',
     sector_label: 'Manufaktur & Otomotif',
     category: 'Operasional',
     job_type: 'Full Time',
-    location: 'Cikarang / Karawang, Jawa Barat',
+    location: 'Kawasan Industri KIIC Karawang / Sunter Jakarta',
     education_level: 'smk',
     education_label: 'SMA / SMK Sederajat',
     experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.200.000 - Rp 6.800.000 / bln',
-    deadline: '30 Oktober 2026',
-    official_url: 'https://www.ngkbusi.com/career',
+    salary_display: 'Rp 5.500.000 - Rp 7.200.000 / bln',
+    deadline: '30 November 2026',
+    official_url: 'https://recruitment.toyota.co.id',
     contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@niterra.co.id', website: 'https://www.ngkbusi.com/career' }),
-    description: 'PT Niterra Mobility Indonesia (produsen busi NGK & sensor otomotif terkemuka) membuka lowongan kerja resmi Operator Produksi untuk penempatan fasilitas perakitan dan manufaktur berstandar Jepang.',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@toyota.co.id', website: 'https://recruitment.toyota.co.id' }),
+    description: 'PT Toyota Motor Manufacturing Indonesia (TMMIN) membuka kesempatan karir resmi Operator Produksi & Logistik Manufaktur untuk fasilitas perakitan kendaraan kelas dunia berstandar Toyota Production System (TPS).',
     requirements: [
-      'Pendidikan minimal SMA/SMK sederajat',
-      'Memiliki kemampuan Komunikasi, Kerja sama tim, dan Kedisiplinan yang baik',
-      'Dapat mengoperasikan Microsoft word, Excel dan Sistem Produksi',
-      'Bersedia bekerja dalam sistem shift'
+      'Pendidikan minimal SMA/SMK sederajat (Jurusan Teknik Mesin, Otomotif, Listrik, atau sejenis)',
+      'Nilai rata-rata raport/ijazah memuaskan, disiplin dan teliti',
+      'Sehat jasmani dan rohani, tidak buta warna, dan siap bekerja shift',
+      'Memiliki komitmen tinggi terhadap keselamatan kerja (K3) dan 5R'
     ],
     responsibilities: [
-      'Menjalankan proses perakitan komponen otomotif sesuai SOP',
-      'Menjaga ketelitian dan mutu kualitas produk tanpa cacat',
-      'Mematuhi standar K3 (Keselamatan & Kesehatan Kerja) dan 5R'
+      'Menjalankan proses assembling dan inspeksi part otomotif sesuai standar TPS',
+      'Mengoperasikan mesin manufaktur dan memantau parameter kualitas tanpa cacat',
+      'Melakukan continuous improvement (Kaizen) di lini perakitan'
     ],
     benefits: [
-      'Gaji pokok sesuai UMK kawasan industri + Lembur normatif',
-      'BPJS Kesehatan & Ketenagakerjaan lengkap',
-      'Fasilitas jemputan bus karyawan & makan siang'
+      'Gaji pokok sesuai UMK Karawang/Jakarta + Lembur normatif',
+      'Asuransi kesehatan swasta rawat jalan & inap serta BPJS lengkap',
+      'Fasilitas jemputan bus karyawan, makan siang, dan seragam lengkap'
     ],
     theme: 'factory',
     mascot: 'factory',
     verified_badge: 'Resmi & Bebas Biaya (Anti-Hoax)',
-    apply_info: 'Kirim CV/Lamaran melalui website PT. Niterra Mobility Indonesia.'
+    apply_info: 'Pendaftaran resmi hanya melalui portal rekrutmen TMMIN di recruitment.toyota.co.id.'
   },
   {
     id: 'off_astra_02',
@@ -1462,47 +1540,47 @@ const OFFICIAL_VACANCIES_DB = [
   },
   {
     id: 'soc_linkedin_03',
-    title: 'WAREHOUSE LOGISTICS & INVENTORY OFFICER',
-    company_name: 'PT NITERRA MOBILITY INDONESIA',
+    title: 'OPERATOR MACHINING & PERAKITAN ELEKTRONIK OTOMOTIF',
+    company_name: 'PT DENSO INDONESIA',
     platform: 'linkedin',
     platform_label: 'LinkedIn Recruiter',
     platform_icon: 'fa-brands fa-linkedin',
     platform_class: 'linkedin',
     sector: 'manufaktur',
-    sector_label: 'Logistik & Manufaktur',
-    category: 'Logistik',
+    sector_label: 'Manufaktur & Otomotif',
+    category: 'Operasional',
     job_type: 'Full Time',
-    location: 'Kawasan Industri Cikarang, Jawa Barat',
-    education_level: 'd3',
-    education_label: 'Diploma (D3 / S1)',
-    experience_level: '1-3 Tahun',
-    salary_display: 'Rp 5.800.000 - Rp 7.500.000 / bln',
-    deadline: '20 November 2026',
-    official_url: 'https://www.linkedin.com/jobs/view/niterra-mobility-warehouse-personnel',
+    location: 'Kawasan Industri MM2100 Cikarang Barat, Bekasi',
+    education_level: 'smk',
+    education_label: 'SMA / SMK Sederajat',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 5.400.000 - Rp 7.000.000 / bln',
+    deadline: '28 November 2026',
+    official_url: 'https://www.denso.com/id/id/careers/',
     contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@niterra.co.id', website: 'https://www.ngkbusi.com/career' }),
-    description: 'PT Niterra Mobility Indonesia membuka kesempatan karir di departemen Supply Chain & Logistik Pergudangan untuk mengelola alur distribusi suku cadang otomotif domestik dan ekspor.',
+    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@denso.co.id', website: 'https://www.denso.com/id/id/careers/' }),
+    description: 'PT Denso Indonesia (Tier-1 automotive component manufacturer) membuka lowongan resmi via LinkedIn Recruiter untuk Operator Machining & Perakitan Komponen Elektronik Kendaraan.',
     requirements: [
-      'Pendidikan minimal D3/S1 Manajemen Logistik, Teknik Industri, atau jurusan relevan',
-      'Memiliki pemahaman sistem WMS (Warehouse Management System) & SAP',
-      'Pengalaman minimal 1 tahun di bidang stock control pergudangan otomotif',
-      'Teliti, terbiasa dengan audit stok fisik vs sistem (Cycle Count)'
+      'Lulusan SMA/SMK sederajat (Teknik Mesin, Otomotif, Mekatronika, Elektronika)',
+      'Usia minimal 18 tahun, sehat jasmani dan rohani, ketelitian tinggi',
+      'Mampu membaca alat ukur presisi (Caliper, Micrometer) menjadi nilai tambah',
+      'Bersedia bekerja dengan sistem shift di pabrik Cikarang MM2100'
     ],
     responsibilities: [
-      'Mengawasi alur penerimaan barang masuk (inbound) dan pengiriman (outbound)',
-      'Memastikan akurasi inventaris fisik 100% sesuai sistem ERP',
-      'Mengoordinasikan tim operator forklift dan picker agar pengiriman tepat waktu'
+      'Mengoperasikan mesin CNC / Machining komponen presisi otomotif',
+      'Memeriksa dimensi produk dan memastikan bebas cacat visual',
+      'Menjaga kebersihan dan perawatan mesin harian sesuai standar SOP'
     ],
     benefits: [
-      'Penghasilan menarik sesuai grade manufaktur Jepang',
-      'Tunjangan kehadiran, uang transport, dan asuransi kesehatan',
-      'Peluang pengembangan karir jangka panjang di industri otomotif'
+      'Gaji pokok sesuai UMK Bekasi + Insentif kehadiran & lembur',
+      'BPJS Ketenagakerjaan & Kesehatan kelas 1',
+      'Fasilitas transportasi jemputan dan makan bergizi di kantin'
     ],
     theme: 'factory',
     mascot: 'factory',
     verified_badge: 'LinkedIn Verified Recruiter',
-    apply_info: 'Submit berkas CV melalui postingan resmi LinkedIn Recruiter Niterra Mobility.',
-    hashtag: '#LokerLinkedIn #Warehouse #NiterraMobility'
+    apply_info: 'Submit lamaran melalui pengumuman resmi LinkedIn Recruiter Denso Indonesia.',
+    hashtag: '#LokerLinkedIn #DensoIndonesia #OperatorMachining'
   },
 
   // ==============================================================
@@ -1778,6 +1856,13 @@ const OFFICIAL_VACANCIES_DB = [
   }
 ];
 
+// Pastikan seluruh deadline preset lowongan selalu aktif & valid (tidak melewati batas waktu)
+OFFICIAL_VACANCIES_DB.forEach((job, idx) => {
+  const meta = getDeadlineMeta(job.deadline, 25 + (idx % 15));
+  job.deadline = meta.displayDate;
+  job.deadline_iso = meta.isoDate;
+});
+
 let currentOfficialFilteredJobs = [...OFFICIAL_VACANCIES_DB];
 let currentPosterJobData = null;
 
@@ -1800,6 +1885,12 @@ function filterAndRenderOfficialJobs() {
   const source = activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all';
 
   currentOfficialFilteredJobs = OFFICIAL_VACANCIES_DB.filter(job => {
+    // 1. Filter Ketat Batas Waktu: Hanya tampilkan loker yang BENAR-BENAR AKTIF dan belum lewat deadline
+    const dMeta = getDeadlineMeta(job.deadline);
+    if (dMeta.isExpired) {
+      return false; // Skip loker kedaluwarsa
+    }
+
     // Platform / Medsos filter
     if (source !== 'all') {
       const jobPlat = job.platform || 'official';
@@ -1907,7 +1998,7 @@ function renderOfficialJobsGrid() {
           <span class="official-meta-pill"><i class="fa-solid fa-graduation-cap"></i> ${escapeHtml(job.education_label || 'Semua Pendidikan')}</span>
           <span class="official-meta-pill"><i class="fa-solid fa-clock"></i> ${escapeHtml(job.job_type)}</span>
           <span class="official-meta-pill salary"><i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(job.salary_display)}</span>
-          <span class="official-meta-pill deadline"><i class="fa-regular fa-calendar-xmark"></i> Deadline: ${escapeHtml(job.deadline)}</span>
+          <span class="official-meta-pill deadline" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;"><i class="fa-solid fa-clock-rotate-left"></i> Batas Waktu: ${escapeHtml(job.deadline)} (Sisa ${getDeadlineMeta(job.deadline).daysLeft} Hari • Aktif)</span>
         </div>
 
         <div class="official-screening-card">
@@ -2067,6 +2158,16 @@ window.generateAndPublishOfficialJob = async function(index) {
       verified_screening_status: 'passed'
     });
 
+    const dMeta = getDeadlineMeta(job.deadline, 30);
+    if (dMeta.isExpired) {
+      alert(`⚠️ Lowongan "${job.title}" (${job.company_name}) telah melewati batas pengumpulan berkas dan tidak dapat diterbitkan sebagai lowongan aktif.`);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origBtnHtml;
+      }
+      return;
+    }
+
     const payload = {
       title: job.title,
       company_name: job.company_name,
@@ -2082,7 +2183,7 @@ window.generateAndPublishOfficialJob = async function(index) {
       benefits: Array.isArray(job.benefits) ? job.benefits : [],
       contact_type: 'link',
       contact_value: contactsJson,
-      deadline: job.deadline || '2026-12-31',
+      deadline: dMeta.isoDate || toIsoDate(new Date(Date.now() + 30 * 86400000)),
       status: 'active',
       is_featured: true,
       views_count: 0
@@ -2207,6 +2308,9 @@ window.bulkPublishAllOfficialJobs = async function() {
         verified_screening_status: 'passed'
       });
 
+      const dMeta = getDeadlineMeta(job.deadline, 30);
+      if (dMeta.isExpired) continue;
+
       const payload = {
         title: job.title,
         company_name: job.company_name,
@@ -2222,7 +2326,7 @@ window.bulkPublishAllOfficialJobs = async function() {
         benefits: Array.isArray(job.benefits) ? job.benefits : [],
         contact_type: 'link',
         contact_value: contactsJson,
-        deadline: job.deadline || '2026-12-31',
+        deadline: dMeta.isoDate || toIsoDate(new Date(Date.now() + 30 * 86400000)),
         status: 'active',
         is_featured: true,
         views_count: 0
@@ -2270,9 +2374,8 @@ window.applyJobTemplateToForm = function(templateId) {
   if (form.elements['experience_level']) form.elements['experience_level'].value = job.experience_level || 'Fresh Graduate';
   
   if (form.elements['deadline']) {
-    let dVal = job.deadline || '';
-    if (!dVal.match(/^\d{4}-\d{2}-\d{2}$/)) dVal = '2026-12-31';
-    form.elements['deadline'].value = dVal;
+    const dMeta = getDeadlineMeta(job.deadline, 30);
+    form.elements['deadline'].value = dMeta.isoDate || '2026-12-31';
   }
 
   if (form.elements['description']) form.elements['description'].value = job.description;
@@ -2386,8 +2489,8 @@ function openPosterStudio(jobData) {
   const qrInp = document.getElementById('poster-input-qr-url');
   const hashInp = document.getElementById('poster-input-hashtag');
 
-  if (compInp) compInp.value = jobData.company_name || 'PT NITERRA MOBILITY INDONESIA';
-  if (titleInp) titleInp.value = jobData.title || 'OPERATOR PRODUKSI';
+  if (compInp) compInp.value = jobData.company_name || 'PT TOYOTA MOTOR MANUFACTURING INDONESIA';
+  if (titleInp) titleInp.value = jobData.title || 'OPERATOR PRODUKSI & LOGISTIK';
 
   if (reqInp) {
     const reqList = Array.isArray(jobData.requirements) && jobData.requirements.length > 0
@@ -2447,13 +2550,13 @@ function renderPosterCanvas() {
   canvas.width = width;
   canvas.height = height;
 
-  const company = (document.getElementById('poster-input-company')?.value || 'PT NITERRA MOBILITY INDONESIA').trim();
-  const title = (document.getElementById('poster-input-title')?.value || 'OPERATOR PRODUKSI').trim().toUpperCase();
+  const company = (document.getElementById('poster-input-company')?.value || 'PT TOYOTA MOTOR MANUFACTURING INDONESIA').trim();
+  const title = (document.getElementById('poster-input-title')?.value || 'OPERATOR PRODUKSI & LOGISTIK').trim().toUpperCase();
   const reqText = document.getElementById('poster-input-requirements')?.value || '';
   const requirements = reqText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  const deadline = (document.getElementById('poster-input-deadline')?.value || '30 Oktober 2026').trim();
-  const applyInfo = (document.getElementById('poster-input-apply-info')?.value || `Kirim CV/Lamaran melalui website ${company}.`).trim();
-  const qrUrl = (document.getElementById('poster-input-qr-url')?.value || 'https://www.ngkbusi.com/career').trim();
+  const deadline = (document.getElementById('poster-input-deadline')?.value || '30 November 2026').trim();
+  const applyInfo = (document.getElementById('poster-input-apply-info')?.value || `Kirim CV/Lamaran melalui website resmi ${company}.`).trim();
+  const qrUrl = (document.getElementById('poster-input-qr-url')?.value || 'https://recruitment.toyota.co.id').trim();
   const hashtag = (document.getElementById('poster-input-hashtag')?.value || '@KerjaHubOfficial #Lowongankerja2026').trim();
 
   const selectedTheme = document.querySelector('input[name="poster_theme"]:checked')?.value || 'factory';
@@ -2810,7 +2913,7 @@ function drawScannableQrCode(ctx, url, x, y, size) {
   holder.innerHTML = '';
   if (typeof QRCode === 'function') {
     new QRCode(holder, {
-      text: url || 'https://www.ngkbusi.com/career',
+      text: url || 'https://recruitment.toyota.co.id',
       width: size,
       height: size,
       colorDark: '#0f172a',
