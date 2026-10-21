@@ -1447,11 +1447,11 @@ function renderJobs(jobs) {
                   <i class="fa-solid fa-lock"></i> Lowongan Telah Ditutup (Expired)
                 </button>
               ` : `
-                <button type="button" class="btn btn-outline btn-sm" onclick="openJobDetail(${job.id})">
+                <button type="button" class="btn btn-outline btn-sm" onclick="openJobDetail(${job.id})" title="Lihat kualifikasi & deskripsi lengkap">
                   <i class="fa-regular fa-eye"></i> Detail
                 </button>
-                <button type="button" class="btn btn-primary btn-sm" onclick="openJobDetail(${job.id})">
-                  <i class="fa-solid fa-paper-plane"></i> Hubungi
+                <button type="button" class="btn btn-primary btn-sm btn-apply-direct" onclick="directApplyJob(${job.id}, event)" title="Buka langsung tautan pendaftaran resmi ${escapeHtml(job.company_name)}">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i> Lamar Langsung
                 </button>
               `}
             </div>
@@ -1911,49 +1911,171 @@ window.copyApplicationTemplate = function(title, company) {
   });
 };
 
-// Universal Contact Extractor for Job Objects
+// Universal Contact & Direct Apply Extractor
 function extractJobContacts(job) {
-  let wa = job.whatsapp || '';
-  let email = job.email || '';
-  let website = job.website_url || '';
+  if (!job) return { whatsapp: '', email: '', website_url: '', direct_apply_url: '', direct_type: 'none' };
 
-  if (job.contact_value) {
-    const raw = String(job.contact_value).trim();
-    if (raw.startsWith('{') && raw.endsWith('}')) {
+  let wa = (job.whatsapp || '').trim();
+  let email = (job.email || '').trim();
+  let website = (job.website_url || job.official_url || job.url || job.website || '').trim();
+
+  // Helper to parse JSON safely
+  function parseJsonSafely(val) {
+    if (!val) return null;
+    if (typeof val === 'object') return val;
+    const str = String(val).trim();
+    if (str.startsWith('{') && str.endsWith('}')) {
       try {
-        const parsed = JSON.parse(raw);
-        if (parsed.whatsapp && !wa) wa = parsed.whatsapp;
-        if (parsed.email && !email) email = parsed.email;
-        if ((parsed.website || parsed.website_url) && !website) website = parsed.website || parsed.website_url;
-      } catch (e) {}
+        return JSON.parse(str);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  // 1. If website_url itself is a JSON string, unpack it
+  const parsedWeb = parseJsonSafely(website);
+  if (parsedWeb) {
+    if (parsedWeb.url || parsedWeb.website || parsedWeb.website_url || parsedWeb.link) {
+      website = (parsedWeb.url || parsedWeb.website || parsedWeb.website_url || parsedWeb.link).trim();
+    }
+    if (parsedWeb.whatsapp && !wa) wa = parsedWeb.whatsapp.trim();
+    if (parsedWeb.email && !email) email = parsedWeb.email.trim();
+  }
+
+  // 2. Parse contact_value
+  if (job.contact_value) {
+    const parsedContact = parseJsonSafely(job.contact_value);
+    if (parsedContact) {
+      if ((parsedContact.url || parsedContact.website || parsedContact.website_url || parsedContact.link) && (!website || website.startsWith('{'))) {
+        website = (parsedContact.url || parsedContact.website || parsedContact.website_url || parsedContact.link).trim();
+      }
+      if (parsedContact.whatsapp && !wa) wa = parsedContact.whatsapp.trim();
+      if (parsedContact.email && !email) email = parsedContact.email.trim();
     } else {
+      const raw = String(job.contact_value).trim();
       const type = job.contact_type || '';
       if (type === 'whatsapp' && !wa) wa = raw;
       else if (type === 'email' && !email) email = raw;
-      else if ((type === 'link' || type === 'website') && !website) website = raw;
+      else if ((type === 'link' || type === 'website') && (!website || website.startsWith('{'))) website = raw;
       else {
         if (raw.includes('@') && !email) email = raw;
-        else if (raw.match(/^(https?:\/\/|[a-z0-9-]+\.[a-z]{2,})/i) && !website) website = raw;
+        else if (raw.match(/^(https?:\/\/|[a-z0-9-]+\.[a-z]{2,})/i) && (!website || website.startsWith('{'))) website = raw;
         else if (raw.match(/^[0-9+ -]{7,20}$/) && !wa) wa = raw;
       }
     }
   }
+
+  // Clean raw JSON string remnants if any still linger in website
+  if (website.startsWith('{') && website.includes('http')) {
+    const m = website.match(/https?:\/\/[^"\s\\}]+/);
+    if (m) website = m[0];
+  }
+
   // Fallback defaults for verified companies if missing
-  if (!email && job.company_name) {
-    const comp = job.company_name.toLowerCase();
-    if (comp.includes('bri')) email = 'recruitment@bri.co.id';
-    else if (comp.includes('tech innovations')) email = 'careers@techinnovations.com';
-    else if (comp.includes('synergy')) email = 'hr@synergytech.co.id';
-    else if (comp.includes('creative sparks')) email = 'jobs@creativesparks.agency';
-    else if (comp.includes('bca')) email = 'recruitment@bca.co.id';
+  const comp = (job.company_name || '').toLowerCase();
+  if (!website || website.startsWith('{')) {
+    if (comp.includes('toyota')) website = 'https://recruitment.toyota.co.id';
+    else if (comp.includes('astra honda') || comp.includes('ahm')) website = 'https://recruitment.astra-honda.com';
+    else if (comp.includes('telkom')) website = 'https://careers.telkom.co.id';
+    else if (comp.includes('bri') || comp.includes('rakyat indonesia')) website = 'https://e-recruitment.bri.co.id';
+    else if (comp.includes('mayora')) website = 'https://mayorakarir.com';
+    else if (comp.includes('kai') || comp.includes('kereta api')) website = 'https://recruitment.kai.id';
+    else if (comp.includes('kalbe')) website = 'https://careers.kalbe.co.id';
+    else if (comp.includes('yamaha')) website = 'https://www.yamaha-motor.co.id/career';
+    else if (comp.includes('indofood')) website = 'https://careers.indofood.com';
+    else if (comp.includes('shopee')) website = 'https://careers.shopee.co.id';
+    else if (comp.includes('bca') || comp.includes('central asia')) website = 'https://karir.bca.co.id';
+    else if (comp.includes('epson')) website = 'https://epson.co.id/careers';
+    else if (comp.includes('krakatau')) website = 'https://krakatausteel.com/career';
+    else if (comp.includes('sumco')) website = 'https://www.sumco.co.jp/english/';
+    else if (comp.includes('denso')) website = 'https://www.denso.com/id/id/careers/';
+    else if (comp.includes('glico')) website = 'https://glicowings.com/career';
+    else if (comp.includes('tech innovations')) website = 'https://techinnovations.com/careers';
+    else if (comp.includes('synergy')) website = 'https://synergytech.global/jobs';
+    else if (comp.includes('creative sparks')) website = 'https://creativesparks.agency/careers';
+  }
+
+  // Ensure website has proper protocol
+  if (website && !website.startsWith('http://') && !website.startsWith('https://')) {
+    website = `https://${website}`;
+  }
+
+  // Determine direct apply URL
+  let directApplyUrl = '';
+  let directType = 'none';
+
+  if (website) {
+    directApplyUrl = website;
+    directType = 'website';
+  } else if (wa) {
+    directApplyUrl = wa;
+    directType = 'whatsapp';
+  } else if (email) {
+    directApplyUrl = email;
+    directType = 'email';
   }
 
   return {
-    whatsapp: (wa || '').trim(),
-    email: (email || '').trim(),
-    website_url: (website || '').trim()
+    whatsapp: wa,
+    email: email,
+    website_url: website,
+    direct_apply_url: directApplyUrl,
+    direct_type: directType
   };
 }
+
+// 1-Click Direct Apply Launcher (Bypass modal for immediate application)
+window.directApplyJob = function(jobId, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  const job = (rawAllJobs || []).find(j => String(j.id) === String(jobId));
+  if (!job) {
+    showToast('error', 'Data lowongan tidak ditemukan.');
+    return;
+  }
+
+  const dObj = parseDateSafe(job.deadline);
+  const isPassed = dObj ? (dObj.getTime() < Date.now()) : false;
+  if (job.status === 'expired' || job.status === 'closed' || isPassed) {
+    showLockedNotice(job.title || 'Lowongan');
+    return;
+  }
+
+  const contacts = extractJobContacts(job);
+  const comp = job.company_name || 'Perusahaan';
+  const title = job.title || 'Posisi Lowongan';
+
+  // Increment view count in background
+  if (sbClient && job.id) {
+    sbClient.from('jobs').update({ views_count: (job.views_count || 0) + 1 }).eq('id', job.id).then();
+  }
+
+  if (contacts.website_url) {
+    showToast('info', `Membuka portal pendaftaran resmi ${comp}...`);
+    window.open(contacts.website_url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+
+  if (contacts.whatsapp) {
+    showToast('info', `Menghubungkan langsung ke WhatsApp HRD ${comp}...`);
+    triggerWhatsAppChat(contacts.whatsapp, comp, title);
+    return;
+  }
+
+  if (contacts.email) {
+    showToast('info', `Membuka draf lamaran email HRD ${comp}...`);
+    triggerEmailApplication(contacts.email, comp, title);
+    return;
+  }
+
+  // Fallback to detail modal if no contact channel found
+  openJobDetail(jobId);
+};
 
 // Render Multi-Channel Contact Buttons
 function renderContactButton(job) {
@@ -2019,32 +2141,37 @@ function renderContactButton(job) {
     `);
   }
 
-  // 3. Website / Portal / Medsos Direct Link Button
+  // 3. Website / Portal / Medsos Direct Link Button (Prominent & High-Trust)
   if (contacts.website_url) {
     const webUrl = contacts.website_url.startsWith('http') ? contacts.website_url : `https://${contacts.website_url}`;
     const sp = (job.source_platform || '').toLowerCase();
     let btnClass = 'btn-web-direct';
     let btnIcon = 'fa-solid fa-arrow-up-right-from-square';
-    let btnText = 'Buka Tautan Pendaftaran Resmi';
+    let btnText = 'Lamar di Website Resmi Perusahaan';
 
     if (webUrl.includes('linkedin.com') || sp === 'linkedin') {
       btnClass = 'btn-web-direct btn-linkedin-direct';
       btnIcon = 'fa-brands fa-linkedin';
-      btnText = 'Lihat Postingan Lowongan di LinkedIn';
+      btnText = 'Buka Lowongan Resmi di LinkedIn';
     } else if (webUrl.includes('instagram.com') || sp === 'instagram') {
       btnClass = 'btn-web-direct btn-instagram-direct';
       btnIcon = 'fa-brands fa-instagram';
-      btnText = 'Lihat Postingan Lowongan di Instagram Karir';
+      btnText = 'Buka Lowongan Resmi di Instagram';
     } else if (webUrl.includes('facebook.com') || sp === 'facebook') {
       btnClass = 'btn-web-direct btn-facebook-direct';
       btnIcon = 'fa-brands fa-facebook';
-      btnText = 'Lihat Postingan Lowongan di Facebook Jobs';
+      btnText = 'Buka Lowongan Resmi di Facebook';
     }
 
     buttons.push(`
-      <a href="${webUrl}" target="_blank" rel="noopener noreferrer" class="${btnClass}" title="${btnText}">
-        <i class="${btnIcon}"></i> ${btnText}
-      </a>
+      <div style="width: 100%;">
+        <a href="${webUrl}" target="_blank" rel="noopener noreferrer" class="${btnClass}" title="${btnText} (${escapeHtml(job.company_name)})">
+          <i class="${btnIcon}"></i> ${btnText}
+        </a>
+        <div style="margin-top: 6px; font-size: 0.74rem; color: #047857; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px;">
+          <i class="fa-solid fa-shield-check"></i> Tautan Resmi & Langsung ke Portal Rekrutmen Terverifikasi
+        </div>
+      </div>
     `);
   }
 

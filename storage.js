@@ -332,7 +332,13 @@ const storage = {
 
     const wa = jobData.whatsapp || (jobData.contact_type === 'whatsapp' ? jobData.contact_value : '');
     const email = jobData.email || (jobData.contact_type === 'email' ? jobData.contact_value : '');
-    const web = jobData.website_url || jobData.website || (jobData.contact_type === 'link' ? jobData.contact_value : '');
+    let web = jobData.website_url || jobData.website || (jobData.contact_type === 'link' ? jobData.contact_value : '');
+    if (web && typeof web === 'string' && web.trim().startsWith('{') && web.trim().endsWith('}')) {
+      try {
+        const p = JSON.parse(web.trim());
+        web = p.url || p.website || p.website_url || '';
+      } catch (e) {}
+    }
 
     let contactVal = jobData.contact_value || '';
     if (!contactVal && (wa || email || web)) {
@@ -357,6 +363,7 @@ const storage = {
       email: email,
       website_url: web,
       contact_type: jobData.contact_type || (wa ? 'whatsapp' : (email ? 'email' : 'link')),
+      contact_value: contactVal,
       deadline: jobData.deadline || '',
       status: jobData.status || 'active',
       is_featured: jobData.is_featured ? 1 : 0,
