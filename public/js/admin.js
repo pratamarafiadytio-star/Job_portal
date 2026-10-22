@@ -366,8 +366,8 @@ function switchSection(sectionName) {
     if (titleEl) titleEl.textContent = 'Scout & Generator Loker Sosmed';
     if (subEl) subEl.textContent = 'Cari dan generate materi postingan lowongan kerja dari LinkedIn, IG, dan FB.';
   } else if (sectionName === 'jobstreet-view') {
-    if (titleEl) titleEl.textContent = 'Pratinjau Loker Interaktif (JobStreet Dual-Pane)';
-    if (subEl) subEl.textContent = 'Tampilan split-screen interaktif ala JobStreet dengan rincian korporat, banner produk & aksi lamaran cepat.';
+    if (titleEl) titleEl.textContent = 'Pratinjau Loker Interaktif (JobStreet & LinkedIn Dual-Pane)';
+    if (subEl) subEl.textContent = 'Tampilan split-screen interaktif ala JobStreet & LinkedIn dengan rincian korporat, profil recruiter, banner & aksi lamaran langsung.';
     if (window.JobStreetViewer) {
       window.JobStreetViewer.mount('admin-jobstreet-target', { isAdmin: true });
     }

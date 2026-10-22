@@ -1,6 +1,257 @@
 require('dotenv').config();
+const fs = require('node:fs');
+const path = require('node:path');
 const { createClient } = require('@supabase/supabase-js');
-const localStorage = require('./storage');
+
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+  try { fs.mkdirSync(dataDir, { recursive: true }); } catch (e) {}
+}
+const jobsFilePath = path.join(dataDir, 'jobs.json');
+const masterDataFilePath = path.join(dataDir, 'master_data.json');
+
+const defaultMasterData = {
+  categories: [
+    { id: 1, name: 'Teknologi & IT', icon: 'fa-code' },
+    { id: 2, name: 'Design & Kreatif', icon: 'fa-pen-nib' },
+    { id: 3, name: 'Marketing & Penjualan', icon: 'fa-bullhorn' },
+    { id: 4, name: 'Manajemen Produk', icon: 'fa-box-archive' },
+    { id: 5, name: 'Data & AI', icon: 'fa-microchip' },
+    { id: 6, name: 'Administrasi & Keuangan', icon: 'fa-file-invoice-dollar' },
+    { id: 7, name: 'Operasional', icon: 'fa-gears' },
+    { id: 8, name: 'Lainnya', icon: 'fa-folder' }
+  ],
+  job_types: [
+    { id: 1, name: 'Full Time', icon: 'fa-clock' },
+    { id: 2, name: 'Remote', icon: 'fa-laptop-code' },
+    { id: 3, name: 'Hybrid', icon: 'fa-building-user' },
+    { id: 4, name: 'Part Time', icon: 'fa-business-time' },
+    { id: 5, name: 'Freelance', icon: 'fa-handshake' },
+    { id: 6, name: 'Internship', icon: 'fa-graduation-cap' }
+  ],
+  experience_levels: [
+    { id: 1, name: 'Fresh Graduate', icon: 'fa-user-graduate' },
+    { id: 2, name: '1-3 Tahun', icon: 'fa-user-check' },
+    { id: 3, name: '3-5 Tahun', icon: 'fa-user-tie' },
+    { id: 4, name: 'Senior (5+ Tahun)', icon: 'fa-award' }
+  ],
+  locations: [
+    { id: 1, name: 'Jakarta', icon: 'fa-city' },
+    { id: 2, name: 'Bandung', icon: 'fa-city' },
+    { id: 3, name: 'Surabaya', icon: 'fa-city' },
+    { id: 4, name: 'Yogyakarta', icon: 'fa-city' },
+    { id: 5, name: 'Bali', icon: 'fa-umbrella-beach' },
+    { id: 6, name: 'Medan', icon: 'fa-city' },
+    { id: 7, name: 'Semarang', icon: 'fa-city' },
+    { id: 8, name: 'Remote', icon: 'fa-laptop-code' },
+    { id: 9, name: 'Hybrid', icon: 'fa-building-user' }
+  ]
+};
+
+function readLocalJobs() {
+  try {
+    if (!fs.existsSync(jobsFilePath)) return [];
+    const raw = fs.readFileSync(jobsFilePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeLocalJobs(jobs) {
+  try {
+    fs.writeFileSync(jobsFilePath, JSON.stringify(jobs, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.error('Failed to write jobs.json:', e);
+    return false;
+  }
+}
+
+function readLocalMaster() {
+  try {
+    if (!fs.existsSync(masterDataFilePath)) {
+      writeLocalMaster(defaultMasterData);
+      return JSON.parse(JSON.stringify(defaultMasterData));
+    }
+    const raw = fs.readFileSync(masterDataFilePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return {
+      categories: parsed.categories || defaultMasterData.categories,
+      job_types: parsed.job_types || defaultMasterData.job_types,
+      experience_levels: parsed.experience_levels || defaultMasterData.experience_levels,
+      locations: parsed.locations || defaultMasterData.locations
+    };
+  } catch (e) {
+    return JSON.parse(JSON.stringify(defaultMasterData));
+  }
+}
+
+function writeLocalMaster(data) {
+  try {
+    fs.writeFileSync(masterDataFilePath, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.error('Failed to write master_data.json:', e);
+    return false;
+  }
+}
+
+const localStore = {
+  getJobs({ search, category, job_type, location, status, sort, platform } = {}) {
+    let jobs = readLocalJobs().map(enrichJobPlatform);
+    if (status && status !== 'all') {
+      jobs = jobs.filter(j => j.status === status);
+    } else if (!status) {
+      jobs = jobs.filter(j => ['active', 'expired', 'closed'].includes(j.status));
+    }
+    if (category && category !== 'Semua') {
+      jobs = jobs.filter(j => j.category === category);
+    }
+    if (job_type && job_type !== 'Semua') {
+      jobs = jobs.filter(j => j.job_type === job_type);
+    }
+    if (location && location !== 'Semua') {
+      const loc = location.toLowerCase();
+      jobs = jobs.filter(j => (j.location || '').toLowerCase().includes(loc));
+    }
+    if (search && search.trim() !== '') {
+      const q = search.trim().toLowerCase();
+      jobs = jobs.filter(j =>
+        (j.title || '').toLowerCase().includes(q) ||
+        (j.company_name || '').toLowerCase().includes(q) ||
+        (j.description || '').toLowerCase().includes(q) ||
+        (j.location || '').toLowerCase().includes(q)
+      );
+    }
+    if (platform && platform !== 'Semua' && platform !== 'all') {
+      const plat = platform.toLowerCase();
+      jobs = jobs.filter(j => j.source_platform === plat);
+    }
+    if (sort === 'views') {
+      jobs.sort((a, b) => (b.views_count || 0) - (a.views_count || 0));
+    } else {
+      jobs.sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0) || (b.id || 0) - (a.id || 0));
+    }
+    return jobs;
+  },
+
+  getJobById(id) {
+    const jobs = readLocalJobs();
+    const job = jobs.find(j => Number(j.id) === Number(id));
+    if (job) {
+      job.views_count = (job.views_count || 0) + 1;
+      writeLocalJobs(jobs);
+      return enrichJobPlatform(job);
+    }
+    return null;
+  },
+
+  addJob(jobData) {
+    const jobs = readLocalJobs();
+    const maxId = jobs.reduce((max, j) => Math.max(max, Number(j.id) || 0), 0);
+    const newJob = {
+      id: maxId + 1,
+      title: jobData.title,
+      company_name: jobData.company_name,
+      category: jobData.category || 'Lainnya',
+      job_type: jobData.job_type || 'Full Time',
+      location: jobData.location || 'Indonesia',
+      salary_display: jobData.salary_display || 'Kompetitif',
+      experience_level: jobData.experience_level || 'Semua Pengalaman',
+      poster_image: jobData.poster_image || '',
+      description: jobData.description,
+      requirements: Array.isArray(jobData.requirements) ? jobData.requirements : [],
+      responsibilities: Array.isArray(jobData.responsibilities) ? jobData.responsibilities : [],
+      benefits: Array.isArray(jobData.benefits) ? jobData.benefits : [],
+      contact_type: jobData.contact_type || (jobData.whatsapp ? 'whatsapp' : (jobData.email ? 'email' : 'link')),
+      contact_value: jobData.contact_value || '',
+      deadline: jobData.deadline || '',
+      status: jobData.status || 'active',
+      is_featured: !!jobData.is_featured,
+      views_count: 0,
+      created_at: new Date().toISOString()
+    };
+    enrichJobPlatform(newJob);
+    jobs.unshift(newJob);
+    writeLocalJobs(jobs);
+    return newJob;
+  },
+
+  updateJob(id, updateData) {
+    const jobs = readLocalJobs();
+    const index = jobs.findIndex(j => Number(j.id) === Number(id));
+    if (index === -1) return null;
+    jobs[index] = {
+      ...jobs[index],
+      ...updateData,
+      id: jobs[index].id,
+      updated_at: new Date().toISOString()
+    };
+    enrichJobPlatform(jobs[index]);
+    writeLocalJobs(jobs);
+    return jobs[index];
+  },
+
+  deleteJob(id) {
+    let jobs = readLocalJobs();
+    const initialLen = jobs.length;
+    jobs = jobs.filter(j => Number(j.id) !== Number(id));
+    if (jobs.length !== initialLen) {
+      writeLocalJobs(jobs);
+      return true;
+    }
+    return false;
+  },
+
+  toggleStatus(id, newStatus) {
+    const jobs = readLocalJobs();
+    const job = jobs.find(j => Number(j.id) === Number(id));
+    if (!job) return null;
+    job.status = newStatus || (job.status === 'active' ? 'expired' : 'active');
+    job.updated_at = new Date().toISOString();
+    writeLocalJobs(jobs);
+    return job;
+  },
+
+  getMasterData() {
+    return readLocalMaster();
+  },
+
+  addMasterDataItem({ type, name, icon }) {
+    const key = normalizeMasterType(type);
+    const data = readLocalMaster();
+    if (!Array.isArray(data[key])) data[key] = [];
+    const exists = data[key].some(i => (i.name || '').toLowerCase() === name.toLowerCase());
+    if (exists) return { newItem: null, allData: data };
+    const maxId = data[key].reduce((max, i) => Math.max(max, Number(i.id) || 0), 0);
+    const defaultIcon = (key === 'categories') ? 'fa-layer-group' : (key === 'job_types') ? 'fa-briefcase' : (key === 'experience_levels') ? 'fa-user-check' : 'fa-location-dot';
+    const newItem = { id: maxId + 1, name: name.trim(), icon: icon || defaultIcon };
+    data[key].push(newItem);
+    writeLocalMaster(data);
+    return { newItem, allData: data };
+  },
+
+  deleteMasterDataItem({ type, name, id }) {
+    const key = normalizeMasterType(type);
+    const data = readLocalMaster();
+    if (Array.isArray(data[key])) {
+      data[key] = data[key].filter(i => {
+        if (id !== undefined && id !== null && id !== '' && String(i.id) === String(id)) return false;
+        if (name && (i.name || '').toLowerCase() === String(name).trim().toLowerCase()) return false;
+        return true;
+      });
+      writeLocalMaster(data);
+    }
+    return { success: true, allData: data };
+  },
+
+  resetMasterData() {
+    writeLocalMaster(defaultMasterData);
+    return JSON.parse(JSON.stringify(defaultMasterData));
+  }
+};
 
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_KEY || '';
@@ -76,7 +327,7 @@ function enrichJobPlatform(job) {
 const db = {
   // Get all jobs (Optimized with high-speed in-memory cache)
   async getJobs(filters = {}) {
-    if (!supabase) return localStorage.getJobs(filters);
+    if (!supabase) return localStore.getJobs(filters);
 
     try {
       const now = Date.now();
@@ -94,7 +345,7 @@ const db = {
 
         if (error) {
           console.warn('⚠️ Supabase error (falling back to local storage):', error.message);
-          return localStorage.getJobs(filters);
+          return localStore.getJobs(filters);
         }
 
         allRawJobs = (data || [])
@@ -148,13 +399,13 @@ const db = {
       return list;
     } catch (err) {
       console.warn('⚠️ Supabase fetch exception, using local storage:', err.message);
-      return localStorage.getJobs(filters);
+      return localStore.getJobs(filters);
     }
   },
 
   // Get job by ID
   async getJobById(id) {
-    if (!supabase) return localStorage.getJobById(id);
+    if (!supabase) return localStore.getJobById(id);
 
     try {
       // Check cached jobs first if available
@@ -178,14 +429,14 @@ const db = {
 
       return enrichJobPlatform(data);
     } catch (err) {
-      return localStorage.getJobById(id);
+      return localStore.getJobById(id);
     }
   },
 
   // Add new job
   async addJob(jobData) {
     cache.invalidateJobs();
-    if (!supabase) return localStorage.addJob(jobData);
+    if (!supabase) return localStore.addJob(jobData);
 
     try {
       const payload = {
@@ -220,22 +471,22 @@ const db = {
       const { data, error } = await supabase.from('jobs').insert([payload]).select().single();
       if (error) {
         console.warn('⚠️ Supabase insert error, saving to local storage:', error.message);
-        return localStorage.addJob(jobData);
+        return localStore.addJob(jobData);
       }
 
       // Also sync to local storage as backup
-      localStorage.addJob(jobData);
+      localStore.addJob(jobData);
       return data;
     } catch (err) {
       console.warn('⚠️ Supabase insert exception, using local storage:', err.message);
-      return localStorage.addJob(jobData);
+      return localStore.addJob(jobData);
     }
   },
 
   // Update job
   async updateJob(id, updateData) {
     cache.invalidateJobs();
-    if (!supabase) return localStorage.updateJob(id, updateData);
+    if (!supabase) return localStore.updateJob(id, updateData);
 
     try {
       const allowedColumns = [
@@ -263,39 +514,39 @@ const db = {
       const { data, error } = await supabase.from('jobs').update(payload).eq('id', Number(id)).select().single();
       if (error) {
         console.warn('⚠️ Supabase update error, falling back to local storage:', error.message);
-        return localStorage.updateJob(id, updateData);
+        return localStore.updateJob(id, updateData);
       }
 
-      localStorage.updateJob(id, updateData);
+      localStore.updateJob(id, updateData);
       return data;
     } catch (err) {
       console.warn('⚠️ Supabase update exception:', err.message);
-      return localStorage.updateJob(id, updateData);
+      return localStore.updateJob(id, updateData);
     }
   },
 
   // Delete job
   async deleteJob(id) {
     cache.invalidateJobs();
-    if (!supabase) return localStorage.deleteJob(id);
+    if (!supabase) return localStore.deleteJob(id);
 
     try {
       const { error } = await supabase.from('jobs').delete().eq('id', Number(id));
       if (error) {
         console.warn('⚠️ Supabase delete error:', error.message);
-        return localStorage.deleteJob(id);
+        return localStore.deleteJob(id);
       }
-      localStorage.deleteJob(id);
+      localStore.deleteJob(id);
       return true;
     } catch (err) {
-      return localStorage.deleteJob(id);
+      return localStore.deleteJob(id);
     }
   },
 
   // Toggle status
   async toggleStatus(id, newStatus) {
     cache.invalidateJobs();
-    if (!supabase) return localStorage.toggleStatus(id, newStatus);
+    if (!supabase) return localStore.toggleStatus(id, newStatus);
 
     try {
       const current = await this.getJobById(id);
@@ -310,13 +561,13 @@ const db = {
         .single();
 
       if (error) {
-        return localStorage.toggleStatus(id, newStatus);
+        return localStore.toggleStatus(id, newStatus);
       }
 
-      localStorage.toggleStatus(id, newStatus);
+      localStore.toggleStatus(id, newStatus);
       return data;
     } catch (err) {
-      return localStorage.toggleStatus(id, newStatus);
+      return localStore.toggleStatus(id, newStatus);
     }
   },
 
@@ -350,7 +601,7 @@ const db = {
 
   // Master Data Settings (Fast cached & synchronized)
   async getMasterData() {
-    if (!supabase) return localStorage.getMasterData();
+    if (!supabase) return localStore.getMasterData();
 
     const now = Date.now();
     if (cache.masterData && (now - cache.masterData.timestamp < cache.TTL_MASTER_MS)) {
@@ -392,11 +643,11 @@ const db = {
       }
 
       // 3. Fallback to local storage
-      const local = localStorage.getMasterData();
+      const local = localStore.getMasterData();
       cache.masterData = { timestamp: now, data: local };
       return local;
     } catch (err) {
-      return localStorage.getMasterData();
+      return localStore.getMasterData();
     }
   },
 
@@ -407,7 +658,7 @@ const db = {
     }
     const key = normalizeMasterType(type);
     const cleanName = name.trim();
-    const localResult = localStorage.addMasterDataItem({ type: key, name: cleanName, icon });
+    const localResult = localStore.addMasterDataItem({ type: key, name: cleanName, icon });
 
     if (supabase) {
       try {
@@ -421,7 +672,7 @@ const db = {
         }
 
         if (!masterObj || typeof masterObj !== 'object') {
-          masterObj = localStorage.getMasterData();
+          masterObj = localStore.getMasterData();
         }
 
         if (!Array.isArray(masterObj[key])) masterObj[key] = [];
@@ -463,7 +714,7 @@ const db = {
   async deleteMasterDataItem({ type, name, id }) {
     cache.invalidateMaster();
     const key = normalizeMasterType(type);
-    const localResult = localStorage.deleteMasterDataItem({ type: key, name, id });
+    const localResult = localStore.deleteMasterDataItem({ type: key, name, id });
 
     if (supabase) {
       try {
@@ -494,7 +745,7 @@ const db = {
 
   async resetMasterData() {
     cache.invalidateMaster();
-    const defaultData = localStorage.resetMasterData();
+    const defaultData = localStore.resetMasterData();
     if (supabase) {
       try {
         const { data: sysData } = await supabase.from('jobs').select('id').eq('status', 'system_master_data').limit(1);

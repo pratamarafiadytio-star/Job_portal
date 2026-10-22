@@ -242,6 +242,13 @@
   let activeSector = 'all';
   let activeKeyword = '';
   let isAdminMode = false;
+  let viewerTheme = 'jobstreet'; // 'jobstreet' | 'linkedin'
+  try {
+    const savedTheme = localStorage.getItem('kh_dual_pane_theme');
+    if (savedTheme === 'linkedin' || savedTheme === 'jobstreet') {
+      viewerTheme = savedTheme;
+    }
+  } catch (e) {}
 
   // Supabase client instance initialized from /api/config
   let sbClient = null;
@@ -334,18 +341,27 @@
     isAdminMode = !!options.isAdmin;
 
     container.innerHTML = `
-      <div class="jobstreet-viewer-wrap" id="jobstreet-main-wrapper">
+      <div class="jobstreet-viewer-wrap ${viewerTheme === 'linkedin' ? 'theme-linkedin' : ''}" id="jobstreet-main-wrapper">
         <!-- TOP SEARCH & FILTER BAR -->
         <div class="jobstreet-top-bar">
           <div class="jobstreet-search-box">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" class="jobstreet-search-input" id="js-search-input" placeholder="Cari posisi atau perusahaan (Contoh: indofood cbp, audit, staff)..." value="${escapeHtml(activeKeyword)}">
+            <input type="text" class="jobstreet-search-input" id="js-search-input" placeholder="Cari posisi atau perusahaan (Contoh: indofood, audit, supervisor)..." value="${escapeHtml(activeKeyword)}">
             <button type="button" class="jobstreet-search-clear" id="js-search-clear" title="Hapus Pencarian">✕</button>
+          </div>
+
+          <!-- THEME / MODE TOGGLE (JOBSTREET VS LINKEDIN) -->
+          <div class="js-mode-toggle-group" id="js-mode-toggle-group">
+            <button type="button" class="js-mode-pill ${viewerTheme === 'jobstreet' ? 'active' : ''}" data-mode="jobstreet" onclick="window.switchViewerTheme('jobstreet')">
+              <i class="fa-solid fa-briefcase"></i> Mode JobStreet
+            </button>
+            <button type="button" class="js-mode-pill ${viewerTheme === 'linkedin' ? 'active' : ''}" data-mode="linkedin" onclick="window.switchViewerTheme('linkedin')">
+              <i class="fa-brands fa-linkedin"></i> Mode LinkedIn
+            </button>
           </div>
 
           <div class="jobstreet-pills-row" id="js-filter-pills-row">
             <button type="button" class="js-filter-pill active" data-sector="all">Semua</button>
-            <button type="button" class="js-filter-pill" data-sector="fmcg"><i class="fa-solid fa-sparkles"></i> Baru untuk kamu</button>
             <button type="button" class="js-filter-pill" data-sector="fmcg">Indofood / FMCG</button>
             <button type="button" class="js-filter-pill" data-sector="bumn">BUMN & Bank</button>
             <button type="button" class="js-filter-pill" data-sector="manufaktur">Manufaktur</button>
@@ -354,7 +370,7 @@
 
           <div class="jobstreet-top-actions">
             <a href="./loker.html" target="_blank" class="btn-js-open-tab" title="Buka Tampilan Penuh di Tab Baru">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka di Tab Baru
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Tab Baru
             </a>
             ${isAdminMode ? `
               <button type="button" class="btn-js-close-viewer" onclick="closeJobStreetAdminSection()" title="Kembali ke Dashboard Admin">
@@ -378,11 +394,13 @@
         </div>
       </div>
 
-      <!-- APPLY MODAL (LAMARAN CEPAT) -->
+      <!-- APPLY MODAL (LAMARAN CEPAT / EASY APPLY) -->
       <div class="js-apply-modal-overlay" id="js-apply-modal">
         <div class="js-apply-modal-box">
           <div class="js-apply-modal-header">
-            <span class="js-apply-modal-title"><i class="fa-solid fa-bolt" style="color: #e6005c;"></i> Opsi Lamaran Cepat Resmi</span>
+            <span class="js-apply-modal-title" id="js-apply-modal-title">
+              <i class="fa-solid fa-bolt" style="color: #e6005c;"></i> Saluran Lamaran Cepat & Terverifikasi
+            </span>
             <button type="button" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#9d174d;" onclick="closeJobStreetApplyModal()">✕</button>
           </div>
           <div class="js-apply-modal-body" id="js-apply-modal-body">
@@ -396,6 +414,29 @@
     renderJobStreetUI();
     initJobStreetSupabase();
   }
+
+  // Switch Theme / Mode between JobStreet & LinkedIn
+  window.switchViewerTheme = function(theme) {
+    viewerTheme = (theme === 'linkedin') ? 'linkedin' : 'jobstreet';
+    try {
+      localStorage.setItem('kh_dual_pane_theme', viewerTheme);
+    } catch (e) {}
+
+    const wrapper = document.getElementById('jobstreet-main-wrapper');
+    if (wrapper) {
+      if (viewerTheme === 'linkedin') {
+        wrapper.classList.add('theme-linkedin');
+      } else {
+        wrapper.classList.remove('theme-linkedin');
+      }
+    }
+
+    document.querySelectorAll('.js-mode-pill').forEach(pill => {
+      pill.classList.toggle('active', pill.getAttribute('data-mode') === viewerTheme);
+    });
+
+    renderJobStreetUI();
+  };
 
   function setupJobStreetEvents() {
     const searchInp = document.getElementById('js-search-input');
@@ -470,12 +511,40 @@
     } else {
       leftPane.innerHTML = `
         <div class="js-cards-meta-header">
-          <span>Menampilkan ${filtered.length} Lowongan</span>
+          <span>Menampilkan ${filtered.length} Lowongan ${viewerTheme === 'linkedin' ? '(Format LinkedIn Live)' : '(Format JobStreet Live)'}</span>
           <span style="color: #059669; display: flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-check"></i> Terverifikasi</span>
         </div>
         ${filtered.map(job => {
           const isActive = job.id === activeJobId;
           const snippet = job.responsibilities?.[0] || job.description || '';
+
+          if (viewerTheme === 'linkedin') {
+            const logoLetters = (job.brand_logo_text || job.company_name || 'CO').slice(0, 2).toUpperCase();
+            return `
+              <div class="li-job-card ${isActive ? 'active' : ''}" onclick="selectJobStreetJob('${job.id}')">
+                <div class="li-card-logo-box">
+                  ${job.poster_image && !job.poster_image.includes('default') ? `
+                    <img src="${job.poster_image}" alt="${escapeHtml(job.company_name)}" onerror="this.parentElement.innerHTML='<span>${escapeHtml(logoLetters)}</span>'">
+                  ` : `<span>${escapeHtml(logoLetters)}</span>`}
+                </div>
+                <div class="li-card-content">
+                  <h3 class="li-card-title">${escapeHtml(job.title)}</h3>
+                  <div class="li-card-company">${escapeHtml(job.company_name)}</div>
+                  <div class="li-card-location">
+                    <i class="fa-solid fa-location-dot" style="font-size: 0.8rem; color: #64748b;"></i>
+                    <span>${escapeHtml(job.location)}</span>
+                  </div>
+                  <div class="li-card-badges-row">
+                    <span class="li-badge-recruiting"><i class="fa-solid fa-circle" style="color: #057642; font-size: 6px;"></i> Aktif merekrut</span>
+                    <span class="li-badge-easy-apply"><i class="fa-brands fa-linkedin"></i> Lamar Mudah</span>
+                  </div>
+                  <span class="li-card-time">${escapeHtml(job.posted_time || 'Baru saja')} • 48 pelamar</span>
+                </div>
+              </div>
+            `;
+          }
+
+          // JobStreet card format
           return `
             <div class="js-job-card ${isActive ? 'active' : ''}" onclick="selectJobStreetJob('${job.id}')">
               <div class="js-card-top-row">
@@ -510,6 +579,162 @@
     const defaultBanner = './uploads/indolakto_indomilk_banner.jpg';
     const bannerSrc = activeJob.brand_banner || defaultBanner;
 
+    if (viewerTheme === 'linkedin') {
+      const logoLetters = (activeJob.brand_logo_text || activeJob.company_name || 'CO').slice(0, 2).toUpperCase();
+      rightPane.innerHTML = `
+        <div class="li-detail-cover">
+          <img src="${bannerSrc}" alt="${escapeHtml(activeJob.company_name)}" class="li-detail-cover-img" onerror="this.src='${defaultBanner}'">
+        </div>
+
+        <div class="li-detail-inner">
+          <div class="li-logo-overlap">
+            ${activeJob.poster_image ? `
+              <img src="${activeJob.poster_image}" alt="${escapeHtml(activeJob.company_name)}" onerror="this.parentElement.innerHTML='<span style=\\'font-weight:800; color:#0a66c2;\\'>${escapeHtml(logoLetters)}</span>'">
+            ` : `<span style="font-weight:800; color:#0a66c2;">${escapeHtml(logoLetters)}</span>`}
+          </div>
+
+          <h1 class="li-detail-title">${escapeHtml(activeJob.title)}</h1>
+
+          <div class="li-company-line">
+            <span style="font-weight: 700; color: #191919;">${escapeHtml(activeJob.company_name)}</span>
+            <i class="fa-solid fa-circle-check" style="color: #0a66c2;" title="Terverifikasi Resmi"></i>
+            <span>•</span>
+            <button type="button" class="li-btn-follow" onclick="alert('Anda sekarang mengikuti pembaruan lowongan kerja resmi ${escapeHtml(activeJob.company_name)}!')">
+              <i class="fa-solid fa-plus"></i> Ikuti
+            </button>
+          </div>
+
+          <div class="li-meta-row">
+            <span><i class="fa-solid fa-location-dot" style="color: #64748b;"></i> ${escapeHtml(activeJob.location)}</span>
+            <span>•</span>
+            <span><i class="fa-regular fa-clock" style="color: #64748b;"></i> ${escapeHtml(activeJob.posted_time || 'Diposting baru saja')}</span>
+            <span>•</span>
+            <span style="color: #057642; font-weight: 700;"><i class="fa-solid fa-user-group"></i> 48 pelamar</span>
+            <span>•</span>
+            <span style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-weight: 600; color: #334155;">${escapeHtml(activeJob.job_type)}</span>
+          </div>
+
+          <div class="li-actions-bar">
+            <button type="button" class="btn-li-easy-apply" onclick="openJobStreetApplyModal('${activeJob.id}')">
+              <i class="fa-brands fa-linkedin"></i> Lamar Mudah
+            </button>
+            <button type="button" class="btn-li-save" id="btn-save-${activeJob.id}" onclick="toggleSaveJob('${activeJob.id}')">
+              <i class="fa-regular fa-bookmark"></i> Simpan
+            </button>
+            <button type="button" class="btn-js-action-icon" onclick="shareJobStreetJob('${activeJob.id}', 'wa')" title="Bagikan ke WhatsApp">
+              <i class="fa-brands fa-whatsapp" style="color: #25d366; font-size: 1.15rem;"></i>
+            </button>
+            <button type="button" class="btn-js-action-icon" onclick="copyJobStreetLink('${activeJob.id}')" title="Salin Tautan Lowongan">
+              <i class="fa-solid fa-link"></i>
+            </button>
+            ${activeJob.official_url ? `
+              <a href="${activeJob.official_url}" target="_blank" rel="noopener noreferrer" class="btn-js-action-icon" title="Buka Halaman Karir Resmi Perusahaan ↗">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              </a>
+            ` : ''}
+          </div>
+
+          ${isAdminMode ? `
+            <div class="js-admin-action-box" style="margin-bottom: 20px;">
+              <span class="js-admin-badge" style="background: #0a66c2; color: white;"><i class="fa-brands fa-linkedin"></i> Kontrol Pengelola (Mode LinkedIn Live)</span>
+              <div class="js-admin-btns-group">
+                <button type="button" class="btn-admin-js-publish" onclick="publishFromJobStreetView('${activeJob.id}')">
+                  <i class="fa-solid fa-bolt"></i> Terbitkan ke Portal (Gas!)
+                </button>
+                <button type="button" class="btn-admin-js-studio" onclick="openPosterStudioFromJobStreet('${activeJob.id}')">
+                  <i class="fa-solid fa-palette"></i> Studio Poster
+                </button>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- RECRUITER SPOTLIGHT CARD -->
+          <div class="li-recruiter-card">
+            <div class="li-recruiter-left">
+              <div class="li-recruiter-avatar">
+                <i class="fa-solid fa-user-tie"></i>
+              </div>
+              <div>
+                <div class="li-recruiter-title">Talent Acquisition & Recruitment Team</div>
+                <div class="li-recruiter-sub">Perekrut di ${escapeHtml(activeJob.company_name)}</div>
+              </div>
+            </div>
+            <button type="button" class="btn-li-message" onclick="openJobStreetApplyModal('${activeJob.id}')">
+              <i class="fa-solid fa-paper-plane"></i> Hubungi Rekruter
+            </button>
+          </div>
+
+          <!-- TENTANG PEKERJAAN -->
+          <h2 class="li-section-title">Tentang Pekerjaan</h2>
+          <p style="font-size: 0.94rem; line-height: 1.6; color: #334155; margin-bottom: 16px;">
+            ${escapeHtml(activeJob.description)}
+          </p>
+
+          <!-- GAJI & KOMPENSASI -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Paket Kompensasi & Gaji</div>
+              <div style="font-size: 1.1rem; font-weight: 800; color: #059669;">${escapeHtml(activeJob.salary_display || 'Kompetitif')}</div>
+            </div>
+            <div style="font-size: 0.82rem; color: #64748b;"><i class="fa-solid fa-shield-halved" style="color: #059669;"></i> Terverifikasi Bebas Pungli / Anti-Hoax</div>
+          </div>
+
+          <!-- RESPONSIBILITIES -->
+          ${Array.isArray(activeJob.responsibilities) && activeJob.responsibilities.length > 0 ? `
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #191919; margin: 20px 0 10px 0;">Tanggung Jawab Utama</h3>
+            <ul class="js-check-list" style="margin-bottom: 20px;">
+              ${activeJob.responsibilities.map(resp => `
+                <li><i class="fa-solid fa-check" style="color: #0a66c2;"></i> <span>${escapeHtml(resp)}</span></li>
+              `).join('')}
+            </ul>
+          ` : ''}
+
+          <!-- REQUIREMENTS -->
+          ${Array.isArray(activeJob.requirements) && activeJob.requirements.length > 0 ? `
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #191919; margin: 20px 0 10px 0;">Kualifikasi & Persyaratan</h3>
+            <ul class="js-check-list" style="margin-bottom: 20px;">
+              ${activeJob.requirements.map(req => `
+                <li><i class="fa-solid fa-check" style="color: #0a66c2;"></i> <span>${escapeHtml(req)}</span></li>
+              `).join('')}
+            </ul>
+          ` : ''}
+
+          <!-- BENEFITS -->
+          ${Array.isArray(activeJob.benefits) && activeJob.benefits.length > 0 ? `
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #191919; margin: 20px 0 10px 0;">Benefit & Keuntungan</h3>
+            <div class="li-skill-tags-row">
+              ${activeJob.benefits.map(ben => `
+                <span class="li-skill-tag"><i class="fa-solid fa-circle-check" style="color: #0a66c2;"></i> ${escapeHtml(ben)}</span>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <!-- ABOUT COMPANY CARD -->
+          <div class="li-about-company-box">
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: #191919; margin-bottom: 8px;">Tentang Perusahaan</h3>
+            <p style="font-size: 0.9rem; color: #474747; line-height: 1.5; margin-bottom: 12px;">
+              <strong>${escapeHtml(activeJob.company_name)}</strong> merupakan entitas industri terkemuka dengan reputasi nasional, berfokus pada keunggulan operasional, inovasi, dan pengembangan SDM berkelanjutan.
+            </p>
+            <div style="font-size: 0.82rem; color: #64748b; display: flex; flex-direction: column; gap: 4px;">
+              <div><strong>Industri:</strong> FMCG, Makanan & Minuman / Manufaktur</div>
+              <div><strong>Ukuran Perusahaan:</strong> 10.001+ Karyawan</div>
+              <div><strong>Kantor Pusat:</strong> ${escapeHtml(activeJob.location)}</div>
+              ${activeJob.official_url ? `
+                <div style="margin-top: 6px;">
+                  <a href="${activeJob.official_url}" target="_blank" rel="noopener noreferrer" style="color: #0a66c2; font-weight: 700; text-decoration: none;">
+                    Kunjungi Website Resmi Perusahaan <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                  </a>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+        </div>
+      `;
+      return;
+    }
+
+    // Default JobStreet theme detail
     rightPane.innerHTML = `
       <!-- BRAND HERO SHOWCASE BANNER -->
       <div class="js-hero-banner-container">
@@ -702,6 +927,15 @@
     const wa = job.contact_whatsapp || '081234567890';
     const web = job.official_url || 'https://careers.indofood.com';
 
+    const titleEl = document.getElementById('js-apply-modal-title');
+    if (titleEl) {
+      if (viewerTheme === 'linkedin') {
+        titleEl.innerHTML = `<i class="fa-brands fa-linkedin" style="color: #0a66c2;"></i> Lamar Mudah (Easy Apply) - Terverifikasi`;
+      } else {
+        titleEl.innerHTML = `<i class="fa-solid fa-bolt" style="color: #e6005c;"></i> Opsi Lamaran Cepat Resmi`;
+      }
+    }
+
     body.innerHTML = `
       <div style="margin-bottom: 8px;">
         <h3 style="font-size: 1.05rem; font-weight: 800; color: #1e293b; margin: 0 0 4px 0;">${escapeHtml(job.title)}</h3>
@@ -858,6 +1092,7 @@
   window.JobStreetViewer = {
     mount: mountJobStreetViewer,
     selectJob: selectJobStreetJob,
+    switchTheme: window.switchViewerTheme,
     loadJobs: function(jobs) {
       if (Array.isArray(jobs) && jobs.length > 0) {
         currentJobs = jobs;

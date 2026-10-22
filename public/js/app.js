@@ -112,191 +112,6 @@ async function initSupabaseClient() {
   }
 }
 
-// Default fallback jobs
-const DEFAULT_JOBS = [
-  {
-    id: 1,
-    title: 'Senior UI/UX Designer',
-    company_name: 'Synergy Tech Global',
-    category: 'Design & Kreatif',
-    job_type: 'Remote',
-    location: 'Jakarta / Remote',
-    salary_display: 'Rp 15.000.000 - Rp 25.000.000 / bln',
-    experience_level: 'Senior (5+ Tahun)',
-    poster_image: './uploads/sample_uiux.jpg',
-    description: 'Synergy Tech sedang mencari Senior UI/UX Designer untuk memimpin strategi desain produk digital generasi berikutnya. Anda akan merancang antarmuka elegan, prototipe interaktif, dan berkolaborasi erat dengan tim engineering.',
-    requirements: [
-      'Pengalaman minimal 5 tahun di bidang UI/UX Design untuk platform web & mobile',
-      'Portofolio kuat yang menunjukkan proses design thinking dan UI visual modern',
-      'Mahir menggunakan Figma, Design Systems, dan interactive prototyping',
-      'Pemahaman kuat mengenai usability testing dan user journey mapping',
-      'Kemampuan komunikasi dan kepemimpinan yang baik'
-    ],
-    responsibilities: [
-      'Memimpin dan merumuskan arah desain UI/UX produk utama',
-      'Membuat wireframe, interactive high-fidelity prototype di Figma',
-      'Mengembangkan dan memelihara Design System bersama tim front-end',
-      'Melakukan riset dan wawancara pengguna untuk validasi fitur baru'
-    ],
-    benefits: [
-      'Kerja 100% Remote dengan jam fleksibel',
-      'Asuransi Kesehatan Swasta Kelas 1 & BPJS',
-      'Tunjangan perangkat MacBook Pro & monitor 4K',
-      'Budget pembelajaran & sertifikasi tahunan'
-    ],
-    contact_type: 'whatsapp',
-    contact_value: '081234567890',
-    deadline: '2026-11-30',
-    status: 'active',
-    is_featured: true,
-    views_count: 184,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 2,
-    title: 'Full Stack Web Developer (Node.js & React)',
-    company_name: 'Tech Innovations Lab',
-    category: 'Teknologi & IT',
-    job_type: 'Hybrid',
-    location: 'Jakarta Selatan (SCBD)',
-    salary_display: 'Rp 18.000.000 - Rp 28.000.000 / bln',
-    experience_level: '3-5 Tahun',
-    poster_image: './uploads/sample_fullstack.jpg',
-    description: 'Kami mengundang Full Stack Developer berbakat untuk membangun arsitektur sistem enterprise yang cepat, terukur, dan aman. Mengembangkan REST API modern dan antarmuka responsif.',
-    requirements: [
-      'Pengalaman kerja minimal 3 tahun menggunakan Node.js dan React / Next.js',
-      'Fasih bekerja dengan database relasional dan konsep RESTful API modern',
-      'Pemahaman solid mengenai Clean Architecture dan version control (Git)',
-      'Berpengalaman dengan cloud deployment dan containerization (Docker)'
-    ],
-    responsibilities: [
-      'Merancang arsitektur backend scalable dan antarmuka web modern',
-      'Mengoptimasi performa dan keamanan aplikasi web',
-      'Bekerjasama dalam tim sprint agile mingguan'
-    ],
-    benefits: [
-      'Sistem kerja Hybrid fleksibel (2 hari kantor, 3 hari WFH)',
-      'Gaji kompetitif + THR + Bonus kuartalan',
-      'Makan siang gratis & snack bar sepuasnya di kantor SCBD',
-      'Asuransi kesehatan lengkap termasuk keluarga'
-    ],
-    contact_type: 'email',
-    contact_value: 'careers@techinnovations.com',
-    deadline: '2026-11-25',
-    status: 'active',
-    is_featured: true,
-    views_count: 340,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 3,
-    title: 'Digital Marketing & Social Media Strategist',
-    company_name: 'Creative Sparks Agency',
-    category: 'Marketing & Penjualan',
-    job_type: 'Full Time',
-    location: 'Bandung, Jawa Barat',
-    salary_display: 'Rp 9.000.000 - Rp 14.000.000 / bln',
-    experience_level: '1-3 Tahun',
-    poster_image: './uploads/sample_marketing.jpg',
-    description: 'Creative Sparks mencari Digital Marketing Specialist yang kreatif dan analitis untuk memimpin kampanye multi-channel, paid ads (Meta & TikTok), serta konten promosi.',
-    requirements: [
-      'Pengalaman minimal 2 tahun dalam digital marketing dan social media ads',
-      'Terbukti sukses mengelola Meta Ads (Facebook/Instagram) dan TikTok Ads',
-      'Kreatif dalam menyusun copywriting iklan yang engaging',
-      'Menguasai tren media sosial terkini (Reels, TikTok, Shorts)'
-    ],
-    responsibilities: [
-      'Merencanakan dan mengeksekusi kampanye pemasaran digital bulanan',
-      'Mengoptimalkan performa iklan berbayar (paid ads) untuk ROI maksimal',
-      'Membuat strategi konten bersama tim kreatif desain grafis'
-    ],
-    benefits: [
-      'Suasana kerja agensi yang terstruktur dan dinamis',
-      'Tunjangan kuota internet & transportasi',
-      'Bonus performa pencapaian target kampanye'
-    ],
-    contact_type: 'link',
-    contact_value: 'https://creativesparks.io/apply',
-    deadline: '2026-11-15',
-    status: 'active',
-    is_featured: false,
-    views_count: 112,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 4,
-    title: 'Junior Graphic Designer & Content Creator',
-    company_name: 'Nusantara Media Kreatif',
-    category: 'Design & Kreatif',
-    job_type: 'Full Time',
-    location: 'Yogyakarta / Hybrid',
-    salary_display: 'Rp 5.500.000 - Rp 8.000.000 / bln',
-    experience_level: 'Fresh Graduate',
-    poster_image: './uploads/sample_uiux.jpg',
-    description: 'Membuka kesempatan bagi talenta muda kreatif dan Fresh Graduate untuk memproduksi materi promosi visual, flyer poster digital, serta konten sosial media.',
-    requirements: [
-      'Lulusan D3/S1 Desain Komunikasi Visual atau jurusan relevan (Fresh Graduate dipersilakan melamar)',
-      'Menguasai Adobe Illustrator, Photoshop, dan Canva Pro',
-      'Memiliki pemahaman visual branding yang solid dan up-to-date',
-      'Mampu bekerja sama dalam tim dan terbuka terhadap masukan desain'
-    ],
-    responsibilities: [
-      'Merancang flyer poster promosi, banner, dan materi sosial media harian',
-      'Mengedit video pendek kreatif untuk Instagram Reels dan TikTok',
-      'Menjaga konsistensi visual branding perusahaan'
-    ],
-    benefits: [
-      'Mentorship intensif langsung dari Senior Art Director',
-      'Suasana kerja profesional dan kondusif untuk fresh graduate',
-      'Kompensasi lembur & uang makan',
-      'BPJS Ketenagakerjaan & Kesehatan'
-    ],
-    contact_type: 'whatsapp',
-    contact_value: '081987654321',
-    deadline: '2026-12-10',
-    status: 'active',
-    is_featured: true,
-    views_count: 96,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 5,
-    title: 'AI Prompt Engineer & Data Specialist',
-    company_name: 'Nusantara AI Labs',
-    category: 'Data & AI',
-    job_type: 'Remote',
-    location: 'Remote (Seluruh Indonesia)',
-    salary_display: 'Rp 16.000.000 - Rp 24.000.000 / bln',
-    experience_level: '1-3 Tahun',
-    poster_image: './uploads/sample_fullstack.jpg',
-    description: 'Bergabung dengan tim AI terdepan untuk mengembangkan pipeline LLM, fine-tuning model generatif, prompt engineering, dan validasi data cerdas.',
-    requirements: [
-      'Pemahaman konsep dasar Machine Learning, LLM, dan Prompt Engineering',
-      'Kemampuan analisis data dengan Python (Pandas, NumPy)',
-      'Teliti dan kritis dalam mengevaluasi respons model AI',
-      'Bisa bekerja secara mandiri dan disiplin dalam lingkungan 100% remote'
-    ],
-    responsibilities: [
-      'Merancang dan menyempurnakan prompt sistem LLM untuk use case bisnis',
-      'Melakukan evaluasi benchmark output AI dan kurasi dataset',
-      'Berkolaborasi dengan tim data engineer untuk integrasi API AI'
-    ],
-    benefits: [
-      '100% Kerja dari Rumah (Remote) dari mana saja di Indonesia',
-      'Tunjangan internet bulanan & laptop stipend',
-      'Akses penuh ke akun AI berbayar dan GPU compute resources',
-      'Asuransi rawat inap & jalan'
-    ],
-    contact_type: 'email',
-    contact_value: 'recruitment@nusantara-ai.id',
-    deadline: '2026-11-20',
-    status: 'active',
-    is_featured: false,
-    views_count: 145,
-    created_at: new Date().toISOString()
-  }
-];
-
 // Active State
 let rawAllJobs = [];
 let filteredJobs = [];
@@ -976,9 +791,9 @@ async function loadJobs() {
     } catch (e) {}
   }
 
-  // 4. Fallback to DEFAULT_JOBS if still empty
-  if (!jobs || jobs.length === 0) {
-    if (!hadCached) jobs = DEFAULT_JOBS;
+  // 4. Default to empty array if no jobs fetched
+  if (!jobs) {
+    jobs = [];
   }
 
   if (jobs) {
@@ -1630,7 +1445,6 @@ function openJobDetail(jobId) {
             <span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location)}</span>
             <span><i class="fa-solid fa-tag"></i> ${escapeHtml(job.category)}</span>
             <span><i class="fa-regular fa-eye"></i> Dilihat ${(job.views_count || 0) + 1}x</span>
-            <a href="./loker.html?job=${job.id}" target="_blank" style="color:#ffffff; font-weight:700; background:rgba(230,0,92,0.9); padding:4px 10px; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:5px; font-size:0.75rem;"><i class="fa-solid fa-table-columns"></i> Mode JobStreet ↗</a>
           </div>
         </div>
       </div>
