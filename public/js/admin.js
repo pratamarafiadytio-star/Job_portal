@@ -1110,911 +1110,107 @@ function getDeadlineMeta(deadlineStr, fallbackDaysAhead = 30) {
 // GENERATOR LOWONGAN RESMI (ANTI-HOAX) & STUDIO POSTER FLYER
 // ==============================================================
 
-const OFFICIAL_VACANCIES_DB = [
-  {
-    id: 'indolakto_01',
-    title: 'Internal Audit Supervisor (Finance Focused)',
-    company_name: 'PT Indolakto - Indofood CBP (INDOMILK)',
-    brand_logo_text: 'PT INDOLAKTO',
-    brand_banner: './uploads/indolakto_indomilk_banner.jpg',
-    sector: 'fmcg',
-    sector_label: 'FMCG, Dairy & Pangan',
-    category: 'Administrasi & Keuangan',
-    role_department: 'Audit - Internal (Akuntansi)',
-    job_type: 'Full time',
-    location: 'Jakarta Timur, Jakarta Raya',
-    education_level: 's1',
-    education_label: 'Sarjana (S1)',
-    experience_level: '3-5 Tahun',
-    salary_display: 'Rp 12.000.000 - Rp 18.000.000 / bln',
-    deadline: '30 November 2026',
-    official_url: 'https://careers.indofood.com',
-    contact_type: 'email',
-    contact_value: JSON.stringify({ whatsapp: '081234567890', email: 'recruitment.indolakto@indofood.co.id', website: 'https://careers.indofood.com', is_verified_anti_hoax: true }),
-    anti_fraud_notice: 'PT Indolakto never charges any fees during the recruitment process, nor do we collaborate with travel agents or bureaus. Please ignore any requests for payment related to tickets, accommodation, or administration fees.',
-    description: 'This position is responsible to conduct efficient and effective audit plans and audit programs, ensuring compliance with company financial policies and SOX/internal controls across Indofood CBP Indolakto business units.',
-    requirements: [
-      'Bachelor Degree (S1) in Accounting, Finance, or equivalent from a reputable university.',
-      'Minimum 4-5 years of experience in Internal Audit, Risk Assurance, or Public Accounting Firm (Big 4 preferred).',
-      'Strong knowledge of Indonesian Accounting Standards (PSAK), internal control frameworks (COSO), and audit methodologies.',
-      'Proficiency in SAP (FI/CO modules) and computerized audit tools (ACL, IDEA, or advanced Excel).'
-    ],
-    responsibilities: [
-      'Conduct comprehensive risk-based financial, operational, and compliance internal audit programs across factories and corporate divisions.',
-      'Evaluate the adequacy and effectiveness of internal accounting controls and operating procedures.',
-      'Prepare clear, concise audit reports and present constructive findings and recommendations to senior management.'
-    ],
-    benefits: [
-      'Competitive salary + Attractive performance bonus & THR',
-      'Comprehensive private medical insurance (BPJS & Inhealth/Class 1)',
-      'Monthly product allowance of Indofood & Indolakto products (Milk, Snacks, Cooking Essentials)'
-    ],
-    theme: 'corporate',
-    mascot: 'corporate',
-    verified_badge: 'Resmi Indolakto Career',
-    apply_info: 'Submit CV dan portofolio resmi via email recruitment.indolakto@indofood.co.id atau portal karir Indofood.'
-  },
-  {
-    id: 'indolakto_02',
-    title: 'Industrial Relations Manager',
-    company_name: 'PT Indolakto - Indofood CBP (INDOMILK)',
-    brand_logo_text: 'PT INDOLAKTO',
-    brand_banner: './uploads/indolakto_indomilk_banner.jpg',
-    sector: 'fmcg',
-    sector_label: 'FMCG, Dairy & Pangan',
-    category: 'Administrasi & Keuangan',
-    role_department: 'Human Resources & Industrial Relations',
-    job_type: 'Full time',
-    location: 'Jakarta Timur, Jakarta Raya',
-    education_level: 's1',
-    education_label: 'Sarjana (S1 / S2)',
-    experience_level: 'Senior (5+ Tahun)',
-    salary_display: 'Rp 20.000.000 - Rp 30.000.000 / bln',
-    deadline: '30 November 2026',
-    official_url: 'https://careers.indofood.com',
-    contact_type: 'email',
-    contact_value: JSON.stringify({ whatsapp: '081234567890', email: 'recruitment.indolakto@indofood.co.id', website: 'https://careers.indofood.com', is_verified_anti_hoax: true }),
-    anti_fraud_notice: 'PT Indolakto never charges any fees during the recruitment process, nor do we collaborate with travel agents or bureaus.',
-    description: 'This position is responsible to develop and implement Industrial Relations strategies and policies across HO, factories, and distribution operations.',
-    requirements: [
-      'Bachelor or Master Degree in Law (Hukum) or Human Resource Management.',
-      'Minimum 7-8 years of extensive experience in Industrial Relations within manufacturing or FMCG.',
-      'Demonstrated track record in successful union negotiations and mediation.'
-    ],
-    responsibilities: [
-      'Lead and maintain constructive relationships with labor unions (SPSI) and bipartite cooperation.',
-      'Provide expert guidance on Indonesian Labor Law (UU Ketenagakerjaan & UU Cipta Kerja).',
-      'Manage grievance handling, disciplinary procedures, and industrial dispute resolution.'
-    ],
-    benefits: [
-      'Executive remuneration package + Performance bonus + Annual company car allowance',
-      'Complete family medical health coverage (Inpatient, Outpatient, Dental)',
-      'Indofood product hampers & family welfare benefits'
-    ],
-    theme: 'corporate',
-    mascot: 'corporate',
-    verified_badge: 'Resmi Indolakto Career',
-    apply_info: 'Submit CV resmi melalui email rekrutmen Indolakto atau portal karir Indofood.'
-  },
-  {
-    id: 'indofood_hr_03',
-    title: 'Human Resources Staff',
-    company_name: 'PT Indofood CBP Sukses Makmur Tbk',
-    brand_logo_text: 'INDOFOOD CBP',
-    brand_banner: './uploads/indolakto_indomilk_banner.jpg',
-    sector: 'fmcg',
-    sector_label: 'FMCG & Pangan',
-    category: 'Administrasi & Keuangan',
-    role_department: 'People & Organization / HR Operations',
-    job_type: 'Full time',
-    location: 'Jakarta Raya / Cibitung',
-    education_level: 's1',
-    education_label: 'Sarjana (S1)',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 6.000.000 - Rp 8.500.000 / bln',
-    deadline: '30 November 2026',
-    official_url: 'https://careers.indofood.com',
-    contact_type: 'email',
-    contact_value: JSON.stringify({ whatsapp: '081234567890', email: 'recruitment@indofood.co.id', website: 'https://careers.indofood.com', is_verified_anti_hoax: true }),
-    anti_fraud_notice: 'PT Indofood CBP Sukses Makmur Tbk tidak pernah memungut biaya apapun dalam proses rekrutmen.',
-    description: 'Info Terbaru Lowongan Kerja Human Resources Staff Jakarta November 2026 di Indofood CBP. Mengelola administrasi kepersonaliaan, rekrutmen karyawan, dan absensi digital.',
-    requirements: [
-      'Lulusan S1 Psikologi, Manajemen SDM, Hukum, atau Administrasi Bisnis.',
-      'Fresh Graduate dengan IPK min. 3.20 atau pengalaman 1 tahun di bidang HR.',
-      'Menguasai Microsoft Excel (VLOOKUP, Pivot Table) dan dasar HRIS.'
-    ],
-    responsibilities: [
-      'Memproses administrasi kepegawaian harian (absensi, cuti, lembur, dan BPJS).',
-      'Membantu proses talent acquisition (screening CV, penjadwalan interview).'
-    ],
-    benefits: [
-      'Gaji kompetitif + THR + Bonus tahunan grup Indofood',
-      'Asuransi kesehatan rawat jalan & inap',
-      'Paket sembako dan produk Indofood bulanan'
-    ],
-    theme: 'corporate',
-    mascot: 'corporate',
-    verified_badge: 'Resmi Indofood Career',
-    apply_info: 'Submit lamaran online via careers.indofood.com atau email rekrutmen.'
-  },
-  {
-    id: 'indolakto_comben_04',
-    title: 'Compensation & Benefit Manager',
-    company_name: 'PT Indolakto - Indofood CBP (INDOMILK)',
-    brand_logo_text: 'PT INDOLAKTO',
-    brand_banner: './uploads/indolakto_indomilk_banner.jpg',
-    sector: 'fmcg',
-    sector_label: 'FMCG, Dairy & Pangan',
-    category: 'Administrasi & Keuangan',
-    role_department: 'Total Rewards / C&B',
-    job_type: 'Full time',
-    location: 'Jakarta Timur, Jakarta Raya',
-    education_level: 's1',
-    education_label: 'Sarjana (S1)',
-    experience_level: 'Senior (5+ Tahun)',
-    salary_display: 'Rp 22.000.000 - Rp 32.000.000 / bln',
-    deadline: '30 November 2026',
-    official_url: 'https://careers.indofood.com',
-    contact_type: 'email',
-    contact_value: JSON.stringify({ whatsapp: '081234567890', email: 'recruitment.indolakto@indofood.co.id', website: 'https://careers.indofood.com', is_verified_anti_hoax: true }),
-    anti_fraud_notice: 'PT Indolakto never charges any fees during the recruitment process, nor do we collaborate with travel agents or bureaus.',
-    description: 'Responsible to design, benchmark, and administer competitive compensation structures, grading systems, executive salary scales, and comprehensive employee welfare benefits programs.',
-    requirements: [
-      'Bachelor Degree in Economics, Statistics, Mathematics, or Human Resources.',
-      'Minimum 6-8 years in Compensation & Benefits with prior managerial role in FMCG.',
-      'Advanced analytical abilities with deep expertise in compensation modeling and taxation (PPh 21).'
-    ],
-    responsibilities: [
-      'Conduct comprehensive salary surveys and market benchmarking.',
-      'Formulate and maintain the job evaluation and grading system (Hay methodology).',
-      'Manage annual merit increase, bonus distribution schemes, and variable incentive plans.'
-    ],
-    benefits: [
-      'Executive salary package + Car allowance + Annual performance bonus',
-      'Full medical insurance coverage for employee and family',
-      'Indofood welfare hampers'
-    ],
-    theme: 'corporate',
-    mascot: 'corporate',
-    verified_badge: 'Resmi Indolakto Career',
-    apply_info: 'Submit CV resmi melalui email rekrutmen Indolakto atau portal karir Indofood.'
-  },
-  {
-    id: 'off_toyota_01',
-    title: 'OPERATOR PRODUKSI & LOGISTIK MANUFAKTUR',
-    company_name: 'PT TOYOTA MOTOR MANUFACTURING INDONESIA (TMMIN)',
-    sector: 'manufaktur',
-    sector_label: 'Manufaktur & Otomotif',
-    category: 'Operasional',
-    job_type: 'Full Time',
-    location: 'Kawasan Industri KIIC Karawang / Sunter Jakarta',
-    education_level: 'smk',
-    education_label: 'SMA / SMK Sederajat',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.500.000 - Rp 7.200.000 / bln',
-    deadline: '30 November 2026',
-    official_url: 'https://recruitment.toyota.co.id',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@toyota.co.id', website: 'https://recruitment.toyota.co.id' }),
-    description: 'PT Toyota Motor Manufacturing Indonesia (TMMIN) membuka kesempatan karir resmi Operator Produksi & Logistik Manufaktur untuk fasilitas perakitan kendaraan kelas dunia berstandar Toyota Production System (TPS).',
-    requirements: [
-      'Pendidikan minimal SMA/SMK sederajat (Jurusan Teknik Mesin, Otomotif, Listrik, atau sejenis)',
-      'Nilai rata-rata raport/ijazah memuaskan, disiplin dan teliti',
-      'Sehat jasmani dan rohani, tidak buta warna, dan siap bekerja shift',
-      'Memiliki komitmen tinggi terhadap keselamatan kerja (K3) dan 5R'
-    ],
-    responsibilities: [
-      'Menjalankan proses assembling dan inspeksi part otomotif sesuai standar TPS',
-      'Mengoperasikan mesin manufaktur dan memantau parameter kualitas tanpa cacat',
-      'Melakukan continuous improvement (Kaizen) di lini perakitan'
-    ],
-    benefits: [
-      'Gaji pokok sesuai UMK Karawang/Jakarta + Lembur normatif',
-      'Asuransi kesehatan swasta rawat jalan & inap serta BPJS lengkap',
-      'Fasilitas jemputan bus karyawan, makan siang, dan seragam lengkap'
-    ],
-    theme: 'factory',
-    mascot: 'factory',
-    verified_badge: 'Resmi & Bebas Biaya (Anti-Hoax)',
-    apply_info: 'Pendaftaran resmi hanya melalui portal rekrutmen TMMIN di recruitment.toyota.co.id.'
-  },
-  {
-    id: 'off_astra_02',
-    title: 'OPERATOR QUALITY CONTROL & ASSEMBLY',
-    company_name: 'PT ASTRA HONDA MOTOR (AHM)',
-    sector: 'manufaktur',
-    sector_label: 'Manufaktur & Otomotif',
-    category: 'Operasional',
-    job_type: 'Full Time',
-    location: 'Kawasan Industri Karawang / Sunter Jakarta',
-    education_level: 'smk',
-    education_label: 'SMA / SMK Teknik',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.400.000 - Rp 7.000.000 / bln',
-    deadline: '15 November 2026',
-    official_url: 'https://recruitment.astra-honda.com',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@astra-honda.com', website: 'https://recruitment.astra-honda.com' }),
-    description: 'PT Astra Honda Motor membuka kesempatan bagi lulusan muda berprestasi untuk bergabung sebagai Operator Quality Control & Assembly lini produksi kendaraan roda dua nomor satu di Indonesia.',
-    requirements: [
-      'Lulusan SMA/SMK jurusan Mesin, Otomotif, Elektro atau IPA',
-      'Usia minimal 18 tahun, maksimal 21 tahun',
-      'Memiliki ketelitian visual tinggi dan daya konsentrasi prima',
-      'Bersedia bekerja sistem shift dan target efisiensi perakitan'
-    ],
-    responsibilities: [
-      'Melakukan inspeksi visual dan fungsional suku cadang sepeda motor',
-      'Mencatat data kualitas hasil produksi ke sistem QC',
-      'Menerapkan prinsip continuous improvement (Kaizen)'
-    ],
-    benefits: [
-      'Gaji pokok kompetitif Astra Group + Tunjangan kehadiran',
-      'Asuransi kesehatan swasta kelas 1 + BPJS Ketenagakerjaan',
-      'THR, bonus tahunan, dan jenjang karir terstruktur'
-    ],
-    theme: 'factory',
-    mascot: 'factory',
-    verified_badge: 'Resmi Astra Career (Anti-Hoax)',
-    apply_info: 'Pendaftaran resmi hanya melalui portal rekrutmen: recruitment.astra-honda.com'
-  },
-  {
-    id: 'off_telkom_03',
-    title: 'DIGITAL TALENT & IT SPECIALIST',
-    company_name: 'PT TELKOM INDONESIA (PERSERO) TBK',
-    sector: 'bumn',
-    sector_label: 'BUMN & Telekomunikasi',
-    category: 'Teknologi & IT',
-    job_type: 'Full Time',
-    location: 'Jakarta / Bandung / Seluruh Indonesia',
-    education_level: 's1',
-    education_label: 'D3 / S1 Komputer & Informatika',
-    experience_level: 'Fresh Graduate / 1-3 Tahun',
-    salary_display: 'Rp 10.000.000 - Rp 16.000.000 / bln',
-    deadline: '25 November 2026',
-    official_url: 'https://careers.telkom.co.id',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'corporate_career@telkom.co.id', website: 'https://careers.telkom.co.id' }),
-    description: 'PT Telkom Indonesia mencari talenta digital masa depan bangsa untuk membangun ekosistem cloud, digital platform, dan konektivitas nasional berkelas dunia melalui Rekrutmen Bersama BUMN.',
-    requirements: [
-      'Pendidikan minimal D3 atau S1 jurusan IT, SI, Ilmu Komputer, atau Teknik Elektro',
-      'Menguasai salah satu bahasa pemrograman (Node.js, Python, Java, atau React/Vue)',
-      'Memiliki pemahaman mengenai REST API, Git, dan arsitektur Cloud',
-      'Mampu berkomunikasi efektif dan berkolaborasi dalam sprint Agile'
-    ],
-    responsibilities: [
-      'Mengembangkan fitur aplikasi digital skala enterprise',
-      'Melakukan refactoring kode dan implementasi unit testing',
-      'Bekerjasama dengan Product Manager dan UI/UX Designer'
-    ],
-    benefits: [
-      'Skema kerja Hybrid fleksibel dengan perangkat laptop kerja',
-      'Asuransi kesehatan keluarga dan program kesejahteraan pensiun BUMN',
-      'Sertifikasi cloud internasional & pelatihan bersubsidi'
-    ],
-    theme: 'bumn',
-    mascot: 'corporate',
-    verified_badge: 'Resmi BUMN FHCI (Anti-Hoax)',
-    apply_info: 'Lamaran resmi melalui portal BUMN: careers.telkom.co.id'
-  },
-  {
-    id: 'off_bri_04',
-    title: 'FRONTLINER (CUSTOMER SERVICE & TELLER)',
-    company_name: 'PT BANK RAKYAT INDONESIA (PERSERO) TBK',
-    sector: 'bumn',
-    sector_label: 'BUMN & Perbankan',
-    category: 'Administrasi & Keuangan',
-    job_type: 'Full Time',
-    location: 'Jabodetabek, Bandung, Surabaya, Medan',
-    education_level: 'd3',
-    education_label: 'D3 / S1 Semua Jurusan',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.800.000 - Rp 7.500.000 / bln',
-    deadline: '20 November 2026',
-    official_url: 'https://e-recruitment.bri.co.id',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@bri.co.id', website: 'https://e-recruitment.bri.co.id' }),
-    description: 'Bank BRI membuka Rekrutmen Brilian Frontliner untuk memberikan pelayanan prima perbankan digital dan transaksi keuangan kepada seluruh lapisan masyarakat Indonesia.',
-    requirements: [
-      'Pendidikan minimal D3/S1 IPK minimal 2.75 semua jurusan',
-      'Usia maksimal 24 tahun (Fresh Graduate)',
-      'Berpenampilan rapi, ramah, komunikatif, dan berintegritas tinggi',
-      'Mahir mengoperasikan komputer (MS Office) dan aplikasi kasir/teller'
-    ],
-    responsibilities: [
-      'Memberikan edukasi dan solusi produk perbankan BRI kepada nasabah',
-      'Melayani pembukaan rekening, administrasi, dan transaksi perbankan',
-      'Menjaga kerahasiaan data nasabah dan kepatuhan perbankan'
-    ],
-    benefits: [
-      'Gaji bulanan + Tunjangan representasi penampilan (grooming)',
-      'Asuransi rawat inap & jalan keluarga',
-      'Bonus kinerja kuartalan & jenjang karir BUMN pasti'
-    ],
-    theme: 'bumn',
-    mascot: 'corporate',
-    verified_badge: 'Resmi BRI E-Recruitment (Anti-Hoax)',
-    apply_info: 'Pendaftaran resmi hanya via: e-recruitment.bri.co.id'
-  },
-  {
-    id: 'off_mayora_05',
-    title: 'TEKNISI MAINTENANCE & OPERATOR MESIN',
-    company_name: 'PT MAYORA INDAH TBK',
-    sector: 'fmcg',
-    sector_label: 'FMCG & Consumer Goods',
-    category: 'Operasional',
-    job_type: 'Full Time',
-    location: 'Tangerang / Cikupa, Banten',
-    education_level: 'smk',
-    education_label: 'SMK / D3 Teknik Mesin / Elektro',
-    experience_level: 'Fresh Graduate / 1 Tahun',
-    salary_display: 'Rp 5.100.000 - Rp 6.500.000 / bln',
-    deadline: '10 Desember 2026',
-    official_url: 'https://mayorakarir.com',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment.centre@mayora.co.id', website: 'https://mayorakarir.com' }),
-    description: 'PT Mayora Indah Tbk mengundang kandidat potensial untuk bergabung mengoperasikan dan memelihara mesin pengemasan dan produksi biskuit serta minuman terpopuler di Indonesia.',
-    requirements: [
-      'Pendidikan SMK / D3 jurusan Teknik Mesin, Mekatronika, atau Listrik',
-      'Memahami dasar pneumatik, PLC, dan pemeliharaan mesin preventif',
-      'Bersedia bekerja dalam ritme shift pabrik makanan',
-      'Disiplin, bertanggung jawab, dan mengutamakan kebersihan (GMP/HACCP)'
-    ],
-    responsibilities: [
-      'Melakukan preventive & corrective maintenance mesin produksi makanan',
-      'Memastikan mesin beroperasi stabil tanpa downtime yang tidak terencana',
-      'Membantu setup mesin saat pergantian varian produk'
-    ],
-    benefits: [
-      'Gaji pokok sesuai standar industri FMCG + Uang lembur resmi',
-      'Klinik kesehatan perusahaan & BPJS lengkap',
-      'Paket bingkisan produk Mayora berkala'
-    ],
-    theme: 'factory',
-    mascot: 'factory',
-    verified_badge: 'Resmi Mayora Karir (Anti-Hoax)',
-    apply_info: 'Kirim lamaran melalui situs resmi Mayora: mayorakarir.com'
-  },
-  {
-    id: 'off_kai_06',
-    title: 'PETUGAS OPERASIONAL & LAYANAN STASIUN',
-    company_name: 'PT KERETA API INDONESIA (PERSERO)',
-    sector: 'bumn',
-    sector_label: 'BUMN & Transportasi',
-    category: 'Operasional',
-    job_type: 'Full Time',
-    location: 'Daop 1 Jakarta, Daop 2 Bandung, Daop 6 Yogyakarta',
-    education_level: 'smk',
-    education_label: 'SMA / SMK / D3 Semua Jurusan',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.500.000 - Rp 7.200.000 / bln',
-    deadline: '30 November 2026',
-    official_url: 'https://recruitment.kai.id',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'rekrutmen@kai.id', website: 'https://recruitment.kai.id' }),
-    description: 'PT Kereta Api Indonesia (Persero) membuka lowongan resmi formasi operasional dan pelayanan penumpang kereta api untuk memastikan perjalanan kereta api yang aman, nyaman, dan tepat waktu.',
-    requirements: [
-      'Warga Negara Indonesia (WNI), usia 18 - 25 tahun',
-      'Pendidikan minimal SMA/SMK dengan nilai rata-rata UN/Ijazah minimal 7.0',
-      'Tinggi badan pria min 160 cm, wanita min 155 cm dengan berat badan ideal',
-      'Tidak berkacamata berat dan tidak buta warna'
-    ],
-    responsibilities: [
-      'Melayani boarding pass dan kebutuhan penumpang di area peron dan stasiun',
-      'Melakukan pengawasan keselamatan dan ketertiban di stasiun',
-      'Membantu koordinasi kelancaran perjalanan armada kereta api'
-    ],
-    benefits: [
-      'Gaji BUMN + Fasilitas tiket gratis kereta api dinas',
-      'Asuransi kesehatan lengkap sekeluarga',
-      'Jenjang karir pegawai tetap BUMN'
-    ],
-    theme: 'bumn',
-    mascot: 'corporate',
-    verified_badge: 'Resmi Rekrutmen KAI (Anti-Hoax)',
-    apply_info: 'Pendaftaran resmi hanya di: recruitment.kai.id (Tanpa Biaya)'
-  },
-  {
-    id: 'off_epson_07',
-    title: 'OPERATOR PRODUKSI & ASSEMBLING PRINTER',
-    company_name: 'PT INDONESIA EPSON INDUSTRY',
-    sector: 'manufaktur',
-    sector_label: 'Manufaktur Elektronik',
-    category: 'Operasional',
-    job_type: 'Full Time',
-    location: 'Kawasan EJIP Cikarang Selatan, Bekasi',
-    education_level: 'smk',
-    education_label: 'SMA / SMK Sederajat',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.300.000 - Rp 6.900.000 / bln',
-    deadline: '05 Desember 2026',
-    official_url: 'https://epson.co.id/careers',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'hrd_recruitment@iei.epson.com.sg', website: 'https://epson.co.id/careers' }),
-    description: 'PT Indonesia Epson Industry (produsen printer injeksi global) membuka rekrutmen Operator Perakitan Komponen Elektronik berpresisi tinggi dengan fasilitas kerja modern dan bersih.',
-    requirements: [
-      'Lulusan SMA/SMK sederajat semua jurusan',
-      'Memiliki ketajaman penglihatan baik dan ketangkasan manual tangan',
-      'Disiplin mematuhi standar kerja Clean Room dan tata tertib 5S',
-      'Bersedia bekerja dalam sistem shift bergilir'
-    ],
-    responsibilities: [
-      'Memasang modul komponen mikro printer sesuai alur ban berjalan',
-      'Memastikan tidak ada baut atau komponen longgar sebelum uji fungsional',
-      'Melaporkan produk reject ke pengawas lini produksi'
-    ],
-    benefits: [
-      'Gaji UMK Kabupaten Bekasi + Fasilitas lembur transparan',
-      'Kantin makan sehat gratis & klinik 24 jam di pabrik',
-      'Jemputan armada bus karyawan ber-AC'
-    ],
-    theme: 'factory',
-    mascot: 'factory',
-    verified_badge: 'Resmi Epson Careers (Anti-Hoax)',
-    apply_info: 'Kirim lamaran melalui website karir resmi: epson.co.id/careers'
-  },
-  {
-    id: 'off_bca_08',
-    title: 'MAGANG BAKTI BCA (CUSTOMER SERVICE & TELLER)',
-    company_name: 'PT BANK CENTRAL ASIA TBK (BCA)',
-    sector: 'tech',
-    sector_label: 'Perbankan & FinTech',
-    category: 'Administrasi & Keuangan',
-    job_type: 'Internship',
-    location: 'Jabodetabek, Semarang, Bandung, Surabaya',
-    education_level: 'smk',
-    education_label: 'SMA/SMK (Nilai min 7.0) / D1-S1',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.000.000 - Rp 6.200.000 / bln (Uang Saku + Bonus)',
-    deadline: '31 Desember 2026',
-    official_url: 'https://karir.bca.co.id',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@bca.co.id', website: 'https://karir.bca.co.id' }),
-    description: 'Program Magang Bakti BCA membuka peluang bagi lulusan SMA/SMK dan Diploma untuk mendapatkan pengalaman nyata dunia perbankan berkelas dunia dengan beasiswa dan pelatihan intensif.',
-    requirements: [
-      'Pria / Wanita, usia 18 - 24 tahun',
-      'Lulusan SMA/SMK (nilai rata-rata min 7.0) atau D1-S1 (IPK min 2.50)',
-      'Ramah, komunikatif, dan berpenampilan bersih serta rapi',
-      'Bersedia menjalani magang 1 tahun penuh'
-    ],
-    responsibilities: [
-      'Melayani nasabah dengan senyum dan keramahan khas BCA',
-      'Memandu nasabah memanfaatkan mesin CRM, e-banking, dan myBCA',
-      'Menyelesaikan transaksi perbankan dasar secara teliti dan cepat'
-    ],
-    benefits: [
-      'Uang saku bulanan kompetitif di atas rata-rata magang nasional',
-      'Bantuan beasiswa pendidikan setelah menyelesaikan program',
-      'Sertifikat resmi Magang Bakti BCA yang sangat bernilai di dunia kerja'
-    ],
-    theme: 'bumn',
-    mascot: 'corporate',
-    verified_badge: 'Resmi Karir BCA (Anti-Hoax)',
-    apply_info: 'Daftar online langsung melalui: karir.bca.co.id/magang-bakti',
-    platform: 'official',
-    platform_label: 'Resmi BUMN & Perbankan',
-    platform_icon: 'fa-solid fa-building-columns',
-    platform_class: 'official',
-    hashtag: '#LokerBCA #MagangBaktiBCA #LokerResmi'
-  },
+// ==============================================================
+// DYNAMIC OFFICIAL VACANCIES ENGINE (ZERO HARDCODE - 100% SYSTEM & LIVE API)
+// ==============================================================
 
-  // ==============================================================
-  // LINKEDIN RECRUITER VERIFIED VACANCIES
-  // ==============================================================
-  {
-    id: 'soc_linkedin_01',
-    title: 'OPERATOR PRODUKSI & MESIN SILIKON',
-    company_name: 'PT SUMCO INDONESIA',
-    platform: 'linkedin',
-    platform_label: 'LinkedIn Recruiter',
-    platform_icon: 'fa-brands fa-linkedin',
-    platform_class: 'linkedin',
-    sector: 'manufaktur',
-    sector_label: 'Manufaktur & Otomotif',
-    category: 'Operasional',
-    job_type: 'Full Time',
-    location: 'Kawasan Industri MM2100 Cikarang Barat, Bekasi',
-    education_level: 'smk',
-    education_label: 'SMA / SMK Sederajat',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.500.000 - Rp 7.200.000 / bln',
-    deadline: '25 November 2026',
-    official_url: 'https://www.linkedin.com/jobs/view/pt-sumco-indonesia-operator-produksi',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@sumco.co.id', website: 'https://www.linkedin.com/company/pt-sumco-indonesia' }),
-    description: 'PT Sumco Indonesia (produsen Silicon Wafers semikonduktor berstandar internasional) membuka rekrutmen Operator Produksi & Mesin untuk penempatan di pabrik MM2100 Cikarang Barat.',
-    requirements: [
-      'Pria/Wanita, lulusan SMA/SMK sederajat (Jurusan Mesin, Listrik, Elektronika atau IPA diutamakan)',
-      'Usia minimal 18 tahun, tidak buta warna, dan memiliki ketelitian kerja tinggi',
-      'Memahami dasar-dasar keselamatan kerja K3 dan bersedia bekerja sistem shift',
-      'Mampu bekerja sama dalam tim dan mematuhi SOP manufaktur semikonduktor'
-    ],
-    responsibilities: [
-      'Mengoperasikan mesin pengolahan ingot dan pemotongan wafer silikon sesuai standar',
-      'Memeriksa kualitas fisik wafer silikon menggunakan alat ukur presisi',
-      'Menjaga kebersihan cleanroom dan disiplin pelaporan hasil kerja'
-    ],
-    benefits: [
-      'Gaji pokok sesuai standar MM2100 + Tunjangan shift & lembur normatif',
-      'Asuransi kesehatan swasta, BPJS Ketenagakerjaan & BPJS Kesehatan',
-      'Fasilitas jemputan karyawan & makan di kantin perusahaan'
-    ],
-    theme: 'factory',
-    mascot: 'factory',
-    verified_badge: 'LinkedIn Verified Recruiter',
-    apply_info: 'Lamaran & submit CV melalui link postingan resmi LinkedIn Recruiter PT Sumco Indonesia.',
-    hashtag: '#LokerLinkedIn #OperatorProduksi #SumcoIndonesia'
-  },
-  {
-    id: 'soc_linkedin_02',
-    title: 'DIGITAL MARKETING & SOCIAL MEDIA CAMPAIGN SPECIALIST',
-    company_name: 'PT SHOPEE INTERNATIONAL INDONESIA',
-    platform: 'linkedin',
-    platform_label: 'LinkedIn Talent Network',
-    platform_icon: 'fa-brands fa-linkedin',
-    platform_class: 'linkedin',
-    sector: 'tech',
-    sector_label: 'Teknologi & E-Commerce',
-    category: 'Design & Kreatif',
-    job_type: 'Full Time',
-    location: 'Pacific Century Place SCBD, Jakarta Selatan',
-    education_level: 's1',
-    education_label: 'Sarjana (S1)',
-    experience_level: '1-3 Tahun',
-    salary_display: 'Rp 9.000.000 - Rp 14.500.000 / bln',
-    deadline: '10 Desember 2026',
-    official_url: 'https://www.linkedin.com/jobs/view/shopee-social-media-campaign-specialist',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'talent.acquisition@shopee.com', website: 'https://careers.shopee.co.id' }),
-    description: 'Shopee Indonesia mengundang Digital Marketing & Campaign Specialist untuk merancang kampanye viral, kolaborasi influencer, dan aktivasi media sosial berskala nasional.',
-    requirements: [
-      'Pendidikan S1 Ilmu Komunikasi, Manajemen Pemasaran, Desain, atau jurusan relevan',
-      'Pengalaman 1-3 tahun mengelola akun brand berskala besar di TikTok, IG, atau YouTube',
-      'Mahir menganalisis metrik impresi, CTR, engagement rate, dan tren algoritma medsos',
-      'Kreatif, tanggap tren pop culture, dan memiliki kemampuan copywriting yang memikat'
-    ],
-    responsibilities: [
-      'Menyusun content calendar dan strategi eksekusi konten digital kampanye bulanan Shopee',
-      'Berkoordinasi dengan tim KOL/Influencer dan agensi kreatif untuk produksi konten viral',
-      'Memantau performa kampanye dan menyusun laporan analisis ROI secara komprehensif'
-    ],
-    benefits: [
-      'Gaji kompetitif + Bonus tahunan performa tier-1 e-commerce tech',
-      'Asuransi kesehatan lengkap (rawat jalan & inap) untuk karyawan & keluarga',
-      'Lingkungan kerja inklusif dan voucher belanja Shopee setiap bulan'
-    ],
-    theme: 'modern',
-    mascot: 'corporate',
-    verified_badge: 'LinkedIn Verified Company',
-    apply_info: 'Lamar langsung via profil LinkedIn Easy Apply atau portal karir resmi Shopee.',
-    hashtag: '#LokerLinkedIn #ShopeeCareers #DigitalMarketing'
-  },
-  {
-    id: 'soc_linkedin_03',
-    title: 'OPERATOR MACHINING & PERAKITAN ELEKTRONIK OTOMOTIF',
-    company_name: 'PT DENSO INDONESIA',
-    platform: 'linkedin',
-    platform_label: 'LinkedIn Recruiter',
-    platform_icon: 'fa-brands fa-linkedin',
-    platform_class: 'linkedin',
-    sector: 'manufaktur',
-    sector_label: 'Manufaktur & Otomotif',
-    category: 'Operasional',
-    job_type: 'Full Time',
-    location: 'Kawasan Industri MM2100 Cikarang Barat, Bekasi',
-    education_level: 'smk',
-    education_label: 'SMA / SMK Sederajat',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.400.000 - Rp 7.000.000 / bln',
-    deadline: '28 November 2026',
-    official_url: 'https://www.denso.com/id/id/careers/',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@denso.co.id', website: 'https://www.denso.com/id/id/careers/' }),
-    description: 'PT Denso Indonesia (Tier-1 automotive component manufacturer) membuka lowongan resmi via LinkedIn Recruiter untuk Operator Machining & Perakitan Komponen Elektronik Kendaraan.',
-    requirements: [
-      'Lulusan SMA/SMK sederajat (Teknik Mesin, Otomotif, Mekatronika, Elektronika)',
-      'Usia minimal 18 tahun, sehat jasmani dan rohani, ketelitian tinggi',
-      'Mampu membaca alat ukur presisi (Caliper, Micrometer) menjadi nilai tambah',
-      'Bersedia bekerja dengan sistem shift di pabrik Cikarang MM2100'
-    ],
-    responsibilities: [
-      'Mengoperasikan mesin CNC / Machining komponen presisi otomotif',
-      'Memeriksa dimensi produk dan memastikan bebas cacat visual',
-      'Menjaga kebersihan dan perawatan mesin harian sesuai standar SOP'
-    ],
-    benefits: [
-      'Gaji pokok sesuai UMK Bekasi + Insentif kehadiran & lembur',
-      'BPJS Ketenagakerjaan & Kesehatan kelas 1',
-      'Fasilitas transportasi jemputan dan makan bergizi di kantin'
-    ],
-    theme: 'factory',
-    mascot: 'factory',
-    verified_badge: 'LinkedIn Verified Recruiter',
-    apply_info: 'Submit lamaran melalui pengumuman resmi LinkedIn Recruiter Denso Indonesia.',
-    hashtag: '#LokerLinkedIn #DensoIndonesia #OperatorMachining'
-  },
-
-  // ==============================================================
-  // INSTAGRAM KARIR VERIFIED VACANCIES
-  // ==============================================================
-  {
-    id: 'soc_instagram_01',
-    title: 'STAFF QUALITY ASSURANCE & FOOD HYGIENE',
-    company_name: 'PT MAYORA INDAH TBK',
-    platform: 'instagram',
-    platform_label: 'Instagram Karir (@mayorakarir)',
-    platform_icon: 'fa-brands fa-instagram',
-    platform_class: 'instagram',
-    sector: 'fmcg',
-    sector_label: 'FMCG & Pangan',
-    category: 'Operasional',
-    job_type: 'Full Time',
-    location: 'Daan Mogot Tangerang / Cilegon, Banten',
-    education_level: 'd3',
-    education_label: 'Diploma (D3 / S1)',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.600.000 - Rp 7.800.000 / bln',
-    deadline: '28 November 2026',
-    official_url: 'https://www.instagram.com/mayorakarir/',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'mayorakarir@mayora.co.id', website: 'https://www.instagram.com/mayorakarir/' }),
-    description: 'Diumumkan resmi melalui akun Instagram @mayorakarir: PT Mayora Indah Tbk mengundang profesional muda bidang pangan untuk menjaga standar higienitas dan mutu produk biskuit & makanan ringan.',
-    requirements: [
-      'Lulusan D3/S1 Teknologi Pangan, Biologi, Kimia, atau Teknik Kimia',
-      'Memahami sistem HACCP, GMP, FSSC 22000, dan Sistem Jaminan Halal (SJH)',
-      'Fresh Graduate berprestasi atau pengalaman 1 tahun di industri makanan dipersilakan',
-      'Bersedia bekerja di lingkungan pabrik dan penempatan Tangerang / Cilegon'
-    ],
-    responsibilities: [
-      'Melakukan inspeksi sampling bahan baku masuk dan proses pengolahan makanan',
-      'Mengawasi penerapan sanitasi pabrik dan higienitas pekerja pengolahan',
-      'Menyusun laporan analisis laboratorium mutu produk harian'
-    ],
-    benefits: [
-      'Gaji kompetitif + Tunjangan penempatan pabrik',
-      'BPJS Ketenagakerjaan & Kesehatan lengkap',
-      'Paket produk Mayora bulanan & fasilitas klinik pabrik'
-    ],
-    theme: 'modern',
-    mascot: 'corporate',
-    verified_badge: 'Instagram Verified (@mayorakarir)',
-    apply_info: 'Daftar melalui tautan resmi yang tertera di bio Instagram resmi @mayorakarir.',
-    hashtag: '#LokerInstagram #MayoraKarir #QualityAssurance'
-  },
-  {
-    id: 'soc_instagram_02',
-    title: 'OPERATOR PACKAGING & PRODUKSI FARMASI',
-    company_name: 'PT KALBE FARMA TBK',
-    platform: 'instagram',
-    platform_label: 'Instagram Karir (@kalbecareer)',
-    platform_icon: 'fa-brands fa-instagram',
-    platform_class: 'instagram',
-    sector: 'fmcg',
-    sector_label: 'Farmasi & Kesehatan',
-    category: 'Operasional',
-    job_type: 'Full Time',
-    location: 'Kawasan Industri Delta Silicon Cikarang',
-    education_level: 'smk',
-    education_label: 'SMA / SMK Sederajat',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.300.000 - Rp 6.900.000 / bln',
-    deadline: '18 November 2026',
-    official_url: 'https://www.instagram.com/kalbecareer/',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@kalbe.co.id', website: 'https://www.instagram.com/kalbecareer/' }),
-    description: 'Postingan resmi Instagram @kalbecareer: PT Kalbe Farma Tbk membuka lowongan kerja Operator Packaging untuk penempatan fasilitas produksi obat dan suplemen kesehatan berstandar CPOB.',
-    requirements: [
-      'Pendidikan SMA/SMK (Farmasi, Kimia, Mesin, atau IPA diutamakan)',
-      'Usia minimal 18 tahun, tidak buta warna, dan bebas alergi debu farmasi',
-      'Memiliki ketelitian tinggi dalam memeriksa nomor batch, expired date, dan kemasan blister',
-      'Bersedia bekerja dalam ritme dinamis dan jadwal 3 shift'
-    ],
-    responsibilities: [
-      'Mengoperasikan mesin pengemas sekunder dan pelabelan otomatis produk farmasi',
-      'Melakukan rekonsiliasi bahan kemas dan memastikan zero-defect',
-      'Mematuhi regulasi ketat CPOB (Cara Pembuatan Obat yang Baik)'
-    ],
-    benefits: [
-      'Gaji pokok sesuai ketentuan industri farmasi + Premi shift & lembur',
-      'Asuransi kesehatan Kalbe, BPJS lengkap & tunjangan obat gratis',
-      'Fasilitas jemputan bus dan makan siang di kantin higienis'
-    ],
-    theme: 'factory',
-    mascot: 'factory',
-    verified_badge: 'Instagram Verified (@kalbecareer)',
-    apply_info: 'Akses link registrasi resmi di bio Instagram @kalbecareer (Bebas Biaya).',
-    hashtag: '#LokerInstagram #KalbeCareer #OperatorProduksi'
-  },
-  {
-    id: 'soc_instagram_03',
-    title: 'ADMINISTRASI OPERASIONAL & CUSTOMER CARE',
-    company_name: 'PT ASTRA INTERNATIONAL TBK',
-    platform: 'instagram',
-    platform_label: 'Instagram Karir (@astracareer)',
-    platform_icon: 'fa-brands fa-instagram',
-    platform_class: 'instagram',
-    sector: 'manufaktur',
-    sector_label: 'Otomotif & Korporat',
-    category: 'Administrasi',
-    job_type: 'Full Time',
-    location: 'Menara Astra, Jl. Jend. Sudirman Jakarta',
-    education_level: 'd3',
-    education_label: 'Diploma (D3 / S1)',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 6.000.000 - Rp 8.200.000 / bln',
-    deadline: '05 Desember 2026',
-    official_url: 'https://www.instagram.com/astracareer/',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'arc@astra.co.id', website: 'https://www.instagram.com/astracareer/' }),
-    description: 'Postingan resmi dari Instagram @astracareer: PT Astra International Tbk membuka kesempatan bagi talenta muda komunikatif untuk posisi Staf Administrasi Operasional dan Layanan Pelanggan.',
-    requirements: [
-      'Pendidikan minimal D3 atau S1 semua jurusan (IPK minimal 3.00)',
-      'Menguasai Microsoft Office (Excel, Word, PowerPoint) dan input data akurat',
-      'Komunikatif, berpenampilan rapi, dan memiliki orientasi melayani pelanggan dengan ramah',
-      'Mampu bekerja sama dalam tim lintas divisi di kantor pusat Astra'
-    ],
-    responsibilities: [
-      'Mengelola pencatatan administrasi dokumen operasional dan surat-menyurat resmi',
-      'Merespons pertanyaan dan keluhan pelanggan melalui saluran resmi dengan sigap',
-      'Menyusun rekapitulasi data bulanan untuk kebutuhan rapat manajemen divisi'
-    ],
-    benefits: [
-      'Penghasilan kompetitif standar Astra Group + Tunjangan transportasi',
-      'Asuransi kesehatan swasta rawat jalan & rawat inap',
-      'Program pelatihan & pengembangan karir terstruktur di Menara Astra'
-    ],
-    theme: 'bumn',
-    mascot: 'corporate',
-    verified_badge: 'Instagram Verified (@astracareer)',
-    apply_info: 'Klik tautan pendaftaran pada linktree bio akun Instagram resmi @astracareer.',
-    hashtag: '#LokerInstagram #AstraCareer #AdminOperasional'
-  },
-
-  // ==============================================================
-  // FACEBOOK LOKER VERIFIED VACANCIES
-  // ==============================================================
-  {
-    id: 'soc_facebook_01',
-    title: 'TEKNISI UTILITY & WATER TREATMENT PLANT',
-    company_name: 'PT KRAKATAU BLUE WATER',
-    platform: 'facebook',
-    platform_label: 'Facebook Recruitment Resmi',
-    platform_icon: 'fa-brands fa-facebook',
-    platform_class: 'facebook',
-    sector: 'bumn',
-    sector_label: 'Energi & Manufaktur',
-    category: 'Operasional',
-    job_type: 'Full Time',
-    location: 'Krakatau Industrial Estate Cilegon, Banten',
-    education_level: 'smk',
-    education_label: 'SMA / SMK Teknik',
-    experience_level: '1-3 Tahun',
-    salary_display: 'Rp 5.800.000 - Rp 7.600.000 / bln',
-    deadline: '22 November 2026',
-    official_url: 'https://www.facebook.com/groups/loker.cilegon.resmi',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'rekrutmen@krakataubluewater.co.id', website: 'https://www.facebook.com/groups/loker.cilegon.resmi' }),
-    description: 'Publikasi resmi di Facebook Recruitment: PT Krakatau Blue Water (anak usaha industri Krakatau Steel) membuka lowongan Teknisi Water Treatment Plant & Utility kawasan industri baja Cilegon.',
-    requirements: [
-      'Lulusan SMK/D3 Teknik Mesin, Kimia Industri, atau Teknik Elektro',
-      'Pengalaman kerja minimal 1 tahun di fasilitas Water Treatment Plant (WTP) / Reverse Osmosis',
-      'Memahami operasional pompa industri, valve, piping, dan filtrasi air skala besar',
-      'Siap bekerja sistem shift di kawasan industri Cilegon'
-    ],
-    responsibilities: [
-      'Memantau parameter kualitas air, tekanan pompa, dan debit instalasi WTP',
-      'Melakukan preventive maintenance berkala pada mesin pompa dan filtrasi',
-      'Mencatat logsheet operasional dan segera menindaklanjuti anomali sistem'
-    ],
-    benefits: [
-      'Gaji menarik standar industri baja & energi Cilegon + Lembur',
-      'Jaminan kesehatan BPJS lengkap & asuransi kecelakaan kerja',
-      'Fasilitas APD lengkap dan sertifikasi teknis keahlian utility'
-    ],
-    theme: 'factory',
-    mascot: 'factory',
-    verified_badge: 'Facebook Verified Recruiter',
-    apply_info: 'Pengumuman resmi di halaman fanpage Facebook Krakatau Blue Water, tanpa calo!',
-    hashtag: '#LokerFacebook #KrakatauBlueWater #TeknisiUtility'
-  },
-  {
-    id: 'soc_facebook_02',
-    title: 'OPERATOR ASSEMBLING & PAINTING MOTOR',
-    company_name: 'PT YAMAHA INDONESIA MOTOR MFG',
-    platform: 'facebook',
-    platform_label: 'Facebook Karir Resmi Yamaha',
-    platform_icon: 'fa-brands fa-facebook',
-    platform_class: 'facebook',
-    sector: 'manufaktur',
-    sector_label: 'Manufaktur & Otomotif',
-    category: 'Operasional',
-    job_type: 'Full Time',
-    location: 'Kawasan Industri KIIC Karawang / Pulo Gadung',
-    education_level: 'smk',
-    education_label: 'SMA / SMK Sederajat',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.400.000 - Rp 7.100.000 / bln',
-    deadline: '15 November 2026',
-    official_url: 'https://www.facebook.com/yamaharecruitment.id',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@yamaha-motor.co.id', website: 'https://www.facebook.com/yamaharecruitment.id' }),
-    description: 'Postingan resmi dari Halaman Facebook Yamaha Motor Recruitment: Dibuka lowongan kerja Operator Perakitan & Pengecatan komponen sepeda motor Yamaha berstandar global.',
-    requirements: [
-      'Pria/Wanita, usia 18-21 tahun, lulusan SMA/SMK semua jurusan (Teknik diutamakan)',
-      'Tinggi badan minimal 165 cm (Pria) dan 158 cm (Wanita) dengan postur sehat proporsional',
-      'Tidak bertato, tidak bertindik, tidak berkacamata/buta warna',
-      'Memiliki stamina fisik prima dan siap bekerja dalam sistem shift pabrik'
-    ],
-    responsibilities: [
-      'Memasang komponen rangka, mesin, dan kelistrikan motor di jalur conveyor',
-      'Melakukan inspeksi visual hasil pengecatan body part tanpa cacat baret',
-      'Mematuhi target takt time dan pedoman keselamatan kerja K3 Yamaha'
-    ],
-    benefits: [
-      'Gaji pokok sesuai UMK kawasan industri + Uang makan & uang transport',
-      'BPJS Kesehatan & Ketenagakerjaan lengkap kelas satu',
-      'Bonus akhir tahun dan diskon pembelian unit sepeda motor Yamaha'
-    ],
-    theme: 'factory',
-    mascot: 'factory',
-    verified_badge: 'Facebook Karir Resmi Yamaha',
-    apply_info: 'Pendaftaran resmi dibuka melalui portal resmi yang tertera di postingan Facebook Yamaha Recruitment.',
-    hashtag: '#LokerFacebook #YamahaKarir #OperatorAssembling'
-  },
-  {
-    id: 'soc_facebook_03',
-    title: 'OPERATOR MESIN & PENGEMASAN MAKANAN',
-    company_name: 'PT INDOFOOD CBP SUKSES MAKMUR TBK',
-    platform: 'facebook',
-    platform_label: 'Facebook Official Recruitment',
-    platform_icon: 'fa-brands fa-facebook',
-    platform_class: 'facebook',
-    sector: 'fmcg',
-    sector_label: 'FMCG & Pangan',
-    category: 'Operasional',
-    job_type: 'Full Time',
-    location: 'Kawasan Industri Cibitung, Bekasi / Semarang',
-    education_level: 'smk',
-    education_label: 'SMA / SMK Sederajat',
-    experience_level: 'Fresh Graduate',
-    salary_display: 'Rp 5.200.000 - Rp 6.900.000 / bln',
-    deadline: '30 November 2026',
-    official_url: 'https://www.facebook.com/indofoodcareer.official',
-    contact_type: 'link',
-    contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment.icbp@indofood.co.id', website: 'https://www.facebook.com/indofoodcareer.official' }),
-    description: 'Pengumuman resmi dari Facebook Indofood Career: PT Indofood CBP Sukses Makmur Tbk divisi Noodle & Snack membuka lowongan Operator Produksi Mesin & Packing otomatis.',
-    requirements: [
-      'Lulusan SMA / SMK sederajat (Teknik Mesin, Otomotif, Listrik, atau Tata Boga dipersilakan)',
-      'Usia minimal 18 tahun, sehat jasmani dan rohani, memiliki ketahanan kerja fisik baik',
-      'Disiplin, jujur, teliti, dan siap bekerja dalam sistem rotasi 3 shift',
-      'Memiliki kemauan belajar tinggi terhadap operasional mesin modern'
-    ],
-    responsibilities: [
-      'Menjalankan mesin mixing, slitting, frying, dan packing kemasan bumbu/mie',
-      'Menjaga konsistensi berat produk dan tanggal kedaluwarsa pada kemasan',
-      'Menjaga standar 5R (Ringkas, Rapi, Resik, Rawat, Rajin) di area produksi'
-    ],
-    benefits: [
-      'Gaji pokok sesuai UMK Bekasi/Semarang + Lembur normatif',
-      'Paket sembako & produk Indofood bulanan secara rutin',
-      'BPJS Ketenagakerjaan & Kesehatan, serta tunjangan hari raya (THR)'
-    ],
-    theme: 'factory',
-    mascot: 'factory',
-    verified_badge: 'Facebook Indofood Career',
-    apply_info: 'Submit berkas online melalui link recruitment Indofood di Facebook resmi.',
-    hashtag: '#LokerFacebook #IndofoodCareer #OperatorMesin'
-  }
-];
-
-// Pastikan seluruh deadline preset lowongan selalu aktif & valid (tidak melewati batas waktu)
-OFFICIAL_VACANCIES_DB.forEach((job, idx) => {
-  const meta = getDeadlineMeta(job.deadline, 25 + (idx % 15));
-  job.deadline = meta.displayDate;
-  job.deadline_iso = meta.isoDate;
-});
-
-let currentOfficialFilteredJobs = [...OFFICIAL_VACANCIES_DB];
+let OFFICIAL_VACANCIES_DB = [];
+let currentOfficialFilteredJobs = [];
 let currentPosterJobData = null;
+
+async function populateOfficialVacanciesFromSystem(keyword = 'admin') {
+  OFFICIAL_VACANCIES_DB = [];
+
+  // 1. Convert real database jobs from adminJobs
+  if (Array.isArray(adminJobs) && adminJobs.length > 0) {
+    adminJobs.forEach(dbJob => {
+      if (dbJob.status === 'system_settings') return;
+      OFFICIAL_VACANCIES_DB.push({
+        id: 'db_' + dbJob.id,
+        title: dbJob.title,
+        company_name: dbJob.company_name,
+        brand_logo_text: (dbJob.company_name || 'CO').slice(0, 3).toUpperCase(),
+        brand_banner: dbJob.poster_image || './uploads/indolakto_indomilk_banner.jpg',
+        sector: (dbJob.category || '').toLowerCase().includes('fmcg') ? 'fmcg' : 'manufaktur',
+        sector_label: dbJob.category || 'Operasional',
+        category: dbJob.category || 'Administrasi',
+        role_department: dbJob.job_type || 'Full Time',
+        job_type: dbJob.job_type || 'Full Time',
+        location: dbJob.location || 'Indonesia',
+        education_level: 'all',
+        education_label: 'Semua Pendidikan',
+        experience_level: dbJob.experience_level || 'Semua Pengalaman',
+        salary_display: dbJob.salary_display || 'Kompetitif',
+        deadline: 'Aktif di Portal',
+        official_url: dbJob.website_url || './',
+        contact_type: 'link',
+        contact_value: JSON.stringify({ whatsapp: dbJob.whatsapp || '', email: dbJob.email || '', website: dbJob.website_url || '' }),
+        anti_fraud_notice: `PT ${dbJob.company_name} tidak memungut biaya apapun dalam proses rekrutmen.`,
+        description: dbJob.description || 'Lowongan resmi dari database sistem KerjaHub.',
+        requirements: Array.isArray(dbJob.requirements) ? dbJob.requirements : [dbJob.requirements || 'Kualifikasi sesuai arahan perusahaan'],
+        responsibilities: Array.isArray(dbJob.responsibilities) ? dbJob.responsibilities : [dbJob.responsibilities || 'Tanggung jawab sesuai posisi'],
+        benefits: Array.isArray(dbJob.benefits) ? dbJob.benefits : ['BPJS & Tunjangan Standar'],
+        theme: 'modern',
+        mascot: 'corporate',
+        verified_badge: 'Database Resmi',
+        apply_info: 'Lamaran langsung ke sistem KerjaHub.',
+        hashtag: '#KerjaHub #LokerResmi'
+      });
+    });
+  }
+
+  // 2. Fetch real live portal jobs from /api/live-jobs
+  try {
+    const res = await fetch(`/api/live-jobs?keyword=${encodeURIComponent(keyword || 'admin')}&platform=all`);
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.success && Array.isArray(json.data)) {
+        json.data.forEach(lj => {
+          if (!OFFICIAL_VACANCIES_DB.some(o => o.title.toLowerCase() === lj.title.toLowerCase() && o.company_name.toLowerCase() === lj.company_name.toLowerCase())) {
+            OFFICIAL_VACANCIES_DB.push({
+              id: lj.id,
+              title: lj.title,
+              company_name: lj.company_name,
+              brand_logo_text: (lj.company_name || 'CO').slice(0, 3).toUpperCase(),
+              brand_banner: './uploads/indolakto_indomilk_banner.jpg',
+              sector: 'manufaktur',
+              sector_label: lj.source === 'linkedin' ? 'LinkedIn Recruiter' : 'JobStreet by SEEK',
+              category: lj.category || 'Administrasi',
+              role_department: lj.role_department || lj.title,
+              job_type: lj.job_type || 'Full Time',
+              location: lj.location || 'Indonesia',
+              education_level: 'all',
+              education_label: 'Semua Tingkat',
+              experience_level: 'Semua Pengalaman',
+              salary_display: lj.salary_display || 'Kompetitif',
+              deadline: 'Aktif Real-Time',
+              official_url: lj.official_url || lj.jobstreet_url || lj.linkedin_url,
+              contact_type: 'link',
+              contact_value: JSON.stringify({ whatsapp: lj.contact_whatsapp || '', email: lj.contact_email || '', website: lj.official_url }),
+              anti_fraud_notice: lj.anti_fraud_notice,
+              description: lj.description,
+              requirements: lj.requirements || [],
+              responsibilities: lj.responsibilities || [],
+              benefits: lj.benefits || [],
+              theme: 'modern',
+              mascot: 'corporate',
+              verified_badge: lj.source === 'linkedin' ? 'LinkedIn Verified' : 'JobStreet Verified',
+              apply_info: 'Lamar langsung ke web resmi.',
+              hashtag: '#LokerLive #' + (lj.company_name || '').replace(/[^a-zA-Z0-9]/g, '')
+            });
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Error fetching live jobs for official section:', e);
+  }
+
+  currentOfficialFilteredJobs = [...OFFICIAL_VACANCIES_DB];
+  renderOfficialJobsGrid();
+}
+
+
 
 // Helper: Set keyword from preset badge
 window.setOfficialKeyword = function(keyword) {
@@ -3412,7 +2608,8 @@ function setupOfficialVacancyGenerator() {
   if (locInput) locInput.addEventListener('input', () => filterAndRenderOfficialJobs());
   if (eduSelect) eduSelect.addEventListener('change', () => filterAndRenderOfficialJobs());
   if (btnGenerate) btnGenerate.addEventListener('click', () => {
-    filterAndRenderOfficialJobs();
+    const kw = kwInput ? kwInput.value.trim() : 'admin';
+    populateOfficialVacanciesFromSystem(kw);
     document.getElementById('scout-results-area')?.scrollIntoView({ behavior: 'smooth' });
   });
   if (btnFetchLive) {
@@ -3476,8 +2673,8 @@ function setupOfficialVacancyGenerator() {
   const btnUsePoster = document.getElementById('btn-use-poster-for-job');
   if (btnUsePoster) btnUsePoster.addEventListener('click', usePosterForJob);
 
-  // Render initial grid
-  renderOfficialJobsGrid();
+  // Render initial grid from live system & database (zero hardcode)
+  populateOfficialVacanciesFromSystem('admin');
 }
 
 function setupSosmedScout() {
