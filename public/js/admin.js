@@ -458,25 +458,16 @@ function setupPosterDropzone() {
 // =============================================================
 const DM_CATEGORY_PLACEHOLDERS = {
   responsibilities: [
-    'Merancang desain user interface mobile & web yang responsif',
-    'Melakukan usability testing berkala bersama end-user',
-    'Membuat interactive prototype di Figma dan dokumentasi design system',
-    'Berkolaborasi aktif dengan tim Product Manager dan Frontend Engineer',
-    'Memantau performa implementasi desain pasca-rilis'
+    'Tuliskan poin tanggung jawab / tugas posisi...',
+    'Tuliskan rincian pekerjaan lainnya...'
   ],
   requirements: [
-    'Pendidikan minimal D3/S1 di bidang relevan atau pengalaman setara',
-    'Pengalaman kerja minimal 1-2 tahun di bidang posisi terkait',
-    'Memiliki kemampuan komunikasi, kerja sama tim, dan kepemimpinan',
-    'Menguasai tools kerja modern dan terbiasa dengan target kerja',
-    'Disiplin, teliti, dan memiliki integritas tinggi'
+    'Tuliskan poin kualifikasi / persyaratan pelamar...',
+    'Tuliskan syarat keahlian atau pendidikan lainnya...'
   ],
   benefits: [
-    'Gaji kompetitif + THR Keagamaan + Bonus performa tahunan',
-    'BPJS Kesehatan & BPJS Ketenagakerjaan lengkap',
-    'Fasilitas kerja fleksibel (Hybrid / Remote)',
-    'Tunjangan laptop, internet, dan program pengembangan skill',
-    'Jenjang karir transparan dan lingkungan kerja positif'
+    'Tuliskan poin benefit, fasilitas, atau tunjangan...',
+    'Tuliskan fasilitas tambahan lainnya...'
   ]
 };
 
@@ -685,23 +676,9 @@ window.syncDynamicItems = function(containerId) {
 };
 
 function initUploadFormDynamicLists() {
-  window.setDynamicListValues('upload-resp-items', [
-    'Merancang desain user interface mobile & web yang responsif',
-    'Melakukan usability testing berkala bersama end-user',
-    'Membuat interactive prototype di Figma dan dokumentasi design system'
-  ], 'responsibilities', 'upload-resp-counter');
-
-  window.setDynamicListValues('upload-req-items', [
-    'Pendidikan minimal D3 / S1 atau pengalaman kerja setara',
-    'Pengalaman kerja minimal 1-2 tahun di bidang posisi terkait',
-    'Memiliki kemampuan komunikasi dan kerja sama tim yang baik'
-  ], 'requirements', 'upload-req-counter');
-
-  window.setDynamicListValues('upload-ben-items', [
-    'Gaji kompetitif + THR + Bonus performa tahunan',
-    'BPJS Kesehatan & BPJS Ketenagakerjaan lengkap',
-    'Fasilitas kerja fleksibel & tunjangan penunjang'
-  ], 'benefits', 'upload-ben-counter');
+  window.setDynamicListValues('upload-resp-items', [], 'responsibilities', 'upload-resp-counter');
+  window.setDynamicListValues('upload-req-items', [], 'requirements', 'upload-req-counter');
+  window.setDynamicListValues('upload-ben-items', [], 'benefits', 'upload-ben-counter');
 }
 
 // -------------------------------------------------------------
@@ -711,7 +688,7 @@ function setupJobFormSubmit() {
   const form = document.getElementById('form-upload-job');
   if (!form) return;
 
-  // Initialize upload form dynamic rows with starter points
+  // Initialize upload form dynamic rows (clean and empty, admin fills in manually)
   initUploadFormDynamicLists();
 
   form.addEventListener('reset', () => {
@@ -723,24 +700,19 @@ function setupJobFormSubmit() {
   const btnGenPoster = document.getElementById('btn-generate-poster-from-form');
   if (btnGenPoster) {
     btnGenPoster.addEventListener('click', () => {
-      const title = form.querySelector('[name="title"]')?.value.trim() || 'OPERATOR PRODUKSI';
-      const company = form.querySelector('[name="company_name"]')?.value.trim() || 'PT TOYOTA MOTOR MANUFACTURING INDONESIA';
+      const title = form.querySelector('[name="title"]')?.value.trim() || 'Lowongan Baru';
+      const company = form.querySelector('[name="company_name"]')?.value.trim() || 'Perusahaan';
       const reqLines = window.getDynamicListValues('upload-req-items');
-      const deadline = form.querySelector('[name="deadline"]')?.value.trim() || '30 Oktober 2026';
+      const deadline = form.querySelector('[name="deadline"]')?.value.trim() || '';
       const website = form.querySelector('[name="website"]')?.value.trim() || '';
 
       openPosterStudio({
         title,
         company_name: company,
-        requirements: reqLines.length > 0 ? reqLines : [
-          'Pendidikan minimal SMA/SMK sederajat',
-          'Memiliki kemampuan Komunikasi, Kerja sama tim, dan Disiplin',
-          'Dapat mengoperasikan komputer & sistem kerja',
-          'Bersedia bekerja dalam sistem shift'
-        ],
+        requirements: reqLines,
         deadline,
         official_url: website || window.location.href,
-        apply_info: `Kirim CV/Lamaran melalui website resmi ${company}.`,
+        apply_info: company ? `Kirim CV/Lamaran melalui tautan resmi ${company}.` : '',
         theme: title.toLowerCase().includes('operator') || title.toLowerCase().includes('teknisi') ? 'factory' : 'modern',
         mascot: title.toLowerCase().includes('operator') || title.toLowerCase().includes('teknisi') ? 'factory' : 'corporate'
       });

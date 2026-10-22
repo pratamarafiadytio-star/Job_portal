@@ -1202,7 +1202,6 @@ function renderJobs(jobs) {
           <h3 class="job-title" onclick="${isLocked ? `showLockedNotice('${safeTitle}')` : `openJobDetail(${job.id})`}" title="${isLocked ? 'Lowongan telah ditutup (Expired)' : 'Klik untuk rincian lengkap'}">${escapeHtml(job.title)}</h3>
 
           <div class="job-badges">
-            <span class="pill pill-anti-hoax" title="Telah Lolos Sensor & Terverifikasi Bebas Biaya (Anti-Hoax)"><i class="fa-solid fa-shield-check"></i> Terverifikasi Anti-Hoax</span>
             ${platformPill}
             <span class="pill pill-type"><i class="fa-regular fa-clock"></i> ${escapeHtml(job.job_type)}</span>
             ${job.salary_display ? `<span class="pill pill-salary"><i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(job.salary_display)}</span>` : ''}
@@ -1454,14 +1453,6 @@ function openJobDetail(jobId) {
       <div class="detail-grid-layout">
         <div class="detail-main">
           
-          <!-- Anti-Hoax Security Guarantee Banner -->
-          <div class="modal-anti-hoax-banner">
-            <i class="fa-solid fa-shield-check"></i>
-            <div>
-              <div class="title">Jaminan Keamanan & Anti-Hoax KerjaHub</div>
-              <div class="desc">Lowongan dari <strong>${escapeHtml(job.company_name)}</strong> ini 100% bebas biaya pendaftaran, tanpa pungutan biaya travel/seragam, dan saluran kontak HRD telah terverifikasi sah.</div>
-            </div>
-          </div>
 
           <!-- Keterangan -->
           <div class="detail-section">
@@ -2306,26 +2297,32 @@ function runCvAnalysis(rawText, sourceName) {
       }
     });
 
-    let score = 30; // base score
-    if (matchedForThisJob.length > 0) {
-      score += Math.min(matchedForThisJob.length * 14, 52);
+    // STRICT SCORING: Only score jobs with genuine skill or role title match
+    const titleWords = (job.title || '').toLowerCase().split(/[\s/&-]+/).filter(w => w.length >= 4 && !STOPWORDS.has(w));
+    const hasTitleWord = titleWords.some(w => lower.includes(w));
+
+    if (matchedForThisJob.length === 0 && !hasTitleWord) {
+      job._matchScore = 0;
+      job._matchedSkills = [];
+      return;
     }
 
-    // Role / Title match bonus
-    const titleWords = (job.title || '').toLowerCase().split(/[\s/&-]+/);
-    const hasTitleWord = titleWords.some(w => w.length > 3 && lower.includes(w));
-    if (hasTitleWord) score += 18;
-
-    // Category match
+    let score = 0;
+    if (matchedForThisJob.length > 0) {
+      score += Math.min(matchedForThisJob.length * 18, 55);
+    }
+    if (hasTitleWord) {
+      score += 30;
+    }
     if (job.category && lower.includes(job.category.toLowerCase().split('&')[0].trim())) {
       score += 10;
     }
 
-    score = Math.min(score, 98);
-    job._matchScore = matchedForThisJob.length > 0 || hasTitleWord ? score : (score > 35 ? 35 : 0);
+    score = Math.min(Math.max(score, 45), 98);
+    job._matchScore = score;
     job._matchedSkills = matchedForThisJob.slice(0, 5);
 
-    if (job._matchScore >= 40) matchCount++;
+    if (job._matchScore >= 45) matchCount++;
   });
 
   window.activeCvKeywords = candidateSkills;

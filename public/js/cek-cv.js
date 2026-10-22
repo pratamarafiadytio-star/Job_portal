@@ -42,7 +42,12 @@ const SKILL_KEYWORDS_DICT = [
   // Layanan, Retail, Hospitality & Operasional Lapangan
   'customer service', 'cs', 'frontliner', 'call center', 'layanan pelanggan', 'barista', 'kasir', 
   'waiter', 'waitress', 'pramuniaga', 'kitchen', 'resepsionis', 'driver', 'sim a', 'sim b', 'sim c', 
-  'kurir', 'security', 'satpam'
+  'kurir', 'security', 'satpam',
+
+  // Transportasi, BUMN, Logistik & Layanan Stasiun / Penumpang
+  'staf layanan penumpang', 'boarding gate', 'verifikasi tiket', 'asistensi penumpang', 'staf stasiun', 
+  'transportasi', 'perkeretaapian', 'kai', 'bumn', 'ground staff', 'ticketing', 'pramugara', 'pramugari',
+  'dispatcher', 'pengatur perjalanan', 'supply chain', 'purchasing', 'procurement', 'hrd', 'recruitment', 'general affairs'
 ];
 
 // Education Keywords
@@ -236,13 +241,13 @@ function setupCvMatcher() {
   }
 
   if (analyzeBtn) {
-    analyzeBtn.addEventListener('click', () => {
+    analyzeBtn.addEventListener('click', async () => {
       const text = pasteInput ? pasteInput.value.trim() : '';
       if (!text) {
         showToast('error', 'Silakan unggah dokumen CV atau tempel teks keahlian Anda.');
         return;
       }
-      runCvAnalysis(text, 'Teks Input Pengalaman');
+      await runCvAnalysis(text, 'Teks Input Pengalaman');
     });
   }
 
@@ -290,7 +295,7 @@ async function handleCvFileUpload(file) {
       pasteInput.value = text.slice(0, 300) + '...';
     }
 
-    runCvAnalysis(text, file.name);
+    await runCvAnalysis(text, file.name);
   } catch (err) {
     console.error('File parsing error:', err);
     if (titleEl) titleEl.textContent = 'Gagal membaca berkas otomatis';
@@ -341,7 +346,10 @@ function extractCvKeywords(rawText) {
 }
 
 // Run CV Analysis
-function runCvAnalysis(rawText, sourceName) {
+async function runCvAnalysis(rawText, sourceName) {
+  // Always fetch latest jobs from database to ensure high accuracy with all posted vacancies
+  await loadAllJobs();
+
   const cvData = extractCvKeywords(rawText);
   analyzedSkills = cvData.detectedSkills;
 
