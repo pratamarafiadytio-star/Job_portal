@@ -96,12 +96,15 @@ function updateThemeIcon(theme) {
   }
 }
 
+const DEFAULT_SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
+
 function getApiEndpoint(endpoint) {
   if (!endpoint) return '';
   const clean = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
-  const pathname = window.location.pathname;
+  const pathname = window.location.pathname.toLowerCase();
   if (pathname.includes('/job_portal/')) {
-    return `/job_portal${clean}`;
+    return `/Job_portal${clean}`;
   }
   return clean;
 }
@@ -138,19 +141,55 @@ window.openCvOrderWhatsApp = function() {
   window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}`, '_blank');
 };
 
-// Load Jobs and Settings from API (with Supabase fallback)
+// Load Jobs and Settings directly from Supabase with API fallback
 async function loadAllJobs() {
-  try {
-    const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
-    if (ok && json && json.success && Array.isArray(json.data)) {
-      const normalizer = typeof window.cleanJobData === 'function' ? window.cleanJobData : (j => j);
-      allJobs = json.data.map(normalizer).filter(j => j.status === 'active' || !j.status);
+  let sb = null;
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
+    try {
+      sb = window.supabase.createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY);
+    } catch (e) {
+      console.warn('Initial Supabase client error in cek-cv:', e);
     }
-  } catch (err) {
-    console.warn('API jobs fetch warning, checking direct cloud config:', err);
   }
 
-  // Load config & settings
+  // 1. Direct Supabase Query (works instantly on GitHub Pages, workdev, and local)
+  if (sb) {
+    try {
+      const { data, error } = await sb.from('jobs').select('*').in('status', ['active']);
+      if (!error && Array.isArray(data) && data.length > 0) {
+        const normalizer = typeof window.cleanJobData === 'function' ? window.cleanJobData : (j => j);
+        allJobs = data.map(normalizer).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+      }
+    } catch (e) {
+      console.warn('Direct Supabase jobs fetch failed in cek-cv:', e);
+    }
+
+    try {
+      const { data: stData } = await sb.from('jobs').select('description').eq('status', 'system_settings').limit(1);
+      if (stData && stData.length > 0 && stData[0].description) {
+        try {
+          const s = JSON.parse(stData[0].description);
+          if (s.cv_whatsapp) window.siteSettings.cv_whatsapp = s.cv_whatsapp;
+          if (s.cv_order_message) window.siteSettings.cv_order_message = s.cv_order_message;
+        } catch (err) {}
+      }
+    } catch (e) {}
+  }
+
+  // 2. Fallback to API if allJobs still empty
+  if (allJobs.length === 0) {
+    try {
+      const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
+      if (ok && json && json.success && Array.isArray(json.data)) {
+        const normalizer = typeof window.cleanJobData === 'function' ? window.cleanJobData : (j => j);
+        allJobs = json.data.map(normalizer).filter(j => j.status === 'active' || !j.status);
+      }
+    } catch (err) {
+      console.warn('API jobs fetch warning in cek-cv:', err);
+    }
+  }
+
+  // 3. Runtime settings override from /api/config if available
   try {
     const { ok, data: cfg } = await safeFetchJson(getApiEndpoint('/api/config'));
     if (ok && cfg) {
@@ -160,34 +199,8 @@ async function loadAllJobs() {
       if (cfg.cv_order_message) {
         window.siteSettings.cv_order_message = cfg.cv_order_message;
       }
-
-      // Fallback settings & jobs from Supabase
-      if (cfg.supabaseUrl && cfg.supabaseKey && window.supabase) {
-        const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
-
-        if (!cfg.cv_whatsapp || cfg.cv_whatsapp === '081234567890') {
-          sb.from('jobs').select('description').eq('status', 'system_settings').limit(1).then(({ data: stData }) => {
-            if (stData && stData.length > 0 && stData[0].description) {
-              try {
-                const s = JSON.parse(stData[0].description);
-                if (s.cv_whatsapp) window.siteSettings.cv_whatsapp = s.cv_whatsapp;
-                if (s.cv_order_message) window.siteSettings.cv_order_message = s.cv_order_message;
-              } catch (err) {}
-            }
-          }).catch(() => {});
-        }
-
-        if (allJobs.length === 0) {
-          const { data, error } = await sb.from('jobs').select('*').in('status', ['active']);
-          if (!error && Array.isArray(data)) {
-            allJobs = data.filter(j => j.status !== 'system_settings');
-          }
-        }
-      }
     }
-  } catch (e) {
-    console.warn('Supabase fallback load warning:', e);
-  }
+  } catch (e) {}
 }
 
 // Setup CV Matcher Listeners

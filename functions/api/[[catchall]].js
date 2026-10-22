@@ -3,9 +3,9 @@
 // High Performance, Sub-10ms Global Edge Execution with Supabase
 // ==============================================================
 
-const DEFAULT_SUPABASE_URL = "";
-const DEFAULT_SUPABASE_KEY = "";
-const DEFAULT_ADMIN_PASSWORD = "";
+const DEFAULT_SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
+const DEFAULT_ADMIN_PASSWORD = "admin_supersecret_portal_2026";
 
 
 
@@ -277,6 +277,9 @@ export async function onRequest(context) {
   let pathname = url.pathname.replace(/\/+$/, '') || '/';
   if (pathname.startsWith('/public/api/')) {
     pathname = pathname.replace('/public/api', '/api');
+  }
+  if (pathname.toLowerCase().startsWith('/job_portal/api/')) {
+    pathname = pathname.slice('/job_portal'.length);
   }
 
   // 1. GET /api/config

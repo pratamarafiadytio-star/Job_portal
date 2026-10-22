@@ -6,12 +6,15 @@
 
 let sbClient = null;
 
+const DEFAULT_SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
+
 function getApiEndpoint(endpoint) {
   if (!endpoint) return '';
   const clean = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
-  const pathname = window.location.pathname;
+  const pathname = window.location.pathname.toLowerCase();
   if (pathname.includes('/job_portal/')) {
-    return `/job_portal${clean}`;
+    return `/Job_portal${clean}`;
   }
   return clean;
 }
@@ -210,6 +213,16 @@ window.filterByPlatform = function(plat) {
 };
 
 async function initSupabaseClient() {
+  // 1. Immediately initialize with client-side default Supabase credentials so it works on GitHub Pages, workdev, and static previews
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
+    try {
+      sbClient = window.supabase.createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY);
+    } catch (e) {
+      console.warn('Initial Supabase createClient error:', e);
+    }
+  }
+
+  // 2. Attempt fetching runtime /api/config from backend (if running on Node or Cloudflare Functions)
   try {
     const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
     if (ok && data) {
@@ -231,7 +244,7 @@ async function initSupabaseClient() {
     console.warn('Init Supabase config error:', e);
   }
 
-  // Resilient fallback for site settings directly from Supabase if needed
+  // 3. Resilient fallback for site settings directly from Supabase if needed
   if (sbClient && window.siteSettings && (!window.siteSettings.cv_whatsapp || window.siteSettings.cv_whatsapp === '081234567890')) {
     try {
       const { data: stRows } = await sbClient.from('jobs').select('description').eq('status', 'system_settings').limit(1);
@@ -275,11 +288,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadJobs();
 });
 
+const STATIC_COMPANY_IMAGES = {
+  "PT Kobe Boga Utama": "https://goletskerja.com/wp-content/uploads/2024/06/logo-2024-06-15T101948.321.jpg",
+  "PT Patra Drilling Contractor": "https://www.tender-indonesia.com/newsrectory/files/Logo_111.68.127.98ea5bb3cc200030c4e01ae3eaee70f1fb1234567890.png",
+  "PT Bank Central Asia Tbk (BCA)": "https://static.vecteezy.com/system/resources/previews/024/701/610/large_2x/yogyakarta-indonesia-march-20-2023-bank-bca-exterior-building-bank-central-asia-tbk-is-the-largest-private-bank-in-indonesia-bca-kcp-ahmad-dahlan-free-photo.JPG",
+  "Trinova Tech Solutions": "https://trinovatechsolutions.in/logo.png",
+  "PT Indolakto - Indofood CBP (INDOMILK)": "https://infolokerserang.com/wp-content/uploads/2021/10/Lowongan-Kerja-PT.-Indolakto-Indofood-CBP-Indomilk-Penempatan-Serang.jpg",
+  "PT Indofood CBP Sukses Makmur Tbk": "https://lokermedan.net/wp-content/uploads/2022/05/PT-Indofood-CBP-Sukses-Makmur-Tbk.jpg",
+  "PT TOYOTA MOTOR MANUFACTURING INDONESIA (TMMIN)": "https://images.cakeresume.com/images/e7290147-dc27-4025-81e5-1f1cfa4e5431.jpg",
+  "PT Kalbe Farma Tbk": "https://cdn1-production-images-kly.akamaized.net/UiFATqcym61jnHSQIM2axtwK_oc=/1280x720/smart/filters:quality(75):strip_icc():format(webp)/kly-media-production/medias/3526828/original/027148900_1627708283-kalbe_farma_31_juli_2021Kalbe_Farma_31_juli_2021.jpg",
+  "PT Mayora Indah Tbk": "https://i0.wp.com/sutomotower.com/wp-content/uploads/2022/09/gedung-kantor-pt-mayora.webp",
+  "PT Kereta Api Indonesia (Persero)": "https://seeklogo.com/images/P/pt-kai-kereta-api-indonesia-2020-logo-C71614B016-seeklogo.com.png",
+  "PT Bank Rakyat Indonesia (Persero) Tbk": "https://as1.ftcdn.net/v2/jpg/07/23/52/60/1000_F_723526051_FC7ZRZ9ayH8E0pRgLxBFSXV8H8xSi9PH.jpg",
+  "PT Telkom Indonesia (Persero) Tbk": "https://cdn.antaranews.com/cache/1200x800/2022/03/30/logo-telkom.jpg",
+  "PT Astra Honda Motor": "https://4.bp.blogspot.com/-yW5YMuFn9fY/WikUNZdotsI/AAAAAAAACtc/vSNgqAtcHiQ6hhgmf0JI7GuhZ3jLtxMGQCLcBGAs/s1600/PT_ASTRA_HONDA_MOTOR_-_panoramio.jpg",
+  "Tech Innovations Lab": "https://images.glints.com/unsafe/1200x0/glints-dashboard.oss-ap-southeast-1.aliyuncs.com/company-logo/8c2bfa786d8397948713242d400800d4.jpeg",
+  "Synergy Tech Global": "https://www.sinergiteknoglobal.co.id/img/gallerypage/peresmian-gedung/peresmian-gedung-001.JPG",
+  "PT Yamaha Indonesia Motor Mfg": "https://global.yamaha-motor.com/about/group/asia_oceania/img/pic_004.jpg",
+  "PT Krakatau Blue Water": "https://static.wikia.nocookie.net/logopedia/images/9/9f/Krakatau_Blue_Water.png",
+  "PT Sumco Indonesia": "https://wlkp-assets.kemnaker.go.id/companies/95cde64d-dcfa-40f7-b85f-0ef7383e02fa/62a15a7ee1312.JPG",
+  "PT Shopee International Indonesia": "https://www.shutterstock.com/shutterstock/photos/2279767699/display_1500/stock-photo-surakarta-indonesia-march-shopee-logo-on-office-building-at-surakarta-shopee-2279767699.jpg",
+  "PT Indofood Sukses Makmur Tbk": "https://c8.alamy.com/comp/3A5462M/jakarta-indonesia-january-26-2025-indofood-headquarters-in-jakarta-indonesia-3A5462M.jpg",
+  "Creative Sparks Agency": "https://images.tokopedia.net/img/cache/215-square/GAnVPX/2023/10/21/78db16a3-f6af-4572-8ac3-e94a46fa2802.png"
+};
+
+window._companyImagesCache = { ...STATIC_COMPANY_IMAGES };
+
 async function loadCompanyImagesCache() {
   try {
     const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/company-images'));
     if (ok && json && json.success && json.data) {
-      window._companyImagesCache = json.data;
+      window._companyImagesCache = { ...window._companyImagesCache, ...json.data };
       if (rawAllJobs && rawAllJobs.length > 0) {
         applyFiltersAndRender();
       }
