@@ -1,5 +1,40 @@
 [
   {
+    "id": 38,
+    "title": "Admin Executive",
+    "company_name": "Trinova Tech Solutions",
+    "category": "Loker Live LinkedIn",
+    "job_type": "Full time",
+    "location": "Jakarta",
+    "salary_display": "Kompetitif (Sesuai Pengalaman)",
+    "experience_level": "Semua Pengalaman",
+    "poster_image": "",
+    "description": "Lowongan resmi untuk posisi Admin Executive di Trinova Tech Solutions (Jakarta). Informasi dipublikasikan secara live dan aktual melalui LinkedIn Indonesia.",
+    "requirements": [
+      "Pendidikan minimal SMA/SMK/D3/S1 sesuai kualifikasi bidang.",
+      "Memiliki etos kerja tinggi, kejujuran, dan kemampuan komunikasi yang baik.",
+      "Mampu mengoperasikan komputer dan aplikasi penunjang kerja."
+    ],
+    "responsibilities": [
+      "Menjalankan tugas pokok dan tanggung jawab operasional posisi Admin Executive.",
+      "Melakukan koordinasi dengan pimpinan dan tim terkait pencapaian target kerja.",
+      "Menyusun laporan berkala dan menjaga kepatuhan terhadap SOP perusahaan."
+    ],
+    "benefits": [
+      "Gaji kompetitif + Asuransi kesehatan BPJS",
+      "Tunjangan Hari Raya (THR) & Peluang jenjang karir"
+    ],
+    "contact_type": "link",
+    "contact_value": "{\"url\":\"https://www.linkedin.com/jobs/view/4432872853\",\"website\":\"https://www.linkedin.com/jobs/view/4432872853\",\"email\":\"recruitment@trinovatechsolutions.co.id\",\"whatsapp\":\"081288776655\",\"source_platform\":\"official\",\"source_label\":\"Resmi BUMN & Korporasi\",\"is_verified_anti_hoax\":true,\"verified_screening_status\":\"passed\"}",
+    "deadline": "2026-11-22",
+    "status": "active",
+    "is_featured": true,
+    "views_count": 0,
+    "created_at": "2026-10-22T17:11:21.849Z",
+    "source_platform": "linkedin",
+    "source_label": "LinkedIn Recruiter"
+  },
+  {
     "id": 34,
     "title": "Internal Audit Supervisor (Finance Focused)",
     "company_name": "PT Indolakto - Indofood CBP (INDOMILK)",

@@ -3,138 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pratinjau Loker Interaktif (JobStreet & LinkedIn Dual-Pane) - KerjaHub</title>
-  
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💼</text></svg>">
-
-  <!-- Font Awesome 6 Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  
-  <!-- Google Fonts Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-
-  <!-- Supabase CDN Client -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- JobStreet Dual-Pane CSS -->
-  <link rel="stylesheet" href="./css/jobstreet.css">
-
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      background: #091a32;
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    .top-global-nav {
-      background: #071223;
-      padding: 10px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .brand-logo-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      color: #ffffff;
-      text-decoration: none;
-      font-weight: 900;
-      font-size: 1.15rem;
-      letter-spacing: -0.5px;
-    }
-    .brand-icon-box {
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #4f46e5, #06b6d4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 1rem;
-    }
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-    .nav-link-item {
-      color: #94a3b8;
-      text-decoration: none;
-      font-size: 0.84rem;
-      font-weight: 700;
-      transition: color 0.15s;
-    }
-    .nav-link-item:hover {
-      color: #ffffff;
-    }
-    .loker-container-wrap {
-      flex: 1;
-      padding: 16px;
-      max-width: 1440px;
-      width: 100%;
-      margin: 0 auto;
-    }
-  </style>
-</head>
-<body>
-
-  <!-- TOP MINIMAL NAV -->
-  <nav class="top-global-nav">
-    <a href="./" class="brand-logo-link">
-      <div class="brand-icon-box"><i class="fa-solid fa-briefcase"></i></div>
-      <span>KerjaHub <span style="font-size: 0.72rem; color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.15); padding: 2px 8px; border-radius: 6px; margin-left: 6px;">PORTAL LOKER</span></span>
-    </a>
-    <div class="nav-links">
-      <a href="./" class="nav-link-item"><i class="fa-solid fa-home"></i> Beranda Publik</a>
-      <a href="./admin.html" class="nav-link-item"><i class="fa-solid fa-user-tie"></i> Panel Admin</a>
-    </div>
-  </nav>
-
-  <!-- MAIN JOBSTREET SPLIT-VIEW WRAPPER -->
-  <main class="loker-container-wrap">
-    <div id="jobstreet-viewer-target"></div>
-  </main>
-
-  <!-- JobStreet Interactive Logic -->
-  <script src="./js/jobstreet.js"></script>
-
+  <title>Mengarahkan ke Lowongan KerjaHub...</title>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      if (window.JobStreetViewer) {
-        window.JobStreetViewer.mount('jobstreet-viewer-target', { isAdmin: false });
-
-        // URL Param check: ?job=... or ?id=... or ?q=...
-        const urlParams = new URLSearchParams(window.location.search);
-        const jobId = urlParams.get('job') || urlParams.get('id') || urlParams.get('loker');
-        const q = urlParams.get('q') || urlParams.get('keyword');
-
-        if (q) {
-          const inp = document.getElementById('js-search-input');
-          if (inp) {
-            inp.value = q;
-            inp.dispatchEvent(new Event('input'));
-          }
-        }
-
-        if (jobId && typeof window.selectJobStreetJob === 'function') {
-          setTimeout(() => {
-            window.selectJobStreetJob(jobId);
-          }, 150);
-        }
-      }
-    });
+    const urlParams = new URLSearchParams(window.location.search);
+    const jobId = urlParams.get('id') || urlParams.get('job');
+    if (jobId) {
+      window.location.replace('./?job=' + encodeURIComponent(jobId));
+    } else {
+      window.location.replace('./');
+    }
   </script>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: #f8fafc;">
+  <div style="text-align: center; padding: 24px;">
+    <h2>Mengarahkan ke Portal Lowongan KerjaHub...</h2>
+    <p>Jika tidak diarahkan otomatis, <a href="./" style="color: #38bdf8; font-weight: 700;">klik di sini untuk melihat semua lowongan</a>.</p>
+  </div>
 </body>
 </html>

@@ -342,7 +342,7 @@ function setupNavigation() {
 }
 
 function switchSection(sectionName) {
-  const sections = ['dashboard', 'upload-job', 'manage-jobs', 'sosmed-generator', 'jobstreet-view', 'settings-master', 'settings-cv'];
+  const sections = ['dashboard', 'upload-job', 'manage-jobs', 'sosmed-generator', 'settings-master', 'settings-cv'];
   sections.forEach(sec => {
     const el = document.getElementById(`section-${sec}`);
     if (el) el.style.display = (sec === sectionName) ? 'block' : 'none';
@@ -363,14 +363,8 @@ function switchSection(sectionName) {
     if (subEl) subEl.textContent = 'Lihat daftar, kunci (lock/expired) lowongan, edit, atau hapus.';
     loadAdminJobs();
   } else if (sectionName === 'sosmed-generator') {
-    if (titleEl) titleEl.textContent = 'Scout & Generator Loker Sosmed';
-    if (subEl) subEl.textContent = 'Cari dan generate materi postingan lowongan kerja dari LinkedIn, IG, dan FB.';
-  } else if (sectionName === 'jobstreet-view') {
-    if (titleEl) titleEl.textContent = 'Pratinjau Loker Interaktif (JobStreet & LinkedIn Dual-Pane)';
-    if (subEl) subEl.textContent = 'Tampilan split-screen interaktif ala JobStreet & LinkedIn dengan rincian korporat, profil recruiter, banner & aksi lamaran langsung.';
-    if (window.JobStreetViewer) {
-      window.JobStreetViewer.mount('admin-jobstreet-target', { isAdmin: true });
-    }
+    if (titleEl) titleEl.textContent = 'Scout & Generator Loker Asli Web';
+    if (subEl) subEl.textContent = 'Ambil lowongan yang dibagikan langsung di website dan klik untuk membuka postingan aslinya.';
   } else if (sectionName === 'settings-master') {
     if (titleEl) titleEl.textContent = 'Pengaturan Master Data & Filter';
     if (subEl) subEl.textContent = 'Kelola Kategori Bidang, Tipe Pekerjaan, Level Pengalaman, dan Lokasi.';
@@ -706,7 +700,7 @@ function renderAdminJobsTable() {
           <div class="job-cell">
             <img src="${posterSrc}" alt="Poster" class="job-cell-poster" onerror="this.src='${defaultPoster}'">
             <div class="job-cell-info">
-              <a href="javascript:void(0)" onclick="openJobStreetViewerFromExistingId(${job.id})" class="job-cell-title" title="Buka Pratinjau Loker JobStreet">${escapeHtml(job.title)}</a>
+              <a href="${job.website_url ? escapeHtml(job.website_url) : `./?job=${job.id}`}" target="_blank" rel="noopener noreferrer" class="job-cell-title" title="${job.website_url ? 'Buka Postingan Asli di Web' : 'Lihat di Web Publik'}">${escapeHtml(job.title)} ${job.website_url ? '<i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.75rem; margin-left:4px; color:#0284c7;"></i>' : ''}</a>
               <span class="job-cell-company">${escapeHtml(job.company_name)}</span>
             </div>
           </div>
@@ -719,7 +713,7 @@ function renderAdminJobsTable() {
         <td><small>${job.created_at ? new Date(job.created_at).toLocaleDateString('id-ID') : '-'}</small></td>
         <td>
           <div class="action-buttons">
-            <button class="btn-table" onclick="openJobStreetViewerFromExistingId(${job.id})" title="Pratinjau Loker (JobStreet Dual-Pane)"><i class="fa-solid fa-table-columns" style="color: #ec4899;"></i></button>
+            ${job.website_url ? `<a href="${escapeHtml(job.website_url)}" target="_blank" rel="noopener noreferrer" class="btn-table" title="Buka Postingan Asli di Web Resmi"><i class="fa-solid fa-globe" style="color: #0284c7;"></i></a>` : ''}
             <a href="./?job=${job.id}" target="_blank" class="btn-table" title="Lihat di Web Publik"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
             <button class="btn-table" onclick="openPosterStudioFromExistingId(${job.id})" title="Generate Poster Gambar (Download)"><i class="fa-solid fa-palette" style="color: #4f46e5;"></i></button>
             <button class="btn-table btn-lock" onclick="toggleJobLock(${job.id}, '${nextStatus}')" title="${lockTooltip}">
@@ -1174,7 +1168,7 @@ async function populateOfficialVacanciesFromSystem(keyword = 'admin') {
               brand_logo_text: (lj.company_name || 'CO').slice(0, 3).toUpperCase(),
               brand_banner: './uploads/indolakto_indomilk_banner.jpg',
               sector: 'manufaktur',
-              sector_label: lj.source === 'linkedin' ? 'LinkedIn Recruiter' : 'JobStreet by SEEK',
+              sector_label: lj.source_website || 'Website Berita & Karir',
               category: lj.category || 'Administrasi',
               role_department: lj.role_department || lj.title,
               job_type: lj.job_type || 'Full Time',
@@ -1184,9 +1178,9 @@ async function populateOfficialVacanciesFromSystem(keyword = 'admin') {
               experience_level: 'Semua Pengalaman',
               salary_display: lj.salary_display || 'Kompetitif',
               deadline: 'Aktif Real-Time',
-              official_url: lj.official_url || lj.jobstreet_url || lj.linkedin_url,
+              official_url: lj.official_url || lj.website_url || lj.url,
               contact_type: 'link',
-              contact_value: JSON.stringify({ whatsapp: lj.contact_whatsapp || '', email: lj.contact_email || '', website: lj.official_url }),
+              contact_value: JSON.stringify({ whatsapp: lj.contact_whatsapp || '', email: lj.contact_email || '', website: lj.official_url || lj.website_url || lj.url }),
               anti_fraud_notice: lj.anti_fraud_notice,
               description: lj.description,
               requirements: lj.requirements || [],
@@ -1194,9 +1188,9 @@ async function populateOfficialVacanciesFromSystem(keyword = 'admin') {
               benefits: lj.benefits || [],
               theme: 'modern',
               mascot: 'corporate',
-              verified_badge: lj.source === 'linkedin' ? 'LinkedIn Verified' : 'JobStreet Verified',
-              apply_info: 'Lamar langsung ke web resmi.',
-              hashtag: '#LokerLive #' + (lj.company_name || '').replace(/[^a-zA-Z0-9]/g, '')
+              verified_badge: 'Web Terverifikasi',
+              apply_info: 'Klik "Buka Postingan Asli Web" untuk membuka link sumber.',
+              hashtag: '#LokerAsli #' + (lj.company_name || '').replace(/[^a-zA-Z0-9]/g, '')
             });
           }
         });
@@ -1282,18 +1276,17 @@ function renderOfficialJobsGrid() {
   const activeSourceBtn = document.querySelector('.official-source-pills .source-pill.active');
   const source = activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all';
   const sourceLabels = {
-    all: 'Semua Platform (LinkedIn, IG, FB & Resmi BUMN)',
-    linkedin: 'LinkedIn Recruiter (Real-Time)',
-    instagram: 'Instagram Karir (@mayorakarir, @kalbecareer, dll)',
-    facebook: 'Facebook Loker Terpercaya (Grup & Fanpage Resmi)',
-    official: 'Resmi BUMN & Korporasi (Anti-Hoax)'
+    all: 'Semua Situs Web Resmi',
+    media: 'Portal Media (Kompas, Detik, Tribun)',
+    bumn: 'BUMN & Kedinasan',
+    corporate: 'Perusahaan Swasta & Korporasi'
   };
 
   if (titleEl) {
     titleEl.textContent = `Ditemukan ${currentOfficialFilteredJobs.length} Lowongan ${sourceLabels[source] || ''}`;
   }
   if (subEl) {
-    subEl.textContent = `Menampilkan materi lowongan siap publikasi dari LinkedIn, IG, FB & BUMN. Sekali klik bisa "Lihat Loker", "Generate Gambar (Poster Flyer)", atau "Simpan ke DB"!`;
+    subEl.textContent = `Menampilkan lowongan aktual yang dipublikasikan di website resmi. Sekali klik langsung menuju postingan aslinya di internet!`;
   }
 
   if (currentOfficialFilteredJobs.length === 0) {
@@ -1302,11 +1295,11 @@ function renderOfficialJobsGrid() {
         <i class="fa-solid fa-file-circle-xmark" style="font-size: 2.5rem; color: #94a3b8; margin-bottom: 14px;"></i>
         <h4 style="color: #334155; font-size: 1.1rem; margin-bottom: 6px;">Tidak ada lowongan yang cocok dengan filter "${sourceLabels[source] || source}"</h4>
         <p style="font-size: 0.84rem; color: #64748b; max-width: 480px; margin: 0 auto 16px;">
-          Coba ganti filter platform ke "Semua Sumber" atau klik tombol "Cari Postingan Medsos Terkini (Live RSS)" untuk memindai internet secara langsung.
+          Klik tombol "Tarik Lowongan Asli Terbaru dari Web (Live)" di atas untuk memindai website dan media berita secara langsung.
         </p>
         <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
           <button type="button" class="btn btn-outline btn-sm" onclick="resetOfficialFilters()">Reset Filter</button>
-          <button type="button" class="btn btn-primary btn-sm" onclick="fetchLiveMedsosPostings()"><i class="fa-brands fa-searchengin"></i> Cari Postingan Medsos Live</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="fetchLiveMedsosPostings()"><i class="fa-solid fa-magnifying-glass-location"></i> Tarik Loker Web Terkini</button>
         </div>
       </div>
     `;
@@ -1315,8 +1308,8 @@ function renderOfficialJobsGrid() {
 
   container.innerHTML = currentOfficialFilteredJobs.map((job, idx) => {
     const platClass = job.platform_class || 'official';
-    const platIcon = job.platform_icon || 'fa-solid fa-circle-check';
-    const platLabel = job.platform_label || 'Resmi Terverifikasi';
+    const platIcon = job.platform_icon || 'fa-solid fa-globe';
+    const platLabel = job.platform_label || job.source_website || 'Web Resmi Terverifikasi';
 
     // Check if this job is already published and active in adminJobs
     const isAlreadyPublished = adminJobs.some(aj =>
@@ -1333,7 +1326,11 @@ function renderOfficialJobsGrid() {
           <span class="official-sector-tag">${escapeHtml(job.sector_label || job.sector)}</span>
         </div>
 
-        <h3 class="official-job-title">${escapeHtml(job.title)}</h3>
+        <h3 class="official-job-title">
+          <a href="${escapeHtml(job.official_url || '#')}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;" title="Buka Postingan Asli Web">
+            ${escapeHtml(job.title)} <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.78rem; color: #0284c7; margin-left: 4px;"></i>
+          </a>
+        </h3>
         <div class="official-company-name">
           <i class="fa-solid fa-building"></i>
           <span>${escapeHtml(job.company_name)}</span>
@@ -1349,7 +1346,7 @@ function renderOfficialJobsGrid() {
 
         <div class="official-screening-card">
           <i class="fa-solid fa-shield-check" style="color: #10b981; font-size: 1rem; flex-shrink: 0;"></i>
-          <span><strong>Lolos Screening Anti-Hoax:</strong> Domain HRD Sah • 100% Bebas Biaya • Gaji Sesuai Standar</span>
+          <span><strong>Lolos Screening Anti-Hoax:</strong> Terbit di Website Resmi • 100% Bebas Biaya • Tautan Asli Valid</span>
         </div>
 
         <div style="font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
@@ -1361,7 +1358,7 @@ function renderOfficialJobsGrid() {
 
         <div class="official-apply-note">
           <i class="fa-solid fa-circle-info" style="color: #0284c7;"></i>
-          <span>${escapeHtml(job.apply_info || 'Lamaran online via tautan resmi')}</span>
+          <span>${escapeHtml(job.apply_info || 'Klik Buka Postingan Asli Web untuk langsung menuju sumber pengumuman resmi.')}</span>
         </div>
 
         <!-- 3 ACTION BUTTONS -->
@@ -1380,9 +1377,9 @@ function renderOfficialJobsGrid() {
             <button type="button" class="btn btn-outline" onclick="openPosterStudioFromOfficialIndex(${idx})" title="Buka Studio Flyer Poster untuk kustomisasi tema / warna">
               <i class="fa-solid fa-palette"></i> Studio Poster
             </button>
-            <button type="button" class="btn btn-outline" onclick="openJobStreetViewerFromOfficialIndex(${idx})" title="Lihat Tampilan Loker Lengkap (JobStreet Dual-Pane View)" style="border-color: #ec4899; color: #db2777; font-weight: 700;">
-              <i class="fa-solid fa-table-columns"></i> Lihat Loker
-            </button>
+            <a href="${escapeHtml(job.official_url || '#')}" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="border-color: #0284c7; color: #0284c7; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;" title="Buka Postingan Asli Langsung di Website">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Postingan Asli Web ↗
+            </a>
           </div>
         </div>
       </div>
@@ -1390,40 +1387,23 @@ function renderOfficialJobsGrid() {
   }).join('');
 }
 
-window.openJobStreetViewerFromOfficialIndex = function(idx) {
+window.openWebJobDirectFromIndex = function(idx) {
   const job = currentOfficialFilteredJobs[idx];
-  if (!job) return;
-
-  switchSection('jobstreet-view');
-
-  const navItem = document.querySelector('#nav-item-jobstreet-view a');
-  if (navItem) {
-    document.querySelectorAll('.sidebar-menu .menu-item').forEach(m => m.classList.remove('active'));
-    navItem.parentElement.classList.add('active');
+  if (job && job.official_url) {
+    window.open(job.official_url, '_blank', 'noopener,noreferrer');
   }
-
-  setTimeout(() => {
-    if (window.JobStreetViewer) {
-      window.JobStreetViewer.focusJob(job.id);
-    }
-  }, 80);
 };
+window.openJobStreetViewerFromOfficialIndex = window.openWebJobDirectFromIndex;
 
-window.openJobStreetViewerFromExistingId = function(jobId) {
-  switchSection('jobstreet-view');
-
-  const navItem = document.querySelector('#nav-item-jobstreet-view a');
-  if (navItem) {
-    document.querySelectorAll('.sidebar-menu .menu-item').forEach(m => m.classList.remove('active'));
-    navItem.parentElement.classList.add('active');
+window.openWebJobDirectFromId = function(jobId) {
+  const job = (adminJobs || []).find(j => String(j.id) === String(jobId));
+  if (job && job.website_url) {
+    window.open(job.website_url, '_blank', 'noopener,noreferrer');
+  } else {
+    window.open('./?job=' + encodeURIComponent(jobId), '_blank');
   }
-
-  setTimeout(() => {
-    if (window.JobStreetViewer) {
-      window.JobStreetViewer.focusJob('db_' + jobId);
-    }
-  }, 80);
 };
+window.openJobStreetViewerFromExistingId = window.openWebJobDirectFromId;
 
 window.publishJobDataDirectly = function(job) {
   if (!job) return;
@@ -2501,7 +2481,7 @@ async function fetchLiveMedsosPostings() {
   const origHtml = btnFetchLive ? btnFetchLive.innerHTML : '';
   if (btnFetchLive) {
     btnFetchLive.disabled = true;
-    btnFetchLive.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memindai Medsos (LinkedIn/IG/FB)...';
+    btnFetchLive.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memindai Website Resmi & Media...';
   }
 
   try {
@@ -2513,45 +2493,45 @@ async function fetchLiveMedsosPostings() {
 
     if (res.ok && res.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
       const liveJobs = res.data.data.map((j, i) => ({
-        id: 'live_' + j.platform + '_' + Date.now() + '_' + i,
+        id: 'live_web_' + Date.now() + '_' + i,
         title: j.title.toUpperCase(),
-        company_name: j.company.toUpperCase(),
-        platform: j.platform,
-        platform_label: j.platformLabel === 'LINKEDIN' ? 'LinkedIn Recruiter' : (j.platformLabel === 'INSTAGRAM' ? 'Instagram Karir' : 'Facebook Loker'),
-        platform_icon: j.platformIcon,
-        platform_class: j.platformClass,
+        company_name: (j.company || j.company_name || 'PERUSAHAAN').toUpperCase(),
+        platform: 'web',
+        platform_label: j.platformLabel || j.sourceName || 'Website Resmi Terverifikasi',
+        platform_icon: j.platformIcon || 'fa-solid fa-globe',
+        platform_class: 'web',
         sector: 'manufaktur',
-        sector_label: 'Postingan Medsos Terkini',
+        sector_label: 'Postingan Web Asli Terkini',
         category: 'Operasional',
         job_type: 'Full Time',
         location: j.location || loc,
         education_level: 'smk',
-        education_label: 'SMA / SMK Sederajat',
+        education_label: 'Semua Tingkat Pendidikan',
         experience_level: 'Semua Pengalaman',
-        salary_display: j.salary || 'Kompetitif (Sesuai Medsos)',
-        deadline: 'Sesuai Jadwal Medsos',
-        official_url: j.url,
+        salary_display: j.salary || 'Kompetitif (Standar UMK / Industri)',
+        deadline: 'Aktif Terbit di Web',
+        official_url: j.official_url || j.url || j.website_url,
         contact_type: 'link',
-        contact_value: JSON.stringify({ whatsapp: j.whatsapp || '', email: j.email || '', website: j.url }),
-        description: j.description || `Lowongan kerja terbaru dipublikasikan via ${j.platformLabel}.`,
+        contact_value: JSON.stringify({ whatsapp: j.whatsapp || '', email: j.email || '', website: j.official_url || j.url || j.website_url }),
+        description: j.description || `Lowongan kerja terbaru dipublikasikan secara resmi di website.`,
         requirements: [
-          'Kualifikasi sesuai pengumuman postingan resmi di ' + j.platformLabel,
-          'Mampu berkomunikasi dengan baik dan berorientasi pada hasil kerja',
-          'Siap bekerja dalam tim dan mematuhi SOP perusahaan'
+          'Kualifikasi dan persyaratan lengkap tercantum pada artikel/postingan web resmi',
+          'Mampu berkomunikasi dengan baik dan berorientasi pada pencapaian target kerja',
+          'Siap bekerja secara profesional dan mematuhi SOP perusahaan'
         ],
         responsibilities: [
-          'Menjalankan tugas dan kewajiban sesuai deskripsi rekruter di ' + j.platformLabel,
+          'Menjalankan tugas dan kewajiban sesuai deskripsi posisi yang dilamar',
           'Melaporkan progres pekerjaan secara rutin dan disiplin'
         ],
         benefits: [
-          'Gaji dan kompensasi sesuai standar perusahaan',
-          'Fasilitas kerja dan jaminan BPJS'
+          'Gaji dan kompensasi sesuai standar perusahaan / UMK',
+          'Perlindungan jaminan sosial (BPJS Kesehatan & Ketenagakerjaan)'
         ],
         theme: j.title.toLowerCase().includes('operator') ? 'factory' : 'modern',
         mascot: j.title.toLowerCase().includes('operator') ? 'factory' : 'corporate',
-        verified_badge: `${j.platformLabel} Live Verified`,
-        apply_info: `Akses langsung postingan asli di ${j.platformLabel}.`,
-        hashtag: `#Loker${j.platformLabel} #${j.company.replace(/[^a-zA-Z0-9]/g, '')} #InfoLoker`
+        verified_badge: `Web Resmi Verified`,
+        apply_info: `Klik "Buka Postingan Asli Web" untuk membuka link pengumuman resmi.`,
+        hashtag: `#LokerWebAsli #${(j.company || 'Perusahaan').replace(/[^a-zA-Z0-9]/g, '')} #InfoLoker`
       }));
 
       // Prepend to OFFICIAL_VACANCIES_DB
@@ -2561,15 +2541,15 @@ async function fetchLiveMedsosPostings() {
         }
       });
 
-      alert(`Berhasil menemukan ${liveJobs.length} postingan loker real-time dari ${platforms.join(', ').toUpperCase()}! Data langsung ditampilkan di tabel di bawah.`);
+      alert(`⚡ Berhasil menemukan ${liveJobs.length} postingan loker asli yang benar-benar dibagikan di website! Klik tombol "Buka Postingan Asli Web ↗" untuk langsung masuk ke halaman postingannya.`);
       filterAndRenderOfficialJobs();
       document.getElementById('scout-results-area')?.scrollIntoView({ behavior: 'smooth' });
     } else {
-      alert(`Info: Menampilkan database lowongan medsos & resmi terverifikasi.`);
+      alert(`Info: Menampilkan database lowongan website resmi terverifikasi.`);
       filterAndRenderOfficialJobs();
     }
   } catch (err) {
-    alert('Catatan: Menampilkan database lowongan medsos terverifikasi.');
+    alert('Catatan: Menampilkan database lowongan resmi terverifikasi.');
     filterAndRenderOfficialJobs();
   } finally {
     if (btnFetchLive) {

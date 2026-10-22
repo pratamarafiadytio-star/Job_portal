@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <link rel="stylesheet" href="./css/admin.css">
-  <link rel="stylesheet" href="./css/jobstreet.css">
   <!-- Supabase JS Client for Online Cloud Operation -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- QRCode.js for generating scannable QR Codes on posters -->
@@ -105,16 +104,9 @@
         </li>
         <li class="menu-item">
           <a href="#sosmed-generator">
-            <i class="fa-solid fa-certificate" style="color: #10b981;"></i>
-            <span>Loker Resmi & Poster</span>
-            <span class="menu-pill-sparkle" style="background: linear-gradient(135deg, #10b981, #06b6d4);">RESMI</span>
-          </a>
-        </li>
-        <li class="menu-item" id="nav-item-jobstreet-view">
-          <a href="#jobstreet-view">
-            <i class="fa-solid fa-table-columns" style="color: #0a66c2;"></i>
-            <span>Pratinjau (JobStreet & LinkedIn)</span>
-            <span class="menu-pill-sparkle" style="background: linear-gradient(135deg, #0a66c2, #e11d48); color: white;">DUAL</span>
+            <i class="fa-solid fa-globe" style="color: #0284c7;"></i>
+            <span>Scout Loker Asli Web</span>
+            <span class="menu-pill-sparkle" style="background: linear-gradient(135deg, #0284c7, #10b981); color: white;">WEB ASLI</span>
           </a>
         </li>
         <li class="menu-item">
@@ -578,19 +570,19 @@
         </section>
 
         <!-- ========================================== -->
-        <!-- SECTION 4: GENERATOR LOKER RESMI & POSTER  -->
+        <!-- SECTION 4: SCOUT & GENERATOR LOKER WEB ASLI-->
         <!-- ========================================== -->
         <section id="section-sosmed-generator" style="display: none;">
           <div class="panel">
-            <div class="panel-header" style="background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(10,102,194,0.08), rgba(225,48,108,0.08));">
+            <div class="panel-header" style="background: linear-gradient(135deg, rgba(2,132,199,0.08), rgba(16,185,129,0.08));">
               <div>
                 <div class="panel-title" style="display: flex; align-items: center; gap: 8px;">
-                  <i class="fa-solid fa-satellite-dish" style="color: #4f46e5;"></i>
-                  <span>Generator Lowongan Multi-Platform (LinkedIn, IG, Facebook & Resmi) & Studio Poster</span>
-                  <span class="badge badge-success" style="font-size: 0.72rem; padding: 3px 8px; background: #059669; color: white;"><i class="fa-solid fa-bolt"></i> MEDSOS & RESMI AKTIF</span>
+                  <i class="fa-solid fa-globe" style="color: #0284c7;"></i>
+                  <span>Scout & Generator Lowongan Asli dari Web Resmi (Portal Berita & Karir Perusahaan)</span>
+                  <span class="badge badge-success" style="font-size: 0.72rem; padding: 3px 8px; background: #0284c7; color: white;"><i class="fa-solid fa-bolt"></i> WEB AKTUAL REAL-TIME</span>
                 </div>
                 <p style="font-size: 0.84rem; color: var(--text-muted); margin-top: 4px;">
-                  Hasilkan lowongan kerja tervalidasi dari <strong>LinkedIn Recruiter</strong>, <strong>Instagram Karir</strong>, <strong>Facebook Loker</strong>, serta <strong>BUMN & Korporasi</strong>. Sekali klik bisa langsung <strong>"Lihat Loker"</strong>, <strong>"Generate Gambar (Poster Flyer)"</strong>, dan <strong>"Simpan ke Database"</strong>!
+                  Ambil lowongan kerja aktual yang benar-benar dipublikasikan di website (Kompas Karir, Detik Finance, Tribunnews, BUMN & Karir Korporasi). Saat diklik, tombol <strong>"Buka Postingan Asli Web"</strong> akan langsung mengarahkan pengunjung ke halaman artikel/postingan aslinya di internet!
                 </p>
               </div>
             </div>
@@ -599,29 +591,26 @@
               <!-- CONTROLS -->
               <div class="scout-controls-card">
 
-                <!-- PLATFORM / SUMBER SELECTOR PILLS (LINKEDIN, IG, FB, RESMI) -->
+                <!-- PLATFORM / SUMBER SELECTOR PILLS -->
                 <div style="margin-bottom: 14px;">
                   <div style="font-size: 0.82rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                      <i class="fa-solid fa-share-nodes" style="color: #6366f1;"></i> Pilih Sumber Platform Lowongan:
+                      <i class="fa-solid fa-filter" style="color: #0284c7;"></i> Pilih Sumber Web Resmi:
                     </div>
-                    <span style="font-size: 0.74rem; color: var(--text-muted);">Mendukung Postingan Real-Time Facebook, Instagram & LinkedIn</span>
+                    <span style="font-size: 0.74rem; color: var(--text-muted);">Tautan langsung ke artikel & postingan asli di website</span>
                   </div>
                   <div class="official-source-pills" id="official-source-pills" style="display: flex; gap: 8px; flex-wrap: wrap;">
                     <button type="button" class="source-pill active" data-source="all">
-                      <i class="fa-solid fa-globe"></i> Semua Sumber (Resmi + Medsos)
+                      <i class="fa-solid fa-globe"></i> Semua Situs Web Resmi
                     </button>
-                    <button type="button" class="source-pill pill-linkedin" data-source="linkedin">
-                      <i class="fa-brands fa-linkedin" style="color: #0a66c2;"></i> LinkedIn Recruiter
+                    <button type="button" class="source-pill pill-media" data-source="media">
+                      <i class="fa-solid fa-newspaper" style="color: #0284c7;"></i> Portal Media (Kompas, Detik, Tribun)
                     </button>
-                    <button type="button" class="source-pill pill-instagram" data-source="instagram">
-                      <i class="fa-brands fa-instagram" style="color: #e1306c;"></i> Instagram Karir
+                    <button type="button" class="source-pill pill-bumn" data-source="bumn">
+                      <i class="fa-solid fa-landmark" style="color: #10b981;"></i> BUMN & Kedinasan
                     </button>
-                    <button type="button" class="source-pill pill-facebook" data-source="facebook">
-                      <i class="fa-brands fa-facebook" style="color: #1877f2;"></i> Facebook Loker
-                    </button>
-                    <button type="button" class="source-pill pill-official" data-source="official">
-                      <i class="fa-solid fa-building-circle-check" style="color: #10b981;"></i> Resmi BUMN & Korporasi
+                    <button type="button" class="source-pill pill-official" data-source="corporate">
+                      <i class="fa-solid fa-building-circle-check" style="color: #6366f1;"></i> Perusahaan Swasta & Korporasi
                     </button>
                   </div>
                 </div>
@@ -684,13 +673,13 @@
                 <!-- ACTION BUTTONS -->
                 <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
                   <button type="button" class="btn btn-primary" id="btn-generate-official-jobs" style="padding: 10px 22px; font-weight: 700;">
-                    <i class="fa-solid fa-bolt"></i> Generate & Tampilkan Loker
+                    <i class="fa-solid fa-filter"></i> Filter / Tampilkan Loker Web
                   </button>
-                  <button type="button" class="btn btn-outline" id="btn-fetch-live-scout" style="padding: 10px 18px; font-weight: 700; border-color: #6366f1; color: #4f46e5; background: #f5f3ff;">
-                    <i class="fa-brands fa-searchengin"></i> Cari Postingan Medsos Terkini (Live RSS)
+                  <button type="button" class="btn btn-outline" id="btn-fetch-live-scout" style="padding: 10px 18px; font-weight: 700; border-color: #0284c7; color: #0284c7; background: #f0f9ff;">
+                    <i class="fa-solid fa-magnifying-glass-location"></i> Tarik Lowongan Asli Terbaru dari Web (Live)
                   </button>
                   <button type="button" class="btn btn-outline" id="btn-toggle-scout-sosmed" style="font-size: 0.84rem;">
-                    <i class="fa-solid fa-share-nodes"></i> Buka Opsi Dorking Medsos (LinkedIn/IG/FB)
+                    <i class="fa-solid fa-sliders"></i> Filter Lanjutan / Google Query
                   </button>
                 </div>
 
@@ -700,12 +689,12 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
                       <div style="display: flex; align-items: center; gap: 8px;">
                         <span class="badge" style="background: #eef2ff; color: #4f46e5; font-weight: 700; font-size: 0.76rem; border: 1px solid #c7d2fe;">
-                          <i class="fa-brands fa-google"></i> Google Dorking Engine
+                          <i class="fa-brands fa-google"></i> Web & Portal Query Engine
                         </span>
-                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 500;">Query Pencarian Medsos Otomatis:</span>
+                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 500;">Pencarian Website Karir Otomatis:</span>
                       </div>
                       <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn btn-outline btn-xs" id="btn-copy-dork" title="Salin Query Dork ke Clipboard">
+                        <button type="button" class="btn btn-outline btn-xs" id="btn-copy-dork" title="Salin Query ke Clipboard">
                           <i class="fa-regular fa-copy"></i> Salin Query
                         </button>
                         <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-xs" id="btn-open-dork-direct" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
@@ -714,7 +703,7 @@
                       </div>
                     </div>
                     <div>
-                      <input type="text" id="live-dork-query" class="form-input" readonly style="background: #f8fafc; font-family: monospace; font-size: 0.86rem; color: #1e1b4b; cursor: pointer;" value='(site:linkedin.com/posts OR site:instagram.com OR site:facebook.com) "lowongan"'>
+                      <input type="text" id="live-dork-query" class="form-input" readonly style="background: #f8fafc; font-family: monospace; font-size: 0.86rem; color: #1e1b4b; cursor: pointer;" value='(site:kompas.com OR site:detik.com OR site:tribunnews.com OR site:bisnis.com) "lowongan kerja"'>
                     </div>
                   </div>
                 </div>
@@ -728,9 +717,9 @@
                 <div class="scout-results-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 20px;">
                   <div class="results-stats-left">
                     <span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Siap Digunakan & Diunduh</span>
-                    <h3 id="scout-results-summary-title" style="margin-top: 6px; font-size: 1.25rem;">Daftar Lowongan Resmi Terverifikasi</h3>
+                    <h3 id="scout-results-summary-title" style="margin-top: 6px; font-size: 1.25rem;">Daftar Lowongan Asli Web Resmi Terverifikasi</h3>
                     <p id="scout-results-summary-sub" style="font-size: 0.84rem; color: var(--text-muted);">
-                      Pilih loker, klik <strong>"Lihat Loker"</strong> untuk membuka web resmi, klik <strong>"Generate Poster & Terbitkan (Gas!)"</strong> untuk langsung mempublikasikan ke portal dengan flyer otomatis, atau <strong>"Studio Poster"</strong> untuk kustomisasi gambar!
+                      Pilih lowongan, klik <strong>"Buka Postingan Asli Web ↗"</strong> untuk langsung menuju artikel/website sumber rekrutmen asli, klik <strong>"Generate Poster & Terbitkan (Gas!)"</strong> untuk mempublikasikan ke portal dengan flyer otomatis, atau <strong>"Studio Poster"</strong> untuk kustomisasi gambar!
                     </p>
                   </div>
                   <div class="results-actions-right">
@@ -749,13 +738,6 @@
 
             </div>
           </div>
-        </section>
-
-        <!-- ========================================== -->
-        <!-- SECTION 5: PRATINJAU LOKER DUAL-PANE VIEW  -->
-        <!-- ========================================== -->
-        <section id="section-jobstreet-view" style="display: none;">
-          <div id="admin-jobstreet-target"></div>
         </section>
 
         <!-- ========================================== -->
@@ -1249,7 +1231,6 @@
   <!-- HIDDEN QR CODE HOLDER -->
   <div id="poster-qrcode-temp" style="display: none;"></div>
 
-  <script src="./js/jobstreet.js"></script>
   <script src="./js/admin.js"></script>
 </body>
 </html>

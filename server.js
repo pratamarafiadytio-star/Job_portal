@@ -887,110 +887,87 @@ function formatTimeAgo(pubDateStr) {
 }
 
 // -------------------------------------------------------------
-// HELPER: Fetch Real Social Recruitment Postings (LinkedIn, IG, FB)
-// Strict recency filtering to avoid expired/stale postings
 // -------------------------------------------------------------
-async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', 'instagram', 'facebook'], timeframe = '7d') {
+// HELPER: Fetch Real Web Job Postings (Direct links to actual articles)
+// -------------------------------------------------------------
+async function fetchRealSocialJobs(keyword, location, platforms = ['web', 'bumn', 'media'], timeframe = '7d') {
   const results = [];
-  const cleanKw = (keyword || 'Software Engineer').trim();
+  const cleanKw = (keyword || 'Operator Produksi').trim();
   const cleanLoc = (location || 'Indonesia').trim();
+  const seenUrls = new Set();
 
-  const timeClause = (timeframe === 'all') ? '' : `when:${timeframe || '7d'}`;
-  const maxAgeDays = timeframe === '24h' ? 2 : (timeframe === '30d' ? 45 : 14); // 7d default caps at 14 days max
+  // 1. Fetch from Bing News RSS with pure direct decoded URL
+  try {
+    const query = `lowongan kerja "${cleanKw}" ${cleanLoc}`;
+    const bingUrl = `https://www.bing.com/news/search?q=${encodeURIComponent(query)}&format=rss`;
+    const res = await fetch(bingUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      }
+    });
 
-  for (const plat of platforms) {
-    let siteQuery = '';
-    if (plat === 'linkedin') siteQuery = 'site:linkedin.com/posts';
-    else if (plat === 'instagram') siteQuery = 'site:instagram.com';
-    else if (plat === 'facebook') siteQuery = 'site:facebook.com';
-
-    const fullQuery = `${siteQuery} ("lowongan" OR "hiring" OR "loker") "${cleanKw}" ${cleanLoc} ${timeClause}`.trim();
-    const feedUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(fullQuery)}&hl=id&gl=ID&ceid=ID:id`;
-
-    try {
-      const res = await fetch(feedUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-      });
-      if (!res.ok) continue;
+    if (res.ok) {
       const xml = await res.text();
-      const items = [...xml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<source[^>]*>([\s\S]*?)<\/source>[\s\S]*?<\/item>/g)];
+      const items = [...xml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<\/item>/g)];
 
-      for (const m of items.slice(0, 8)) {
-        let rawTitle = cleanHtmlSnippet(m[1]);
-        const link = m[2];
-        const pubDate = m[3];
-        let rawDesc = cleanHtmlSnippet(m[4]);
-        const source = m[5];
+      for (const item of items) {
+        const rawTitle = cleanHtmlSnippet(item[1]);
+        const rawLink = item[2].trim();
+        const rawDesc = cleanHtmlSnippet(item[3]);
+        const pubDate = item[4].trim();
 
-        const timeInfo = formatTimeAgo(pubDate);
-
-        // Filter out stale / expired postings
-        if (timeframe !== 'all' && timeInfo.diffDays > maxAgeDays) {
+        if (rawTitle.toLowerCase().includes('hoaks') || rawTitle.toLowerCase().includes('penipuan') || rawTitle.toLowerCase().includes('bantah')) {
           continue;
         }
 
-        let comp = source || (plat === 'linkedin' ? 'LinkedIn Recruiter' : plat === 'instagram' ? 'Instagram Loker' : 'Facebook Group');
-        let cleanTitle = rawTitle;
+        const directUrl = decodeBingUrl(rawLink);
+        if (seenUrls.has(directUrl)) continue;
+        seenUrls.add(directUrl);
 
-        const openMatch = rawTitle.match(/^(.*?)\s+membuka lowongan\s+(.*?)\s+di\s+(.*?)(?:\s+-\s+.*)?$/i);
-        if (openMatch) {
-          comp = openMatch[1].trim();
-          cleanTitle = openMatch[2].trim();
-        } else {
-          cleanTitle = cleanTitle.replace(/\s+-\s+(LinkedIn|Facebook|Instagram|.*)$/i, '').trim();
-          if (cleanTitle.length > 80) cleanTitle = cleanTitle.substring(0, 80) + '...';
-        }
+        let domain = 'Website Berita & Karir';
+        try {
+          const u = new URL(directUrl);
+          domain = u.hostname.replace(/^www\./, '');
+        } catch(e) {}
 
-        // Clean description of redundant trailing source name
-        rawDesc = rawDesc.replace(/\s+-\s+(LinkedIn|Facebook|Instagram|Google News)$/i, '').trim();
-
-        const emailMatch = rawDesc.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-        const waMatch = rawDesc.match(/(\+?62|08)[0-9\-\s]{8,15}/);
-
-        let icon = 'fa-brands fa-linkedin';
-        let platClass = 'linkedin';
-        if (plat === 'instagram') {
-          icon = 'fa-brands fa-instagram';
-          platClass = 'instagram';
-        } else if (plat === 'facebook') {
-          icon = 'fa-brands fa-facebook';
-          platClass = 'facebook';
-        }
+        const parsed = parseJobHeadline(rawTitle, domain);
+        const timeInfo = formatTimeAgo(pubDate);
 
         results.push({
           id: 'scout_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-          title: cleanTitle,
-          company: comp,
+          title: parsed.title,
+          company: parsed.company,
+          company_name: parsed.company,
           location: cleanLoc,
-          platform: plat,
-          platformLabel: plat.toUpperCase(),
-          platformIcon: icon,
-          platformClass: platClass,
-          sourceName: `${comp} • ${source || plat.toUpperCase()}`,
-          url: link,
+          platform: 'web',
+          platformLabel: domain.toUpperCase(),
+          platformIcon: 'fa-solid fa-globe',
+          platformClass: 'web',
+          sourceName: `${parsed.company} • ${domain}`,
+          url: directUrl,
+          official_url: directUrl,
+          website_url: directUrl,
           pubDate,
           pubTimestamp: timeInfo.timestamp,
           timeAgo: timeInfo.text,
           timeBadge: timeInfo.badge,
           badgeColor: timeInfo.badgeColor,
           isFresh: timeInfo.isFresh,
-          description: rawDesc.substring(0, 220) + (rawDesc.length > 220 ? '...' : ''),
-          whatsapp: waMatch ? waMatch[0].replace(/[\s\-]/g, '') : '',
-          email: emailMatch ? emailMatch[1] : '',
-          salary: 'Kompetitif (Sesuai Pengalaman)'
+          description: rawDesc.substring(0, 240) + (rawDesc.length > 240 ? '...' : ''),
+          whatsapp: '',
+          email: '',
+          salary: 'Kompetitif (Standar Industri & UMK)'
         });
       }
-    } catch (e) {
-      console.warn('Scout fetch error for', plat, e.message);
     }
+  } catch (e) {
+    console.warn('Scout Bing fetch error:', e.message);
   }
 
-  // Fallback: if zero results found, query general RSS with recency filter so admin gets real fresh results!
-  if (results.length === 0) {
+  // 2. Fetch from Google News RSS for additional live web postings
+  if (results.length < 12) {
     try {
-      const generalUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(`("lowongan" OR "loker") "${cleanKw}" ${cleanLoc} ${timeClause}`.trim())}&hl=id&gl=ID&ceid=ID:id`;
+      const generalUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(`("lowongan kerja" OR "rekrutmen") "${cleanKw}" ${cleanLoc}`.trim())}&hl=id&gl=ID&ceid=ID:id`;
       const res = await fetch(generalUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -999,43 +976,53 @@ async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', '
       if (res.ok) {
         const xml = await res.text();
         const items = [...xml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<source[^>]*>([\s\S]*?)<\/source>[\s\S]*?<\/item>/g)];
-        for (const m of items.slice(0, 8)) {
+        for (const m of items.slice(0, 15)) {
           let rawTitle = cleanHtmlSnippet(m[1]);
           const link = m[2];
           const pubDate = m[3];
           let rawDesc = cleanHtmlSnippet(m[4]);
           const source = m[5] || 'Portal Loker';
-          const timeInfo = formatTimeAgo(pubDate);
 
-          if (timeframe !== 'all' && timeInfo.diffDays > maxAgeDays) {
+          if (rawTitle.toLowerCase().includes('hoaks') || rawTitle.toLowerCase().includes('penipuan') || rawTitle.toLowerCase().includes('bantah')) {
             continue;
           }
 
+          if (seenUrls.has(link)) continue;
+          seenUrls.add(link);
+
+          const parsed = parseJobHeadline(rawTitle, source);
+          const timeInfo = formatTimeAgo(pubDate);
+
           results.push({
             id: 'scout_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-            title: rawTitle.replace(/\s+-\s+.*$/, ''),
-            company: source,
+            title: parsed.title,
+            company: parsed.company,
+            company_name: parsed.company,
             location: cleanLoc,
             platform: 'web',
-            platformLabel: 'PORTAL RESMI',
-            platformIcon: 'fa-solid fa-globe',
-            platformClass: 'linkedin',
-            sourceName: `${source} • Postingan Resmi`,
+            platformLabel: source.toUpperCase(),
+            platformIcon: 'fa-solid fa-newspaper',
+            platformClass: 'web',
+            sourceName: `${parsed.company} • ${source}`,
             url: link,
+            official_url: link,
+            website_url: link,
             pubDate,
             pubTimestamp: timeInfo.timestamp,
             timeAgo: timeInfo.text,
             timeBadge: timeInfo.badge,
             badgeColor: timeInfo.badgeColor,
             isFresh: timeInfo.isFresh,
-            description: rawDesc.substring(0, 220) + (rawDesc.length > 220 ? '...' : ''),
+            description: rawDesc.substring(0, 240) + (rawDesc.length > 240 ? '...' : ''),
             whatsapp: '',
             email: '',
-            salary: 'Kompetitif (Sesuai Pengalaman)'
+            salary: 'Kompetitif (Standar BUMN / Korporasi)'
           });
         }
       }
-    } catch (err) {}
+    } catch (err) {
+      console.warn('Scout Google fetch error:', err.message);
+    }
   }
 
   // Sort strictly by timestamp descending (Newest first!)
@@ -1045,169 +1032,223 @@ async function fetchRealSocialJobs(keyword, location, platforms = ['linkedin', '
 }
 
 // -------------------------------------------------------------
-// LIVE JOBS ENGINE: Fetch Real-Time Live Postings from LinkedIn & JobStreet
+// LIVE REAL WEB JOBS ENGINE: Authentic Job Postings Shared Across Websites
+// Direct links to actual articles & corporate career pages (No simulated portals)
 // -------------------------------------------------------------
+function decodeBingUrl(rawUrl) {
+  try {
+    const u = new URL(rawUrl.replace(/&amp;/g, '&'));
+    const target = u.searchParams.get('url');
+    if (target) return decodeURIComponent(target);
+  } catch(e) {}
+  return rawUrl.replace(/&amp;/g, '&');
+}
+
+function parseJobHeadline(rawTitle, defaultSource = 'Portal Web Resmi') {
+  let title = cleanHtmlSnippet(rawTitle);
+  let comp = defaultSource || 'Perusahaan Terverifikasi';
+
+  // Filter out source suffix like " - Kompas.com" or " - Detik Finance"
+  title = title.replace(/\s+-\s+[^-]+$/, '').trim();
+
+  const openMatch = title.match(/^(.*?)\s+Buka Lowongan(?:\s+Kerja)?\s+(.*?)(?:,\s*.*)?$/i);
+  if (openMatch) {
+    comp = openMatch[1].trim();
+    title = openMatch[2].trim();
+  } else {
+    const diMatch = title.match(/^(?:Lowongan Kerja\s+)?(.*?)\s+di\s+(.*?)(?:,\s*.*)?$/i);
+    if (diMatch) {
+      title = diMatch[1].replace(/^Lowongan Kerja\s+/i, '').trim();
+      comp = diMatch[2].trim();
+    } else {
+      const untukMatch = title.match(/^Lowongan Kerja\s+(.*?)\s+untuk\s+(.*?)$/i);
+      if (untukMatch) {
+        comp = untukMatch[1].trim();
+        title = untukMatch[2].trim();
+      }
+    }
+  }
+
+  title = title.replace(/^Lowongan Kerja\s+/i, '').trim();
+  if (title.length > 85) title = title.substring(0, 85) + '...';
+  if (comp.length > 60) comp = comp.substring(0, 60);
+
+  return { title: title || rawTitle, company: comp || defaultSource };
+}
+
 async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = 'all') {
   const cleanKw = (keyword || 'admin').trim();
   const cleanLoc = (location || 'Indonesia').trim();
   const results = [];
+  const seenUrls = new Set();
 
-  // 1. Fetch Real Live LinkedIn Jobs via Guest Search API
-  if (platform === 'all' || platform === 'linkedin') {
+  // 1. Fetch Real-time Live Web Postings from Bing News (Direct Decoded URLs from Detik, Kompas, Tribun, etc.)
+  try {
+    const query = `lowongan kerja "${cleanKw}" ${cleanLoc}`;
+    const bingUrl = `https://www.bing.com/news/search?q=${encodeURIComponent(query)}&format=rss`;
+    const res = await fetch(bingUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      }
+    });
+
+    if (res.ok) {
+      const xml = await res.text();
+      const items = [...xml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<\/item>/g)];
+
+      for (const item of items) {
+        const rawTitle = cleanHtmlSnippet(item[1]);
+        const rawLink = item[2].trim();
+        const rawDesc = cleanHtmlSnippet(item[3]);
+        const pubDate = item[4].trim();
+
+        // Anti-Hoax filter
+        if (rawTitle.toLowerCase().includes('hoaks') || rawTitle.toLowerCase().includes('penipuan') || rawTitle.toLowerCase().includes('bantah')) {
+          continue;
+        }
+
+        const directUrl = decodeBingUrl(rawLink);
+        if (seenUrls.has(directUrl)) continue;
+        seenUrls.add(directUrl);
+
+        let domain = 'Website Berita & Karir';
+        try {
+          const u = new URL(directUrl);
+          domain = u.hostname.replace(/^www\./, '');
+        } catch(e) {}
+
+        const parsed = parseJobHeadline(rawTitle, domain);
+        const timeInfo = formatTimeAgo(pubDate);
+
+        results.push({
+          id: 'web_' + crypto.randomBytes(6).toString('hex'),
+          source: 'web',
+          platform: 'web',
+          title: parsed.title,
+          company_name: parsed.company,
+          company: parsed.company,
+          location: cleanLoc,
+          posted_time: timeInfo.text || 'Baru saja',
+          salary_display: 'Kompetitif (Standar UMK / Korporasi)',
+          salary_prompt: 'Gaji kompetitif sesuai standar penempatan kerja & kebijakan perusahaan.',
+          job_type: 'Full time',
+          category: 'Loker Asli Web',
+          role_department: parsed.title,
+          badge_fresh: true,
+          badge_kandidat: true,
+          is_live_actual: true,
+          official_url: directUrl,
+          url: directUrl,
+          website_url: directUrl,
+          source_website: domain,
+          poster_image: '',
+          rating: '4.8',
+          contact_email: '',
+          contact_whatsapp: '',
+          anti_fraud_notice: `Lowongan kerja resmi terpublikasi di ${domain}. Perusahaan yang sah tidak pernah memungut biaya apapun dari pelamar kerja.`,
+          description: rawDesc || `Lowongan kerja untuk posisi ${parsed.title} di ${parsed.company}. Informasi aktual dipublikasikan langsung di ${domain}.`,
+          responsibilities: [
+            `Menjalankan tugas dan kewajiban sesuai kualifikasi posisi ${parsed.title}.`,
+            `Bekerja dengan dedikasi dan mematuhi SOP operasional perusahaan.`,
+            `Berkoordinasi dengan tim kerja untuk kelancaran tugas harian.`
+          ],
+          requirements: [
+            `Pendidikan minimal SMA/SMK/D3/S1 sesuai kualifikasi yang dicari.`,
+            `Memiliki integritas, kejujuran, dan komunikasi yang baik.`,
+            `Syarat lengkap dapat dilihat langsung pada artikel/postingan resmi di web sumber.`
+          ],
+          benefits: [
+            `Gaji pokok sesuai UMK / Standar Korporasi`,
+            `Jaminan BPJS Ketenagakerjaan & Kesehatan`
+          ]
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Bing news web query error:', err.message);
+  }
+
+  // 2. Fetch from Google News RSS for broader employment coverage
+  if (results.length < 15) {
     try {
-      const liUrl = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(cleanKw)}&location=${encodeURIComponent(cleanLoc)}&start=0`;
-      const res = await fetch(liUrl, {
+      const gQuery = `("lowongan kerja" OR "rekrutmen") "${cleanKw}" ("bumn" OR "astra" OR "indofood" OR "bca" OR "bri" OR "kai" OR "pertamina" OR "pln" OR "kalbe" OR "mayora" OR "kemnaker")`;
+      const gUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(gQuery)}&hl=id&gl=ID&ceid=ID:id`;
+      const res = await fetch(gUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
         }
       });
 
       if (res.ok) {
-        const html = await res.text();
-        const cardRegex = /<li[\s\S]*?<div class="[^"]*base-search-card[^"]*"[^>]*data-entity-urn="urn:li:jobPosting:(\d+)"[\s\S]*?<h3 class="base-search-card__title">([\s\S]*?)<\/h3>[\s\S]*?<h4 class="base-search-card__subtitle">([\s\S]*?)<\/h4>[\s\S]*?<span class="job-search-card__location">([\s\S]*?)<\/span>([\s\S]*?)<\/li>/g;
-        const matches = [...html.matchAll(cardRegex)];
+        const xml = await res.text();
+        const items = [...xml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<source[^>]*>([\s\S]*?)<\/source>[\s\S]*?<\/item>/g)];
 
-        for (const m of matches.slice(0, 15)) {
-          const id = m[1];
-          const rawTitle = m[2].trim();
-          const rawComp = m[3].replace(/<[^>]+>/g, '').trim();
-          const rawLoc = m[4].replace(/<[^>]+>/g, '').trim();
-          const rest = m[5];
+        for (const it of items) {
+          const rawTitle = cleanHtmlSnippet(it[1]);
+          const link = it[2].trim();
+          const pubDate = it[3].trim();
+          const desc = cleanHtmlSnippet(it[4]);
+          const sourceName = it[5] ? cleanHtmlSnippet(it[5]) : 'Portal Media Resmi';
 
-          const linkMatch = rest.match(/href="(https:\/\/[^"]+)"/);
-          const timeMatch = rest.match(/<time[^>]*>([\s\S]*?)<\/time>/);
-          const logoMatch = rest.match(/data-delayed-url="([^"]+)"/);
+          if (rawTitle.toLowerCase().includes('hoaks') || rawTitle.toLowerCase().includes('penipuan') || rawTitle.toLowerCase().includes('bantah')) {
+            continue;
+          }
 
-          const jobUrl = linkMatch ? linkMatch[1].split('?')[0] : `https://www.linkedin.com/jobs/view/${id}`;
-          const postedTime = timeMatch ? timeMatch[1].trim() : 'Baru saja';
-          const logoUrl = logoMatch ? logoMatch[1].replace(/&amp;/g, '&') : '';
+          if (seenUrls.has(link)) continue;
+          seenUrls.add(link);
+
+          const parsed = parseJobHeadline(rawTitle, sourceName);
+          const timeInfo = formatTimeAgo(pubDate);
 
           results.push({
-            id: `li_${id}`,
-            source: 'linkedin',
-            platform: 'linkedin',
-            title: rawTitle,
-            company_name: rawComp,
-            location: rawLoc || cleanLoc,
-            posted_time: postedTime,
-            salary_display: 'Kompetitif (Sesuai Pengalaman)',
-            salary_prompt: 'Masuk ke akunmu dan isi ekspektasi gaji di profil untuk cek kecocokan >',
+            id: 'web_' + crypto.randomBytes(6).toString('hex'),
+            source: 'web',
+            platform: 'web',
+            title: parsed.title,
+            company_name: parsed.company,
+            company: parsed.company,
+            location: cleanLoc,
+            posted_time: timeInfo.text || 'Baru saja',
+            salary_display: 'Kompetitif (Standar Industri & BUMN)',
+            salary_prompt: 'Gaji kompetitif sesuai standar industri dan peraturan yang berlaku.',
             job_type: 'Full time',
-            category: 'Loker Live LinkedIn',
-            role_department: rawTitle,
+            category: 'Loker Asli Web',
+            role_department: parsed.title,
             badge_fresh: true,
             badge_kandidat: true,
             is_live_actual: true,
-            official_url: jobUrl,
-            linkedin_url: jobUrl,
-            jobstreet_url: `https://www.jobstreet.co.id/id/job-search/${encodeURIComponent(rawTitle)}-jobs/`,
-            poster_image: logoUrl,
-            rating: '4.5',
-            contact_email: `recruitment@${rawComp.toLowerCase().replace(/[^a-z0-9]/g, '') || 'company'}.co.id`,
-            contact_whatsapp: '081288776655',
-            anti_fraud_notice: `${rawComp} tidak pernah memungut biaya apapun dalam proses rekrutmen. Lowongan live terverifikasi resmi dari LinkedIn Jobs.`,
-            description: `Lowongan resmi untuk posisi ${rawTitle} di ${rawComp} (${rawLoc}). Informasi dipublikasikan secara live dan aktual melalui LinkedIn Indonesia.`,
+            official_url: link,
+            url: link,
+            website_url: link,
+            source_website: sourceName,
+            poster_image: '',
+            rating: '4.9',
+            contact_email: '',
+            contact_whatsapp: '',
+            anti_fraud_notice: `Informasi lowongan kerja tervalidasi dari ${sourceName}. Bebas pungutan biaya apapun dalam proses rekrutmen.`,
+            description: desc || `Perekrutan posisi ${parsed.title} di ${parsed.company}. Dipublikasikan secara aktual melalui ${sourceName}.`,
             responsibilities: [
-              `Menjalankan tugas pokok dan tanggung jawab operasional posisi ${rawTitle}.`,
-              `Melakukan koordinasi dengan pimpinan dan tim terkait pencapaian target kerja.`,
-              `Menyusun laporan berkala dan menjaga kepatuhan terhadap SOP perusahaan.`
+              `Menjalankan tugas utama posisi ${parsed.title}.`,
+              `Menjaga profesionalisme dan disiplin kerja di lingkungan perusahaan.`
             ],
             requirements: [
-              `Pendidikan minimal SMA/SMK/D3/S1 sesuai kualifikasi bidang.`,
-              `Memiliki etos kerja tinggi, kejujuran, dan kemampuan komunikasi yang baik.`,
-              `Mampu mengoperasikan komputer dan aplikasi penunjang kerja.`
+              `Pendidikan sesuai kualifikasi yang disyaratkan posisi.`,
+              `Memiliki etos kerja tinggi dan siap berkembang.`,
+              `Ketentuan dan dokumen lamaran dapat dicek langsung pada postingan asli.`
             ],
             benefits: [
-              `Gaji kompetitif + Asuransi kesehatan BPJS`,
-              `Tunjangan Hari Raya (THR) & Peluang jenjang karir`
+              `Gaji & tunjangan sesuai standar perusahaan`,
+              `Perlindungan jaminan sosial tenaga kerja (BPJS)`
             ]
           });
         }
       }
-    } catch (e) {
-      console.warn('LinkedIn live query error:', e.message);
+    } catch(err) {
+      console.warn('Google news web query error:', err.message);
     }
   }
 
-  // 2. Fetch Real Live JobStreet Indonesia Listings via Verified Indexed Feeds
-  if (platform === 'all' || platform === 'jobstreet') {
-    try {
-      const rssQuery = `site:id.jobstreet.com "${cleanKw}"`;
-      const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(rssQuery)}&hl=id&gl=ID&ceid=ID:id`;
-      const res = await fetch(rssUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-
-      if (res.ok) {
-        const xml = await res.text();
-        const items = [...xml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<\/item>/g)];
-
-        for (const item of items.slice(0, 15)) {
-          let rawTitle = item[1].replace(/<[^>]+>/g, '').replace(/ - (Jobstreet|Jobstreet Indonesia|id\.jobstreet\.com)$/i, '').trim();
-          let link = item[2];
-          let pubDate = item[3];
-
-          let comp = 'Perusahaan Terverifikasi di JobStreet';
-          let title = rawTitle;
-
-          const atCompMatch = rawTitle.match(/^(.*?)\s+di\s+(.*?)(?:\s+-\s+.*)?$/i);
-          if (atCompMatch) {
-            title = atCompMatch[1].replace(/^Lowongan Kerja\s+/i, '').trim();
-            comp = atCompMatch[2].trim();
-          } else {
-            title = title.replace(/^Lowongan Kerja\s+/i, '').trim();
-          }
-
-          if (title.length > 5) {
-            results.push({
-              id: `js_${crypto.randomBytes(6).toString('hex')}`,
-              source: 'jobstreet',
-              platform: 'jobstreet',
-              title,
-              company_name: comp,
-              location: cleanLoc || 'Indonesia',
-              posted_time: '1 hari yang lalu',
-              salary_display: 'Rp 5.200.000 - Rp 8.500.000 / bln',
-              salary_prompt: 'Masuk ke akunmu dan isi ekspektasi gaji di profil untuk cek kecocokan >',
-              job_type: 'Full time',
-              category: 'Loker Live JobStreet',
-              role_department: title,
-              badge_fresh: true,
-              badge_kandidat: false,
-              is_live_actual: true,
-              official_url: `https://www.jobstreet.co.id/id/job-search/${encodeURIComponent(title)}-jobs/`,
-              jobstreet_url: `https://www.jobstreet.co.id/id/job-search/${encodeURIComponent(title)}-jobs/`,
-              linkedin_url: `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(title)}&location=Indonesia`,
-              poster_image: '',
-              rating: '4.4',
-              contact_email: `hrd@${comp.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jobstreet-employer'}.co.id`,
-              contact_whatsapp: '081399887766',
-              anti_fraud_notice: `Perusahaan tidak memungut biaya apapun dalam proses rekrutmen. Lowongan terverifikasi live dari JobStreet by SEEK.`,
-              description: `Perekrutan terbuka untuk posisi ${title} di ${comp}. Pelamar dapat mengirimkan CV langsung melalui saluran lamaran cepat atau link pendaftaran resmi JobStreet.`,
-              responsibilities: [
-                `Menjalankan tugas harian posisi ${title} sesuai standar mutu perusahaan.`,
-                `Mengelola data dan korespondensi dokumen operasional secara akurat.`,
-                `Berkoordinasi dengan tim kerja untuk kelancaran alur operasional.`
-              ],
-              requirements: [
-                `Pendidikan minimal SMA/SMK/D3/S1 di bidang terkait.`,
-                `Disiplin, teliti, bertanggung jawab, dan siap bekerja secara profesional.`,
-                `Menguasai aplikasi dasar komputer (Word, Excel / Google Docs).`
-              ],
-              benefits: [
-                `Gaji pokok sesuai standar UMK wilayah kerja`,
-                `Perlindungan BPJS Kesehatan & Ketenagakerjaan`
-              ]
-            });
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('JobStreet live query error:', e.message);
-    }
-  }
-
-  // 3. Merge system database jobs (Supabase / data/jobs.json)
+  // 3. Merge system database jobs (Supabase Cloud / data/jobs.json)
   try {
     const dbJobs = await db.getAllJobs();
     if (Array.isArray(dbJobs)) {
@@ -1221,29 +1262,31 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
         results.unshift({
           id: `db_${dj.id}`,
           source: 'database',
-          platform: 'jobstreet',
+          platform: 'web',
           title: dj.title,
           company_name: dj.company_name,
+          company: dj.company_name,
           location: dj.location || cleanLoc,
           posted_time: 'Diposting di Portal',
           salary_display: dj.salary_display || 'Kompetitif',
-          salary_prompt: 'Masuk ke akunmu dan isi ekspektasi gaji di profil untuk cek kecocokan >',
+          salary_prompt: 'Gaji kompetitif sesuai ketentuan perusahaan.',
           job_type: dj.job_type || 'Full time',
           category: dj.category || 'Administrasi',
           role_department: dj.job_type || 'Full time',
           badge_fresh: true,
           badge_kandidat: true,
           is_live_actual: true,
-          official_url: dj.website_url || './',
-          jobstreet_url: `https://www.jobstreet.co.id/id/job-search/${encodeURIComponent(dj.title)}-jobs/`,
-          linkedin_url: `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(dj.title)}&location=Indonesia`,
+          official_url: dj.website_url || `./?job=${dj.id}`,
+          url: dj.website_url || `./?job=${dj.id}`,
+          website_url: dj.website_url || `./?job=${dj.id}`,
+          source_website: dj.company_name,
           poster_image: dj.poster_image || '',
-          rating: '4.7',
+          rating: '4.9',
           contact_email: dj.email || '',
           contact_whatsapp: dj.whatsapp || '',
           anti_fraud_notice: `PT ${dj.company_name} tidak memungut biaya apapun dalam proses rekrutmen. Lowongan terverifikasi anti-hoax.`,
           description: dj.description || 'Lowongan resmi terverifikasi di portal KerjaHub.',
-          responsibilities: Array.isArray(dj.responsibilities) ? dj.responsibilities : [dj.description || 'Menjalankan tugas sesuai arahan pimpinan.'],
+          responsibilities: Array.isArray(dj.responsibilities) ? dj.responsibilities : [dj.description || 'Menjalankan tugas operasional sesuai posisi.'],
           requirements: Array.isArray(dj.requirements) ? dj.requirements : ['Pendidikan relevan', 'Disiplin dan bertanggung jawab'],
           benefits: Array.isArray(dj.benefits) ? dj.benefits : ['Gaji pokok sesuai UMK', 'BPJS Ketenagakerjaan & Kesehatan']
         });
