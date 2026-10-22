@@ -1048,36 +1048,129 @@ function decodeBingUrl(rawUrl) {
   return rawUrl.replace(/&amp;/g, '&');
 }
 
-function parseJobHeadline(rawTitle, defaultSource = 'Portal Web Resmi') {
-  let title = cleanHtmlSnippet(rawTitle);
+function parseJobHeadline(rawTitle, defaultSource = 'Portal Web Resmi', rawDesc = '') {
+  let title = cleanHtmlSnippet(rawTitle || '');
+  let desc = cleanHtmlSnippet(rawDesc || '');
   let comp = defaultSource || 'Perusahaan Terverifikasi';
 
-  // Filter out source suffix like " - Kompas.com" or " - Detik Finance"
-  title = title.replace(/\s+-\s+[^-]+$/, '').trim();
+  const searchTexts = [desc, title];
 
-  const openMatch = title.match(/^(.*?)\s+Buka Lowongan(?:\s+Kerja)?\s+(.*?)(?:,\s*.*)?$/i);
-  if (openMatch) {
-    comp = openMatch[1].trim();
-    title = openMatch[2].trim();
-  } else {
-    const diMatch = title.match(/^(?:Lowongan Kerja\s+)?(.*?)\s+di\s+(.*?)(?:,\s*.*)?$/i);
-    if (diMatch) {
-      title = diMatch[1].replace(/^Lowongan Kerja\s+/i, '').trim();
-      comp = diMatch[2].trim();
-    } else {
-      const untukMatch = title.match(/^Lowongan Kerja\s+(.*?)\s+untuk\s+(.*?)$/i);
-      if (untukMatch) {
-        comp = untukMatch[1].trim();
-        title = untukMatch[2].trim();
+  // 1. Detect Real Company if comp is generic social platform
+  const isGenericComp = /^(instagram|facebook|twitter|linkedin|web|portal|loker|google|bing|website)/i.test(comp);
+  for (const text of searchTexts) {
+    const ptMatch = text.match(/(?:🏢\s*)?((?:PT|CV|Bank|Yayasan|RSUD|RS|Universitas|Politeknik)\s+[^💼📢🕒🕐🎓\n\r,]+?)(?=\s+(?:membuka|buka|posisi|career|recruitment|💼|📢|🕒|🕐|🎓|$))/i);
+    if (ptMatch && ptMatch[1]) {
+      const extractedComp = ptMatch[1].replace(/^[🏢\s]+/, '').replace(/[\.\s]+$/, '').trim();
+      if (isGenericComp || (comp.length < 8 && extractedComp.length > comp.length)) {
+        comp = extractedComp;
+        break;
       }
     }
   }
 
-  title = title.replace(/^Lowongan Kerja\s+/i, '').trim();
-  if (title.length > 85) title = title.substring(0, 85) + '...';
-  if (comp.length > 60) comp = comp.substring(0, 60);
+  // 2. Extract Posisi / Clean Title
+  let cleanTitle = '';
+  for (const text of searchTexts) {
+    const posMatch = text.match(/(?:💼\s*Posisi:?|Posisi\s*:?)\s*([^🕒🕐🎓📢🏢\n\r]+?)(?=\s*(?:🕒|🕐|🎓|📢|🏢|Status:|Jenjang:|Pendidikan:|PT |CV |membuka|$))/i);
+    if (posMatch && posMatch[1]) {
+      const candidate = posMatch[1].replace(/[\.\s]+$/, '').trim();
+      if (!candidate.endsWith('..') && candidate.length > cleanTitle.length && !candidate.toLowerCase().includes('informasi dipublikasikan')) {
+        cleanTitle = candidate;
+      }
+    }
+  }
 
-  return { title: title || rawTitle, company: comp || defaultSource };
+  if (!cleanTitle) {
+    cleanTitle = title;
+    // Strip source suffix like " - Kompas.com" or " - Detik Finance"
+    cleanTitle = cleanTitle.replace(/\s+-\s+[^-]+$/, '').trim();
+
+    const openMatch = cleanTitle.match(/^(.*?)\s+Buka Lowongan(?:\s+Kerja)?\s+(.*?)(?:,\s*.*)?$/i);
+    if (openMatch) {
+      if (isGenericComp) comp = openMatch[1].trim();
+      cleanTitle = openMatch[2].trim();
+    } else {
+      const diMatch = cleanTitle.match(/^(?:Lowongan Kerja\s+)?(.*?)\s+di\s+(.*?)(?:,\s*.*)?$/i);
+      if (diMatch) {
+        cleanTitle = diMatch[1].replace(/^Lowongan Kerja\s+/i, '').trim();
+        if (isGenericComp) comp = diMatch[2].trim();
+      } else {
+        const untukMatch = cleanTitle.match(/^Lowongan Kerja\s+(.*?)\s+untuk\s+(.*?)$/i);
+        if (untukMatch) {
+          if (isGenericComp) comp = untukMatch[1].trim();
+          cleanTitle = untukMatch[2].trim();
+        }
+      }
+    }
+
+    // Strip promotional buzzwords & emojis
+    cleanTitle = cleanTitle.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, ' ');
+    cleanTitle = cleanTitle.replace(/\b(LOWONGAN\s+(?:BUMN\s+)?(?:TERBARU\s+)?|LOKER\s+TERBARU\s+|WE ARE HIRING\s+|DIBUTUHKAN\s+SEGERA\s+)\b/gi, ' ');
+    if (comp && cleanTitle.includes(comp)) {
+      cleanTitle = cleanTitle.replace(comp, ' ');
+    }
+  }
+
+  // Handle prefix like 'untuk Lulusan...'
+  if (/^untuk\s+/i.test(cleanTitle)) {
+    cleanTitle = 'Program Rekrutmen Perbankan ' + cleanTitle;
+  }
+
+  // Clean trailing punctuation & spaces
+  cleanTitle = cleanTitle.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').replace(/\s+/g, ' ').replace(/[\.\s]+$/, '').trim();
+  comp = comp.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').replace(/\s+/g, ' ').replace(/[\.\s]+$/, '').trim();
+
+  if (cleanTitle.length > 90) cleanTitle = cleanTitle.substring(0, 90).trim() + '...';
+  if (comp.length > 60) comp = comp.substring(0, 60).trim();
+
+  // 3. Extract Metadata: Status & Education
+  let statusVal = '';
+  let eduVal = '';
+  for (const text of searchTexts) {
+    if (!statusVal) {
+      const sm = text.match(/(?:🕒|🕐|Status\s*:?)\s*([A-Za-z\s]+?)(?=\s*(?:🎓|Jenjang|Pendidikan|PT |CV |membuka|$))/i);
+      if (sm && sm[1]) statusVal = sm[1].trim();
+    }
+    if (!eduVal) {
+      const em = text.match(/(?:🎓|Jenjang\s*Pendidikan\s*:?|Pendidikan\s*:?)\s*([^🏢📢💼🕒🕐\n\r]+?)(?=\s*(?:PT |CV |membuka|Status|$))/i);
+      if (em && em[1]) {
+        eduVal = em[1].replace(/^(?:Jenjang\s*Pendidikan|Pendidikan)\s*:?\s*/i, '').trim();
+      }
+    }
+  }
+
+  // 4. Clean Narrative Description
+  let cleanDesc = desc;
+  if (!cleanDesc || cleanDesc.includes('📢') || cleanDesc.includes('🏢') || cleanDesc.includes('💼') || cleanDesc.includes('🎓') || cleanDesc.includes('🕐')) {
+    cleanDesc = `${comp} membuka kesempatan berkarir untuk posisi ${cleanTitle}.`;
+    if (eduVal) cleanDesc += ` Terbuka bagi pelamar dengan kualifikasi jenjang pendidikan ${eduVal}.`;
+    if (statusVal) cleanDesc += ` Status hubungan kerja: ${statusVal}.`;
+    cleanDesc += ` Seluruh tahapan pendaftaran dan verifikasi berkas dilakukan secara resmi tanpa dipungut biaya apapun.`;
+  }
+
+  // 5. Build Professional Responsibilities
+  const responsibilities = [
+    `Menjalankan tugas pokok dan fungsi operasional untuk posisi ${cleanTitle}.`,
+    `Menjaga profesionalisme, kedisiplinan kerja, dan kepatuhan terhadap SOP di lingkungan ${comp}.`,
+    `Berkoordinasi secara aktif dengan tim kerja terkait kelancaran operasional harian.`
+  ];
+
+  if (/administrasi|admin/i.test(cleanTitle)) {
+    responsibilities.unshift('Mengelola tata kelola administrasi dokumen, pengarsipan data, dan pencatatan operasional unit.');
+  } else if (/finance|keuangan|accounting|akuntansi/i.test(cleanTitle)) {
+    responsibilities.unshift('Mendukung proses rekonsiliasi data transaksi dan penyusunan berkas administrasi fungsi keuangan.');
+  } else if (/operator|produksi|manufaktur/i.test(cleanTitle)) {
+    responsibilities.unshift('Menjalankan operasional peralatan/mesin kerja sesuai instruksi kerja (IK) dan standar keselamatan (K3).');
+  }
+
+  return {
+    title: cleanTitle || rawTitle,
+    company: comp || defaultSource,
+    cleanDesc,
+    responsibilities,
+    statusVal,
+    eduVal
+  };
 }
 
 function detectJobPlatformMeta(directUrl, rawTitle, sourceName, requestedPlatform = 'all') {
@@ -1275,7 +1368,7 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
           domain = u.hostname.replace(/^www\./, '');
         } catch(e) {}
 
-        const parsed = parseJobHeadline(rawTitle, domain);
+        const parsed = parseJobHeadline(rawTitle, domain, rawDesc);
         const timeInfo = formatTimeAgo(pubDate);
         const platMeta = detectJobPlatformMeta(directUrl, rawTitle, domain, activePlat);
 
@@ -1297,7 +1390,7 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
           isFresh: timeInfo.isFresh,
           salary_display: 'Kompetitif (Standar UMK / Korporasi)',
           salary_prompt: 'Gaji kompetitif sesuai standar penempatan kerja & kebijakan perusahaan.',
-          job_type: 'Full time',
+          job_type: parsed.statusVal || 'Full time',
           category: 'Loker Asli Web',
           role_department: parsed.title,
           badge_fresh: true,
@@ -1312,16 +1405,12 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
           contact_email: '',
           contact_whatsapp: '',
           anti_fraud_notice: `Lowongan kerja resmi terpublikasi di ${platMeta.sourceWebsite || domain}. Perusahaan yang sah tidak pernah memungut biaya apapun dari pelamar kerja.`,
-          description: rawDesc || `Lowongan kerja untuk posisi ${parsed.title} di ${parsed.company}. Informasi aktual dipublikasikan langsung melalui ${platMeta.sourceWebsite || domain}.`,
-          responsibilities: [
-            `Menjalankan tugas dan kewajiban sesuai kualifikasi posisi ${parsed.title}.`,
-            `Bekerja dengan dedikasi dan mematuhi SOP operasional perusahaan.`,
-            `Berkoordinasi dengan tim kerja untuk kelancaran tugas harian.`
-          ],
+          description: parsed.cleanDesc || rawDesc || `Lowongan kerja untuk posisi ${parsed.title} di ${parsed.company}. Informasi aktual dipublikasikan langsung melalui ${platMeta.sourceWebsite || domain}.`,
+          responsibilities: parsed.responsibilities,
           requirements: [
-            `Pendidikan minimal SMA/SMK/D3/S1 sesuai kualifikasi yang dicari.`,
-            `Memiliki integritas, kejujuran, dan komunikasi yang baik.`,
-            `Syarat lengkap dapat dilihat langsung pada artikel/postingan resmi di web sumber.`
+            parsed.eduVal ? `Kualifikasi jenjang pendidikan: ${parsed.eduVal}.` : `Pendidikan minimal SMA/SMK/D3/S1 sesuai kualifikasi bidang kerja.`,
+            `Memiliki integritas tinggi, kedisiplinan, dan etos kerja yang baik.`,
+            `Ketentuan dan dokumen lamaran dapat dicek langsung pada postingan resmi.`
           ],
           benefits: [
             `Gaji pokok sesuai UMK / Standar Korporasi`,
@@ -1362,7 +1451,7 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
         seenUrls.add(link);
 
         const platMeta = detectJobPlatformMeta(link, rawTitle, sourceName, activePlat);
-        const parsed = parseJobHeadline(rawTitle, platMeta.sourceWebsite || sourceName);
+        const parsed = parseJobHeadline(rawTitle, platMeta.sourceWebsite || sourceName, desc);
         const timeInfo = formatTimeAgo(pubDate);
 
         results.push({
@@ -1383,7 +1472,7 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
           isFresh: timeInfo.isFresh,
           salary_display: 'Kompetitif (Standar Industri & Korporasi)',
           salary_prompt: 'Gaji kompetitif sesuai standar industri dan peraturan yang berlaku.',
-          job_type: 'Full time',
+          job_type: parsed.statusVal || 'Full time',
           category: 'Loker Asli Web',
           role_department: parsed.title,
           badge_fresh: true,
@@ -1398,15 +1487,12 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
           contact_email: '',
           contact_whatsapp: '',
           anti_fraud_notice: `Informasi lowongan kerja tervalidasi dari ${platMeta.sourceWebsite}. Bebas pungutan biaya apapun dalam proses rekrutmen.`,
-          description: desc || `Perekrutan posisi ${parsed.title} di ${parsed.company}. Dipublikasikan secara aktual melalui ${platMeta.sourceWebsite}.`,
-          responsibilities: [
-            `Menjalankan tugas utama posisi ${parsed.title}.`,
-            `Menjaga profesionalisme dan disiplin kerja di lingkungan perusahaan.`
-          ],
+          description: parsed.cleanDesc || desc || `Perekrutan posisi ${parsed.title} di ${parsed.company}. Dipublikasikan secara aktual melalui ${platMeta.sourceWebsite}.`,
+          responsibilities: parsed.responsibilities,
           requirements: [
-            `Pendidikan sesuai kualifikasi yang disyaratkan posisi.`,
-            `Memiliki etos kerja tinggi dan siap berkembang.`,
-            `Ketentuan dan dokumen lamaran dapat dicek langsung pada postingan asli.`
+            parsed.eduVal ? `Kualifikasi jenjang pendidikan: ${parsed.eduVal}.` : `Pendidikan sesuai kualifikasi yang disyaratkan posisi.`,
+            `Memiliki etos kerja tinggi, integritas, dan siap berkembang.`,
+            `Ketentuan dan dokumen lamaran dapat dicek langsung pada postingan resmi.`
           ],
           benefits: [
             `Gaji & tunjangan sesuai standar perusahaan`,

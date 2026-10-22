@@ -143,7 +143,8 @@ async function loadAllJobs() {
   try {
     const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
     if (ok && json && json.success && Array.isArray(json.data)) {
-      allJobs = json.data.filter(j => j.status === 'active' || !j.status);
+      const normalizer = typeof window.cleanJobData === 'function' ? window.cleanJobData : (j => j);
+      allJobs = json.data.map(normalizer).filter(j => j.status === 'active' || !j.status);
     }
   } catch (err) {
     console.warn('API jobs fetch warning, checking direct cloud config:', err);
@@ -690,8 +691,9 @@ function extractJobContacts(job) {
 }
 
 window.openJobDetailModal = function(id) {
-  const job = allJobs.find(j => j.id == id);
-  if (!job) return;
+  const rawJob = allJobs.find(j => j.id == id);
+  if (!rawJob) return;
+  const job = typeof window.cleanJobData === 'function' ? window.cleanJobData(rawJob) : rawJob;
 
   const modal = document.getElementById('job-detail-modal');
   const catEl = document.getElementById('modal-category');

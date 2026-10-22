@@ -32,6 +32,138 @@ async function safeFetchJson(url, options = {}) {
   }
 }
 
+// Global Normalizer: Cleans social media copy, emoji spam, extracts real company and structured metadata
+window.cleanJobData = function(job) {
+  if (!job) return job;
+  const copy = { ...job };
+
+  let rawTitle = (copy.title || '').trim();
+  let comp = (copy.company_name || '').trim();
+  let desc = (copy.description || '').trim();
+
+  const hasEmoji = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u.test(rawTitle + ' ' + comp);
+  const isMessyTitle = hasEmoji || /^(untuk\s+|lowongan\s+bumn|loker\s+terbaru)/i.test(rawTitle) || rawTitle.includes('🏢') || rawTitle.includes('💼') || rawTitle.endsWith('..');
+  const isGenericComp = /^(instagram|facebook|twitter|linkedin|web|portal|loker|google|bing|website)$/i.test(comp);
+
+  const searchTexts = [desc, rawTitle];
+
+  // 1. Detect Real Company Name if currently placeholder / social media
+  if (isGenericComp || comp.length < 5 || comp.includes('🏢')) {
+    for (const text of searchTexts) {
+      const ptMatch = text.match(/(?:🏢\s*)?((?:PT|CV|Bank|Yayasan|RSUD|RS|Universitas|Politeknik)\s+[^💼📢🕒🕐🎓\n\r,]+?)(?=\s+(?:membuka|buka|posisi|career|recruitment|💼|📢|🕒|🕐|🎓|$))/i);
+      if (ptMatch && ptMatch[1]) {
+        const extractedComp = ptMatch[1].replace(/^[🏢\s]+/, '').replace(/[\.\s]+$/, '').trim();
+        if (extractedComp.length > 3) {
+          comp = extractedComp;
+          break;
+        }
+      }
+    }
+  }
+
+  // 2. Extract Clean Title ONLY if messy
+  let cleanTitle = rawTitle;
+  if (isMessyTitle) {
+    let candidateTitle = '';
+    for (const text of searchTexts) {
+      const posMatch = text.match(/(?:💼\s*Posisi:?|Posisi\s*:?)\s*([^🕒🕐🎓📢🏢\n\r]+?)(?=\s*(?:🕒|🕐|🎓|📢|🏢|Status:|Jenjang:|Pendidikan:|PT |CV |membuka|$))/i);
+      if (posMatch && posMatch[1]) {
+        const cand = posMatch[1].replace(/[\.\s]+$/, '').trim();
+        if (!cand.endsWith('..') && cand.length > candidateTitle.length && !cand.toLowerCase().includes('informasi dipublikasikan')) {
+          candidateTitle = cand;
+        }
+      }
+    }
+
+    if (candidateTitle) {
+      cleanTitle = candidateTitle;
+    } else {
+      cleanTitle = cleanTitle.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, ' ');
+      cleanTitle = cleanTitle.replace(/\b(LOWONGAN\s+(?:BUMN\s+)?(?:TERBARU\s+)?|LOKER\s+TERBARU\s+|WE ARE HIRING\s+|DIBUTUHKAN\s+SEGERA\s+)\b/gi, ' ');
+      if (comp && cleanTitle.includes(comp)) {
+        cleanTitle = cleanTitle.replace(comp, ' ');
+      }
+      cleanTitle = cleanTitle.replace(/\s+-\s+[^-]+$/, '').trim();
+      cleanTitle = cleanTitle.replace(/\s+/g, ' ').replace(/[\.\s]+$/, '').trim();
+    }
+
+    if (/^untuk\s+/i.test(cleanTitle)) {
+      cleanTitle = 'Program Rekrutmen Perbankan ' + cleanTitle;
+    }
+  }
+
+  // Clean trailing punctuation & spaces
+  cleanTitle = cleanTitle.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').replace(/\s+/g, ' ').trim();
+  comp = comp.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').replace(/\s+/g, ' ').trim();
+
+  // 3. Extract Metadata: Status & Education
+  let statusVal = copy.job_type || '';
+  let eduVal = copy.experience_level || '';
+  for (const text of searchTexts) {
+    const sm = text.match(/(?:🕒|🕐|Status\s*:?)\s*([A-Za-z\s]+?)(?=\s*(?:🎓|Jenjang|Pendidikan|PT |CV |membuka|$))/i);
+    if (sm && sm[1]) statusVal = sm[1].trim();
+
+    const em = text.match(/(?:🎓|Jenjang\s*Pendidikan\s*:?|Pendidikan\s*:?)\s*([^🏢📢💼🕒🕐\n\r]+?)(?=\s*(?:PT |CV |membuka|Status|$))/i);
+    if (em && em[1]) {
+      eduVal = em[1].replace(/^(?:Jenjang\s*Pendidikan|Pendidikan)\s*:?\s*/i, '').trim();
+    }
+  }
+
+  // 4. Clean Description Narrative
+  let cleanDesc = desc;
+  if (!cleanDesc || cleanDesc.includes('📢') || cleanDesc.includes('🏢') || cleanDesc.includes('💼') || cleanDesc.includes('🎓') || cleanDesc.includes('🕐')) {
+    cleanDesc = comp + ' membuka kesempatan berkarir untuk posisi ' + cleanTitle + '.';
+    if (eduVal) cleanDesc += ' Terbuka bagi pelamar dengan kualifikasi jenjang pendidikan ' + eduVal + '.';
+    if (statusVal) cleanDesc += ' Status hubungan kerja: ' + statusVal + '.';
+    cleanDesc += ' Seluruh tahapan pendaftaran dan verifikasi berkas dilakukan secara resmi tanpa dipungut biaya apapun.';
+  }
+
+  // 5. Clean Responsibilities
+  let resps = Array.isArray(copy.responsibilities) ? [...copy.responsibilities] : (typeof copy.responsibilities === 'string' && copy.responsibilities.startsWith('[') ? JSON.parse(copy.responsibilities || '[]') : []);
+  resps = resps.map(r => {
+    let cleanR = String(r || '');
+    if (/Menjalankan tugas utama posisi/i.test(cleanR)) {
+      cleanR = 'Menjalankan tugas dan tanggung jawab utama posisi ' + cleanTitle + '.';
+    }
+    cleanR = cleanR.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+    cleanR = cleanR.replace(/\s+/g, ' ').trim();
+    return cleanR;
+  }).filter(r => r.length > 5);
+
+  if ((resps.length <= 2 || isMessyTitle) && resps.length < 4) {
+    if (/administrasi|admin/i.test(cleanTitle) && !resps.some(r => r.includes('administrasi dokumen'))) {
+      resps.unshift('Mengelola tata kelola administrasi dokumen, pengarsipan berkas, dan pencatatan operasional unit.');
+    }
+    if (/finance|keuangan|accounting|akuntansi/i.test(cleanTitle) && !resps.some(r => r.includes('keuangan'))) {
+      resps.push('Mendukung proses rekonsiliasi data transaksi dan penyusunan berkas administrasi fungsi keuangan.');
+    }
+    if (resps.length < 2) {
+      resps.push(`Menjaga profesionalisme, integritas, dan disiplin kerja di lingkungan ${comp}.`);
+      resps.push('Berkoordinasi secara aktif dengan tim kerja demi kelancaran pencapaian target operasional.');
+    }
+  }
+
+  // 6. Clean Requirements
+  let reqs = Array.isArray(copy.requirements) ? [...copy.requirements] : (typeof copy.requirements === 'string' && copy.requirements.startsWith('[') ? JSON.parse(copy.requirements || '[]') : []);
+  reqs = reqs.map(r => {
+    let cleanReq = String(r || '').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
+    if (/pendidikan sesuai kualifikasi/i.test(cleanReq) && eduVal) {
+      cleanReq = `Kualifikasi jenjang pendidikan: ${eduVal}.`;
+    }
+    return cleanReq;
+  }).filter(r => r.length > 5);
+
+  copy.title = cleanTitle || rawTitle;
+  copy.company_name = comp;
+  copy.description = cleanDesc;
+  copy.responsibilities = resps;
+  copy.requirements = reqs;
+  copy._clean_status = statusVal;
+  copy._clean_education = eduVal;
+
+  return copy;
+};
+
 // Site Settings (WhatsApp CV Order, etc.)
 window.siteSettings = {
   cv_whatsapp: '081234567890',
@@ -742,7 +874,7 @@ async function loadJobs() {
     if (cached) {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        rawAllJobs = parsed.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+        rawAllJobs = parsed.map(window.cleanJobData).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
         updateTabCounters();
         applyFiltersAndRender();
         hadCached = true;
@@ -772,7 +904,7 @@ async function loadJobs() {
         .order('is_featured', { ascending: false })
         .order('id', { ascending: false });
       if (!error && Array.isArray(data) && data.length > 0) {
-        jobs = data.filter(j => j.status !== 'system_master_data' && j.status !== 'system_settings');
+        jobs = data.map(window.cleanJobData).filter(j => j.status !== 'system_master_data' && j.status !== 'system_settings');
       } else if (error) {
         console.warn('Supabase query error in loadJobs:', error.message);
       }
@@ -786,7 +918,7 @@ async function loadJobs() {
     try {
       const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
       if (ok && json && json.success && Array.isArray(json.data) && json.data.length > 0) {
-        jobs = json.data;
+        jobs = json.data.map(window.cleanJobData);
       }
     } catch (e) {}
   }
@@ -797,7 +929,7 @@ async function loadJobs() {
   }
 
   if (jobs) {
-    rawAllJobs = jobs.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+    rawAllJobs = jobs.map(window.cleanJobData).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
     try {
       sessionStorage.setItem('kerja_public_jobs_cache', JSON.stringify(rawAllJobs));
     } catch (e) {}
@@ -1395,8 +1527,10 @@ function openLightbox(imgSrc, title) {
 
 // Open Detail Modal
 function openJobDetail(jobId) {
-  const job = rawAllJobs.find(j => Number(j.id) === Number(jobId));
-  if (!job) return;
+  const rawJob = rawAllJobs.find(j => Number(j.id) === Number(jobId));
+  if (!rawJob) return;
+
+  const job = typeof window.cleanJobData === 'function' ? window.cleanJobData(rawJob) : rawJob;
 
   // Strict check: if job is locked / expired, visitor CANNOT open detail modal
   if (job.status === 'expired' || job.status === 'closed') {
@@ -1422,9 +1556,9 @@ function openJobDetail(jobId) {
   const contacts = extractJobContacts(job);
   const contactBtnHtml = renderContactButton(job);
 
-  const reqs = Array.isArray(job.requirements) ? job.requirements : (typeof job.requirements === 'string' ? JSON.parse(job.requirements || '[]') : []);
-  const resps = Array.isArray(job.responsibilities) ? job.responsibilities : (typeof job.responsibilities === 'string' ? JSON.parse(job.responsibilities || '[]') : []);
-  const bens = Array.isArray(job.benefits) ? job.benefits : (typeof job.benefits === 'string' ? JSON.parse(job.benefits || '[]') : []);
+  const reqs = Array.isArray(job.requirements) ? job.requirements : (typeof job.requirements === 'string' && job.requirements.startsWith('[') ? JSON.parse(job.requirements || '[]') : []);
+  const resps = Array.isArray(job.responsibilities) ? job.responsibilities : (typeof job.responsibilities === 'string' && job.responsibilities.startsWith('[') ? JSON.parse(job.responsibilities || '[]') : []);
+  const bens = Array.isArray(job.benefits) ? job.benefits : (typeof job.benefits === 'string' && job.benefits.startsWith('[') ? JSON.parse(job.benefits || '[]') : []);
 
   // Pre-formatted intro template for job seekers
   const waTemplate = `Halo Bapak/Ibu HRD ${job.company_name},\n\nPerkenalkan saya [Nama Anda]. Saya melihat poster informasi lowongan pekerjaan untuk posisi ${job.title} yang dipublikasikan melalui KerjaHub.\n\nSaya bermaksud mengajukan lamaran kerja untuk posisi tersebut. Bersama pesan ini, saya siap melampirkan berkas CV dan Portofolio terbaru saya.\n\nMohon informasi mengenai proses seleksi selanjutnya. Terima kasih atas perhatian dan kesempatannya.`;
@@ -1453,11 +1587,26 @@ function openJobDetail(jobId) {
       <div class="detail-grid-layout">
         <div class="detail-main">
           
-
-          <!-- Keterangan -->
+          <!-- Keterangan & Deskripsi Posisi -->
           <div class="detail-section">
             <h4><i class="fa-solid fa-file-lines"></i> Keterangan & Deskripsi Posisi</h4>
-            <p style="white-space: pre-line; line-height: 1.7;">${escapeHtml(job.description)}</p>
+            <div class="desc-meta-chips">
+              <div class="desc-meta-chip">
+                <i class="fa-solid fa-briefcase"></i>
+                <span><strong>Status:</strong> ${escapeHtml(job._clean_status || job.job_type || 'Full time')}</span>
+              </div>
+              <div class="desc-meta-chip">
+                <i class="fa-solid fa-graduation-cap"></i>
+                <span><strong>Pendidikan:</strong> ${escapeHtml(job._clean_education || job.experience_level || 'Sesuai Kualifikasi')}</span>
+              </div>
+              <div class="desc-meta-chip">
+                <i class="fa-solid fa-location-dot"></i>
+                <span><strong>Penempatan:</strong> ${escapeHtml(job.location || 'Indonesia')}</span>
+              </div>
+            </div>
+            <div class="desc-body-box">
+              <p class="desc-body-text">${escapeHtml(job.description)}</p>
+            </div>
           </div>
 
           <!-- Tanggung Jawab -->

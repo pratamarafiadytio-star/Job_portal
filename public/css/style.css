@@ -1367,19 +1367,33 @@ body {
   gap: 28px;
 }
 
+.detail-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 22px 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.detail-section:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
 .detail-section h4 {
   font-family: var(--font-heading);
-  font-size: 1.15rem;
+  font-size: 1.12rem;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   color: var(--text-main);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .detail-section h4 i {
   color: var(--primary);
+  font-size: 1.1rem;
 }
 
 .detail-section p {
@@ -1387,26 +1401,77 @@ body {
   line-height: 1.7;
 }
 
+/* Metadata Chips in Description Section */
+.desc-meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.desc-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(99, 102, 241, 0.07);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 20px;
+  font-size: 0.84rem;
+  color: var(--text-main);
+}
+
+.desc-meta-chip i {
+  color: var(--primary);
+  font-size: 0.9rem;
+}
+
+.desc-meta-chip strong {
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.desc-body-box {
+  background: var(--bg-surface-alt);
+  border-radius: 10px;
+  padding: 16px 20px;
+  border-left: 3px solid var(--primary);
+}
+
+.desc-body-text {
+  color: var(--text-main) !important;
+  font-size: 0.94rem;
+  line-height: 1.75 !important;
+  margin: 0;
+  white-space: pre-line;
+}
+
 .detail-list {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
 }
 
 .detail-list li {
   position: relative;
-  padding-left: 24px;
-  color: var(--text-muted);
-  line-height: 1.5;
+  padding-left: 28px;
+  color: var(--text-main);
+  font-size: 0.93rem;
+  line-height: 1.6;
 }
 
 .detail-list li::before {
   content: '✓';
   position: absolute;
-  left: 0;
+  left: 4px;
+  top: 1px;
   color: var(--success);
   font-weight: 800;
+  font-size: 1rem;
 }
 
 .benefits-pills {
