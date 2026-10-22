@@ -28,154 +28,376 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* TOP HEADER SEARCH & FILTER BAR */
-.jobstreet-top-bar {
-  background: linear-gradient(135deg, var(--js-navy-header) 0%, var(--js-navy-header-dark) 100%);
-  padding: 16px 24px;
+/* ==============================================================
+   JOBSTREET BY SEEK OFFICIAL NAVBAR (WHITE TOP HEADER)
+   ============================================================== */
+.js-seek-navbar {
+  background: #ffffff;
+  padding: 0 24px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.jobstreet-search-box {
-  background: #ffffff;
-  border-radius: 9999px;
-  padding: 8px 18px;
+.js-seek-nav-left {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 440px;
-  max-width: 100%;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  gap: 32px;
+}
+
+.js-seek-brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.js-seek-brand-logo svg {
+  height: 28px;
+  width: auto;
+}
+
+.js-seek-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 60px;
+}
+
+.js-seek-nav-link {
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: #374151;
+  text-decoration: none;
+  height: 100%;
+  display: flex;
+  align-items: center;
   position: relative;
+  transition: color 0.15s;
 }
 
-.jobstreet-search-box i {
-  color: #64748b;
-  font-size: 0.95rem;
+.js-seek-nav-link:hover {
+  color: #111827;
 }
 
-.jobstreet-search-input {
+.js-seek-nav-link.active {
+  color: #111827;
+  font-weight: 700;
+}
+
+.js-seek-nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #111827;
+  border-radius: 3px 3px 0 0;
+}
+
+.js-seek-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ==============================================================
+   JOBSTREET CURVED NAVY SEARCH HERO BANNER
+   ============================================================== */
+.js-seek-search-hero {
+  background: linear-gradient(180deg, #071329 0%, #0d1e3d 100%);
+  padding: 24px 28px 24px 28px;
+  border-radius: 0 0 24px 24px;
+}
+
+.js-seek-search-box-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.js-seek-search-input-wrap {
+  background: #ffffff;
+  border-radius: 9999px;
+  padding: 9px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  max-width: 620px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.js-seek-search-input-wrap i {
+  color: #4b5563;
+  font-size: 1.05rem;
+}
+
+.js-seek-search-input {
   border: none;
   outline: none;
-  font-size: 0.92rem;
+  font-size: 0.96rem;
   font-weight: 600;
-  color: #0f172a;
+  color: #111827;
   width: 100%;
   background: transparent;
 }
 
-.jobstreet-search-clear {
+.js-seek-search-clear {
   background: none;
   border: none;
-  color: #94a3b8;
-  font-size: 0.95rem;
+  color: #9ca3af;
+  font-size: 1rem;
   cursor: pointer;
   padding: 2px 6px;
   display: none;
 }
 
-.jobstreet-search-clear:hover {
+.js-seek-search-clear:hover {
   color: #ef4444;
 }
 
-.jobstreet-pills-row {
+/* SEEK FILTER PILLS ROW */
+.js-seek-pills-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.js-seek-pill {
+  padding: 7px 16px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  background: transparent;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.js-seek-pill:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.js-seek-pill.active-fresh {
+  background: #092644;
+  border: 1.5px solid #38bdf8;
+  color: #ffffff;
+}
+
+.js-seek-pill.btn-sync-live {
+  background: linear-gradient(135deg, #e6005c, #be123c);
+  border: none;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(230, 0, 92, 0.3);
+}
+
+.js-seek-pill.btn-sync-live:hover {
+  background: linear-gradient(135deg, #cc0052, #9f1239);
+}
+
+/* ==============================================================
+   RESULTS LISTING HEADER & EXACT CARDS (MATCHING SCREENSHOT)
+   ============================================================== */
+.js-seek-results-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 8px 12px 8px;
+}
+
+.js-seek-count-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.3px;
+}
+
+.js-seek-sort-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.js-seek-sort-btn:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+/* JOBSTREET CARD (EXACT REPLICA FROM USER'S SCREENSHOT) */
+.js-seek-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px 20px 16px 20px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.js-seek-card:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
+}
+
+.js-seek-card.active {
+  border: 2px solid #0d3880 !important;
+  box-shadow: 0 4px 16px rgba(13, 56, 128, 0.14) !important;
+}
+
+.js-seek-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.js-seek-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.js-seek-card-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+}
+
+.js-seek-card-company {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.js-seek-badges-row {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  margin-bottom: 8px;
 }
 
-.js-filter-pill {
-  padding: 7px 16px;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #f1f5f9;
-  background: rgba(255, 255, 255, 0.08);
-  font-size: 0.82rem;
+.js-badge-fresh {
+  background: #e6f4ea;
+  color: #057642;
+  font-size: 0.74rem;
   font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  padding: 3px 8px;
+  border-radius: 4px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  user-select: none;
+  gap: 5px;
 }
 
-.js-filter-pill:hover {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.45);
+.js-badge-kandidat {
+  background: #f3e8ff;
+  color: #7e22ce;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.js-filter-pill.active {
-  background: #ffffff;
-  color: #0b1a30;
-  border-color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.jobstreet-top-actions {
+.js-seek-card-location {
+  font-size: 0.85rem;
+  color: #4b5563;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
 }
 
-.btn-js-open-tab {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 8px 16px;
-  border-radius: 8px;
+.js-seek-card-logo-box {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  padding: 2px;
+}
+
+.js-seek-card-logo-box svg,
+.js-seek-card-logo-box img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.js-seek-card-snippet {
+  font-size: 0.86rem;
+  color: #4b5563;
+  line-height: 1.45;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.js-seek-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 0.82rem;
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: none !important;
-  display: inline-flex;
+  color: #6b7280;
+  padding-top: 4px;
+}
+
+.js-seek-footer-actions {
+  display: flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.2s ease;
 }
 
-.btn-js-open-tab:hover {
-  background: rgba(255, 255, 255, 0.22);
-}
-
-.btn-js-close-viewer {
+.js-seek-footer-icon-btn {
   background: none;
   border: none;
-  color: #94a3b8;
-  font-size: 1.25rem;
+  color: #6b7280;
+  font-size: 1rem;
   cursor: pointer;
-  padding: 6px;
-  transition: color 0.2s;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: color 0.15s;
 }
 
-.btn-js-close-viewer:hover {
-  color: #ffffff;
-}
-
-/* DUAL PANE BODY */
-.jobstreet-body {
-  display: flex;
-  gap: 20px;
-  padding: 20px;
-  height: 780px;
-  box-sizing: border-box;
-}
-
-/* LEFT PANE: JOB CARDS LIST */
-.jobstreet-left-pane {
-  width: 420px;
-  min-width: 340px;
-  flex-shrink: 0;
-  overflow-y: auto;
-  padding-right: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.js-seek-footer-icon-btn:hover {
+  color: #111827;
+  background: #f3f4f6;
 }
 
 .jobstreet-left-pane::-webkit-scrollbar,
@@ -919,9 +1141,175 @@
   border-right: 1px solid #e0dfdc;
 }
 
-.jobstreet-viewer-wrap.theme-linkedin .js-cards-meta-header {
-  color: #717171;
-  border-bottom-color: #e0dfdc;
+/* ==============================================================
+   LINKEDIN OFFICIAL NAVBAR & FILTER SUBBAR
+   ============================================================== */
+.li-official-navbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e0dfdc;
+  height: 56px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.li-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.li-in-logo-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: #0a66c2;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+.li-nav-search-wrap {
+  background: #edf3f8;
+  border-radius: 4px;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 280px;
+}
+
+.li-nav-search-wrap i {
+  color: #56687a;
+  font-size: 0.9rem;
+}
+
+.li-nav-search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.88rem;
+  color: #191919;
+  width: 100%;
+}
+
+.li-nav-center {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: 56px;
+}
+
+.li-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #666666;
+  height: 100%;
+  padding: 0 8px;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s;
+}
+
+.li-nav-item i {
+  font-size: 1.15rem;
+  margin-bottom: 2px;
+}
+
+.li-nav-item:hover,
+.li-nav-item.active {
+  color: #191919;
+}
+
+.li-nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #191919;
+}
+
+.li-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-li-sync-live {
+  background: #0a66c2;
+  color: #ffffff;
+  border: none;
+  border-radius: 16px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-li-sync-live:hover {
+  background: #004182;
+}
+
+.li-filter-subbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e0dfdc;
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.li-filter-chip {
+  background: #ffffff;
+  border: 1px solid #717171;
+  color: #5e5e5e;
+  border-radius: 16px;
+  padding: 5px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+
+.li-filter-chip:hover {
+  background: #f3f2ef;
+  border-color: #191919;
+  color: #191919;
+}
+
+.li-filter-chip.active {
+  background: #057642;
+  color: #ffffff;
+  border-color: #057642;
+}
+
+.li-results-header {
+  padding: 14px 16px 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.li-results-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #191919;
 }
 
 /* LINKEDIN LEFT CARDS */
