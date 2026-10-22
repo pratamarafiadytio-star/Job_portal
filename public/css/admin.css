@@ -2353,4 +2353,143 @@ body {
   display: inline-block;
 }
 
+/* ==============================================================
+   AUTOLOAD REAL-TIME ENGINE & FRESH JOBS STYLES
+   ============================================================== */
+
+/* Top Header Autoload Pill */
+.header-autoload-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  color: #15803d;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 20px;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.12);
+  transition: all 0.3s ease;
+}
+
+.header-autoload-pill.paused {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #64748b;
+  box-shadow: none;
+}
+
+.live-dot-pulse {
+  width: 8px;
+  height: 8px;
+  background-color: #10b981;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 rgba(16, 185, 129, 0.6);
+  animation: pulseGreenDot 1.8s infinite;
+}
+
+.header-autoload-pill.paused .live-dot-pulse {
+  background-color: #94a3b8;
+  animation: none;
+  box-shadow: none;
+}
+
+@keyframes pulseGreenDot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+/* Section 4 Live Banner */
+.autoload-live-banner {
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
+  transition: all 0.3s ease;
+}
+
+.autoload-live-banner.paused {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.live-pulse-dot {
+  animation: pulseGreenDot 1.8s infinite;
+}
+
+.autoload-live-banner.paused .live-pulse-dot {
+  background: #94a3b8 !important;
+  animation: none !important;
+}
+
+/* Badge Terbaru Hari Ini (Fresh Pulse) */
+.official-platform-badge.fresh-badge {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #ffffff;
+  border: 1px solid #ea580c;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.28);
+  animation: pulseFreshBadge 2.2s infinite;
+  letter-spacing: 0.3px;
+}
+
+@keyframes pulseFreshBadge {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.official-meta-pill.pill-time-ago {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+  font-weight: 700;
+}
+
+/* Live Notification Toast */
+.autoload-live-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #0f172a;
+  color: #ffffff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  z-index: 99999;
+  border-left: 4px solid #10b981;
+  animation: slideUpToast 0.3s ease-out;
+}
+
+@keyframes slideUpToast {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
 

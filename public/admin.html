@@ -186,8 +186,14 @@
         </div>
 
         <div class="admin-top-actions">
-          <a href="#sosmed-generator" class="btn-header-action scout-btn" onclick="document.querySelector('a[href=\'#sosmed-generator\']').click()">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Scout Sosmed
+          <!-- Autoload Status Indicator Pill -->
+          <div class="header-autoload-pill" id="header-autoload-pill" title="Autoload lowongan web aktif otomatis">
+            <span class="live-dot-pulse"></span>
+            <span id="header-autoload-label">Autoload Live ON</span>
+          </div>
+
+          <a href="#sosmed-generator" class="btn-header-action scout-btn" onclick="document.querySelector('a[href=\'#sosmed-generator\']').click()" style="background: linear-gradient(135deg, #0284c7, #06b6d4);">
+            <i class="fa-solid fa-globe"></i> Scout Loker Web
           </a>
           <a href="#upload-job" class="btn-header-action upload-btn" onclick="document.querySelector('a[href=\'#upload-job\']').click()">
             <i class="fa-solid fa-cloud-arrow-up"></i> Upload Poster Baru
@@ -665,9 +671,37 @@
                 <div style="margin-top: 10px; padding: 10px 14px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                   <div style="font-size: 0.8rem; color: #065f46; font-weight: 600; display: flex; align-items: center; gap: 8px;">
                     <i class="fa-solid fa-shield-check" style="color: #10b981; font-size: 1.1rem;"></i>
-                    <span>Sumber Terjamin Resmi: Postingan lowongan disaring dari akun karir terverifikasi di LinkedIn, IG, FB & Portal BUMN. Bebas penipuan!</span>
+                    <span>Sumber Terjamin Resmi: Lowongan disaring langsung dari website resmi (Detik, Kompas, Tribun, BUMN & Karir Perusahaan). 100% Bebas biaya!</span>
                   </div>
                   <span style="font-size: 0.74rem; background: #10b981; color: white; padding: 2px 8px; border-radius: 12px; font-weight: 700;">100% AMAN & RESMI</span>
+                </div>
+
+                <!-- AUTOLOAD & LIVE SYNC STATUS BANNER -->
+                <div class="autoload-live-banner" style="margin-top: 12px; padding: 12px 18px; background: linear-gradient(135deg, #f0fdf4, #e0f2fe); border: 1.5px solid #86efac; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="live-pulse-container" style="position: relative; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center;">
+                      <span class="live-pulse-dot" id="autoload-pulse-dot" style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; display: inline-block;"></span>
+                    </div>
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <strong style="color: #064e3b; font-size: 0.9rem;">Autoload Loker Web Real-Time</strong>
+                        <span class="badge" id="autoload-status-badge" style="background: #059669; color: white; font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
+                          <i class="fa-solid fa-bolt"></i> AKTIF (30 Detik)
+                        </span>
+                      </div>
+                      <p style="font-size: 0.8rem; color: #047857; margin-top: 2px;" id="autoload-status-desc">
+                        Sistem otomatis memindai dan memuat postingan lowongan kerja terbaru dari website secara berkala.
+                      </p>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-sync-now" onclick="triggerManualWebSync()" style="background: white; border-color: #0284c7; color: #0284c7; font-weight: 700;" title="Perbarui sekarang juga tanpa menunggu jeda waktu">
+                      <i class="fa-solid fa-arrows-rotate" id="icon-manual-sync"></i> Sync Sekarang
+                    </button>
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-toggle-autoload" onclick="toggleAutoloadEngine()" style="background: white; border-color: #059669; color: #047857; font-weight: 700;" title="Jeda atau lanjutkan pembaruan otomatis">
+                      <i class="fa-solid fa-pause"></i> Jeda Autoload
+                    </button>
+                  </div>
                 </div>
 
                 <!-- ACTION BUTTONS -->

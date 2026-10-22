@@ -297,6 +297,9 @@ function unlockDashboard() {
   if (app) app.style.display = 'flex';
   loadDashboardData();
   loadAdminJobs();
+  // Autoload & initial sync for official web vacancies
+  populateOfficialVacanciesFromSystem('lowongan');
+  startAdminAutoloadEngine();
 }
 
 // -------------------------------------------------------------
@@ -1112,64 +1115,86 @@ let OFFICIAL_VACANCIES_DB = [];
 let currentOfficialFilteredJobs = [];
 let currentPosterJobData = null;
 
-async function populateOfficialVacanciesFromSystem(keyword = 'admin') {
-  OFFICIAL_VACANCIES_DB = [];
+// AUTOLOAD & REAL-TIME LIVE SYNC ENGINE STATE
+let autoloadInterval = null;
+let autoloadCountdownTicker = null;
+let isAutoloadActive = true;
+let autoloadCountdown = 30; // 30 seconds interval
+let isAutoloadFetching = false;
+let lastAutoloadTime = null;
 
-  // 1. Convert real database jobs from adminJobs
-  if (Array.isArray(adminJobs) && adminJobs.length > 0) {
-    adminJobs.forEach(dbJob => {
-      if (dbJob.status === 'system_settings') return;
-      OFFICIAL_VACANCIES_DB.push({
-        id: 'db_' + dbJob.id,
-        title: dbJob.title,
-        company_name: dbJob.company_name,
-        brand_logo_text: (dbJob.company_name || 'CO').slice(0, 3).toUpperCase(),
-        brand_banner: dbJob.poster_image || './uploads/indolakto_indomilk_banner.jpg',
-        sector: (dbJob.category || '').toLowerCase().includes('fmcg') ? 'fmcg' : 'manufaktur',
-        sector_label: dbJob.category || 'Operasional',
-        category: dbJob.category || 'Administrasi',
-        role_department: dbJob.job_type || 'Full Time',
-        job_type: dbJob.job_type || 'Full Time',
-        location: dbJob.location || 'Indonesia',
-        education_level: 'all',
-        education_label: 'Semua Pendidikan',
-        experience_level: dbJob.experience_level || 'Semua Pengalaman',
-        salary_display: dbJob.salary_display || 'Kompetitif',
-        deadline: 'Aktif di Portal',
-        official_url: dbJob.website_url || './',
-        contact_type: 'link',
-        contact_value: JSON.stringify({ whatsapp: dbJob.whatsapp || '', email: dbJob.email || '', website: dbJob.website_url || '' }),
-        anti_fraud_notice: `PT ${dbJob.company_name} tidak memungut biaya apapun dalam proses rekrutmen.`,
-        description: dbJob.description || 'Lowongan resmi dari database sistem KerjaHub.',
-        requirements: Array.isArray(dbJob.requirements) ? dbJob.requirements : [dbJob.requirements || 'Kualifikasi sesuai arahan perusahaan'],
-        responsibilities: Array.isArray(dbJob.responsibilities) ? dbJob.responsibilities : [dbJob.responsibilities || 'Tanggung jawab sesuai posisi'],
-        benefits: Array.isArray(dbJob.benefits) ? dbJob.benefits : ['BPJS & Tunjangan Standar'],
-        theme: 'modern',
-        mascot: 'corporate',
-        verified_badge: 'Database Resmi',
-        apply_info: 'Lamaran langsung ke sistem KerjaHub.',
-        hashtag: '#KerjaHub #LokerResmi'
+async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackgroundAutoload = false) {
+  // If not background silent autoload, rebuild base list with DB jobs
+  if (!isBackgroundAutoload) {
+    OFFICIAL_VACANCIES_DB = [];
+
+    // 1. Convert real database jobs from adminJobs
+    if (Array.isArray(adminJobs) && adminJobs.length > 0) {
+      adminJobs.forEach(dbJob => {
+        if (dbJob.status === 'system_settings') return;
+        const dbCreated = dbJob.created_at ? new Date(dbJob.created_at).getTime() : 0;
+        OFFICIAL_VACANCIES_DB.push({
+          id: 'db_' + dbJob.id,
+          title: dbJob.title,
+          company_name: dbJob.company_name,
+          brand_logo_text: (dbJob.company_name || 'CO').slice(0, 3).toUpperCase(),
+          brand_banner: dbJob.poster_image || './uploads/indolakto_indomilk_banner.jpg',
+          sector: (dbJob.category || '').toLowerCase().includes('fmcg') ? 'fmcg' : 'manufaktur',
+          sector_label: dbJob.category || 'Operasional',
+          category: dbJob.category || 'Administrasi',
+          role_department: dbJob.job_type || 'Full Time',
+          job_type: dbJob.job_type || 'Full Time',
+          location: dbJob.location || 'Indonesia',
+          education_level: 'all',
+          education_label: 'Semua Pendidikan',
+          experience_level: dbJob.experience_level || 'Semua Pengalaman',
+          salary_display: dbJob.salary_display || 'Kompetitif',
+          deadline: 'Aktif di Portal',
+          pubDate: dbJob.created_at || '',
+          pubTimestamp: dbCreated,
+          timeAgo: 'Diposting di Portal',
+          isFresh: dbCreated > (Date.now() - 24 * 60 * 60 * 1000),
+          official_url: dbJob.website_url || './',
+          contact_type: 'link',
+          contact_value: JSON.stringify({ whatsapp: dbJob.whatsapp || '', email: dbJob.email || '', website: dbJob.website_url || '' }),
+          anti_fraud_notice: `PT ${dbJob.company_name} tidak memungut biaya apapun dalam proses rekrutmen.`,
+          description: dbJob.description || 'Lowongan resmi dari database sistem KerjaHub.',
+          requirements: Array.isArray(dbJob.requirements) ? dbJob.requirements : [dbJob.requirements || 'Kualifikasi sesuai arahan perusahaan'],
+          responsibilities: Array.isArray(dbJob.responsibilities) ? dbJob.responsibilities : [dbJob.responsibilities || 'Tanggung jawab sesuai posisi'],
+          benefits: Array.isArray(dbJob.benefits) ? dbJob.benefits : ['BPJS & Tunjangan Standar'],
+          theme: 'modern',
+          mascot: 'corporate',
+          verified_badge: 'Database Resmi',
+          apply_info: 'Lamaran langsung ke sistem KerjaHub.',
+          hashtag: '#KerjaHub #LokerResmi'
+        });
       });
-    });
+    }
   }
 
   // 2. Fetch real live portal jobs from /api/live-jobs
+  let newArrivalsCount = 0;
   try {
-    const res = await fetch(`/api/live-jobs?keyword=${encodeURIComponent(keyword || 'admin')}&platform=all`);
+    const res = await fetch(`/api/live-jobs?keyword=${encodeURIComponent(keyword || 'lowongan')}&platform=all`);
     if (res.ok) {
       const json = await res.json();
       if (json && json.success && Array.isArray(json.data)) {
         json.data.forEach(lj => {
-          if (!OFFICIAL_VACANCIES_DB.some(o => o.title.toLowerCase() === lj.title.toLowerCase() && o.company_name.toLowerCase() === lj.company_name.toLowerCase())) {
+          const exists = OFFICIAL_VACANCIES_DB.some(o => 
+            (o.official_url && lj.official_url && o.official_url === lj.official_url) ||
+            (o.title.toLowerCase() === lj.title.toLowerCase() && o.company_name.toLowerCase() === lj.company_name.toLowerCase())
+          );
+          if (!exists) {
+            newArrivalsCount++;
             OFFICIAL_VACANCIES_DB.push({
-              id: lj.id,
+              id: lj.id || ('live_web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
               title: lj.title,
               company_name: lj.company_name,
               brand_logo_text: (lj.company_name || 'CO').slice(0, 3).toUpperCase(),
               brand_banner: './uploads/indolakto_indomilk_banner.jpg',
               sector: 'manufaktur',
               sector_label: lj.source_website || 'Website Berita & Karir',
-              category: lj.category || 'Administrasi',
+              category: lj.category || 'Operasional',
               role_department: lj.role_department || lj.title,
               job_type: lj.job_type || 'Full Time',
               location: lj.location || 'Indonesia',
@@ -1178,14 +1203,18 @@ async function populateOfficialVacanciesFromSystem(keyword = 'admin') {
               experience_level: 'Semua Pengalaman',
               salary_display: lj.salary_display || 'Kompetitif',
               deadline: 'Aktif Real-Time',
+              pubDate: lj.pubDate || new Date().toISOString(),
+              pubTimestamp: lj.pubTimestamp || Date.now(),
+              timeAgo: lj.timeAgo || 'Baru saja',
+              isFresh: lj.isFresh !== undefined ? lj.isFresh : true,
               official_url: lj.official_url || lj.website_url || lj.url,
               contact_type: 'link',
               contact_value: JSON.stringify({ whatsapp: lj.contact_whatsapp || '', email: lj.contact_email || '', website: lj.official_url || lj.website_url || lj.url }),
               anti_fraud_notice: lj.anti_fraud_notice,
               description: lj.description,
-              requirements: lj.requirements || [],
-              responsibilities: lj.responsibilities || [],
-              benefits: lj.benefits || [],
+              requirements: Array.isArray(lj.requirements) && lj.requirements.length > 0 ? lj.requirements : ['Kualifikasi tercantum pada postingan web resmi', 'Pendidikan relevan', 'Disiplin dan bertanggung jawab'],
+              responsibilities: Array.isArray(lj.responsibilities) && lj.responsibilities.length > 0 ? lj.responsibilities : ['Menjalankan tugas sesuai arahan operasional'],
+              benefits: Array.isArray(lj.benefits) && lj.benefits.length > 0 ? lj.benefits : ['Gaji pokok sesuai standar UMK / korporasi', 'BPJS Ketenagakerjaan & Kesehatan'],
               theme: 'modern',
               mascot: 'corporate',
               verified_badge: 'Web Terverifikasi',
@@ -1200,9 +1229,166 @@ async function populateOfficialVacanciesFromSystem(keyword = 'admin') {
     console.warn('Error fetching live jobs for official section:', e);
   }
 
-  currentOfficialFilteredJobs = [...OFFICIAL_VACANCIES_DB];
-  renderOfficialJobsGrid();
+  // 3. Sort strictly by newest pubTimestamp descending (Freshest jobs always at top!)
+  OFFICIAL_VACANCIES_DB.sort((a, b) => (b.pubTimestamp || 0) - (a.pubTimestamp || 0));
+
+  lastAutoloadTime = new Date();
+  updateAutoloadStatusUi();
+
+  filterAndRenderOfficialJobs();
+
+  if (isBackgroundAutoload && newArrivalsCount > 0) {
+    showAutoloadToast(`⚡ ${newArrivalsCount} Lowongan baru terbit di web berhasil dimuat otomatis!`);
+  }
 }
+
+// -------------------------------------------------------------
+// AUTOLOAD ENGINE CONTROLLERS
+// -------------------------------------------------------------
+function startAdminAutoloadEngine() {
+  if (autoloadInterval) clearInterval(autoloadInterval);
+  if (autoloadCountdownTicker) clearInterval(autoloadCountdownTicker);
+
+  isAutoloadActive = true;
+  autoloadCountdown = 30;
+
+  updateAutoloadStatusUi();
+
+  // 1-second ticker for countdown
+  autoloadCountdownTicker = setInterval(() => {
+    if (!isAutoloadActive) return;
+    autoloadCountdown--;
+    if (autoloadCountdown <= 0) {
+      autoloadCountdown = 30;
+      triggerBackgroundAutoload();
+    }
+    updateAutoloadCountdownUi();
+  }, 1000);
+}
+
+function stopAdminAutoloadEngine() {
+  if (autoloadInterval) clearInterval(autoloadInterval);
+  if (autoloadCountdownTicker) clearInterval(autoloadCountdownTicker);
+  autoloadInterval = null;
+  autoloadCountdownTicker = null;
+  isAutoloadActive = false;
+  updateAutoloadStatusUi();
+}
+
+function toggleAutoloadEngine() {
+  if (isAutoloadActive) {
+    stopAdminAutoloadEngine();
+    showAutoloadToast('Autoload dijeda sementara.');
+  } else {
+    startAdminAutoloadEngine();
+    triggerManualWebSync();
+    showAutoloadToast('Autoload diaktifkan kembali (Interval 30 detik).');
+  }
+}
+
+async function triggerManualWebSync() {
+  autoloadCountdown = 30;
+  const icon = document.getElementById('icon-manual-sync');
+  if (icon) icon.classList.add('fa-spin');
+  try {
+    const kwInput = document.getElementById('official-keyword');
+    const kw = kwInput ? (kwInput.value.trim() || 'lowongan') : 'lowongan';
+    await populateOfficialVacanciesFromSystem(kw, false);
+    showAutoloadToast('Sinkronisasi selesai! Lowongan web paling baru telah dimuat.');
+  } finally {
+    if (icon) icon.classList.remove('fa-spin');
+    updateAutoloadStatusUi();
+  }
+}
+
+async function triggerBackgroundAutoload() {
+  if (isAutoloadFetching) return;
+  isAutoloadFetching = true;
+  try {
+    const kwInput = document.getElementById('official-keyword');
+    const isTyping = document.activeElement === kwInput;
+    const kw = (kwInput && !isTyping) ? (kwInput.value.trim() || 'lowongan') : 'lowongan';
+    await populateOfficialVacanciesFromSystem(kw, true);
+  } finally {
+    isAutoloadFetching = false;
+  }
+}
+
+function updateAutoloadCountdownUi() {
+  const badge = document.getElementById('autoload-status-badge');
+  const headerLabel = document.getElementById('header-autoload-label');
+  if (isAutoloadActive) {
+    if (badge) badge.innerHTML = `<i class="fa-solid fa-bolt"></i> AKTIF (${autoloadCountdown}s)`;
+    if (headerLabel) headerLabel.textContent = `Autoload Live (${autoloadCountdown}s)`;
+  }
+}
+
+function updateAutoloadStatusUi() {
+  const pill = document.getElementById('header-autoload-pill');
+  const banner = document.querySelector('.autoload-live-banner');
+  const badge = document.getElementById('autoload-status-badge');
+  const desc = document.getElementById('autoload-status-desc');
+  const toggleBtn = document.getElementById('btn-toggle-autoload');
+  const headerLabel = document.getElementById('header-autoload-label');
+
+  const timeStr = lastAutoloadTime ? lastAutoloadTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Baru saja';
+
+  if (isAutoloadActive) {
+    if (pill) pill.classList.remove('paused');
+    if (banner) banner.classList.remove('paused');
+    if (badge) {
+      badge.style.background = '#059669';
+      badge.innerHTML = `<i class="fa-solid fa-bolt"></i> AKTIF (${autoloadCountdown}s)`;
+    }
+    if (desc) {
+      desc.textContent = `Autoload aktif. Terakhir disinkronkan pukul ${timeStr} WIB. Otomatis memuat update lowongan terbitan terbaru setiap 30 detik.`;
+    }
+    if (toggleBtn) {
+      toggleBtn.innerHTML = '<i class="fa-solid fa-pause"></i> Jeda Autoload';
+      toggleBtn.style.color = '#047857';
+      toggleBtn.style.borderColor = '#059669';
+    }
+    if (headerLabel) headerLabel.textContent = `Autoload Live (${autoloadCountdown}s)`;
+  } else {
+    if (pill) pill.classList.add('paused');
+    if (banner) banner.classList.add('paused');
+    if (badge) {
+      badge.style.background = '#64748b';
+      badge.innerHTML = `<i class="fa-solid fa-circle-pause"></i> DIJEDA`;
+    }
+    if (desc) {
+      desc.textContent = `Autoload sedang dijeda. Klik "Lanjutkan Autoload" atau "Sync Sekarang" untuk memperbarui lowongan web terbaru.`;
+    }
+    if (toggleBtn) {
+      toggleBtn.innerHTML = '<i class="fa-solid fa-play"></i> Lanjutkan Autoload';
+      toggleBtn.style.color = '#0284c7';
+      toggleBtn.style.borderColor = '#0284c7';
+    }
+    if (headerLabel) headerLabel.textContent = 'Autoload Dijeda';
+  }
+}
+
+function showAutoloadToast(message) {
+  const existing = document.querySelector('.autoload-live-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'autoload-live-toast';
+  toast.innerHTML = `<i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 1.1rem;"></i> <span>${message}</span>`;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(15px)';
+    setTimeout(() => toast.remove(), 400);
+  }, 4000);
+}
+
+window.startAdminAutoloadEngine = startAdminAutoloadEngine;
+window.stopAdminAutoloadEngine = stopAdminAutoloadEngine;
+window.toggleAutoloadEngine = toggleAutoloadEngine;
+window.triggerManualWebSync = triggerManualWebSync;
 
 
 
@@ -1317,12 +1503,22 @@ function renderOfficialJobsGrid() {
       (aj.company_name || '').toLowerCase().trim() === (job.company_name || '').toLowerCase().trim()
     );
 
+    // Is fresh check: isFresh flag or within 24 hours
+    const isVeryFresh = job.isFresh || (job.pubTimestamp && (Date.now() - job.pubTimestamp < 24 * 60 * 60 * 1000));
+
     return `
       <div class="official-job-card card-${platClass}">
         <div class="official-card-top">
-          <span class="official-platform-badge ${platClass}">
-            <i class="${platIcon}"></i> ${escapeHtml(platLabel)}
-          </span>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span class="official-platform-badge ${platClass}">
+              <i class="${platIcon}"></i> ${escapeHtml(platLabel)}
+            </span>
+            ${isVeryFresh ? `
+              <span class="official-platform-badge fresh-badge" title="Dipublikasikan hari ini!">
+                <i class="fa-solid fa-bolt"></i> TERBARU HARI INI
+              </span>
+            ` : ''}
+          </div>
           <span class="official-sector-tag">${escapeHtml(job.sector_label || job.sector)}</span>
         </div>
 
@@ -1338,6 +1534,7 @@ function renderOfficialJobsGrid() {
 
         <div class="official-meta-pills">
           <span class="official-meta-pill"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location)}</span>
+          ${job.timeAgo ? `<span class="official-meta-pill pill-time-ago"><i class="fa-regular fa-clock"></i> ${escapeHtml(job.timeAgo)}</span>` : ''}
           <span class="official-meta-pill"><i class="fa-solid fa-graduation-cap"></i> ${escapeHtml(job.education_label || 'Semua Pendidikan')}</span>
           <span class="official-meta-pill"><i class="fa-solid fa-clock"></i> ${escapeHtml(job.job_type)}</span>
           <span class="official-meta-pill salary"><i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(job.salary_display)}</span>
@@ -2510,6 +2707,10 @@ async function fetchLiveMedsosPostings() {
         experience_level: 'Semua Pengalaman',
         salary_display: j.salary || 'Kompetitif (Standar UMK / Industri)',
         deadline: 'Aktif Terbit di Web',
+        pubDate: j.pubDate || new Date().toISOString(),
+        pubTimestamp: j.pubTimestamp || Date.now(),
+        timeAgo: j.timeAgo || 'Baru saja',
+        isFresh: true,
         official_url: j.official_url || j.url || j.website_url,
         contact_type: 'link',
         contact_value: JSON.stringify({ whatsapp: j.whatsapp || '', email: j.email || '', website: j.official_url || j.url || j.website_url }),
@@ -2540,6 +2741,9 @@ async function fetchLiveMedsosPostings() {
           OFFICIAL_VACANCIES_DB.unshift(lj);
         }
       });
+
+      // Sort strictly by newest pubTimestamp descending
+      OFFICIAL_VACANCIES_DB.sort((a, b) => (b.pubTimestamp || 0) - (a.pubTimestamp || 0));
 
       alert(`⚡ Berhasil menemukan ${liveJobs.length} postingan loker asli yang benar-benar dibagikan di website! Klik tombol "Buka Postingan Asli Web ↗" untuk langsung masuk ke halaman postingannya.`);
       filterAndRenderOfficialJobs();

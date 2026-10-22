@@ -1128,7 +1128,11 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
           company_name: parsed.company,
           company: parsed.company,
           location: cleanLoc,
+          pubDate,
+          pubTimestamp: timeInfo.timestamp,
+          timeAgo: timeInfo.text,
           posted_time: timeInfo.text || 'Baru saja',
+          isFresh: timeInfo.isFresh,
           salary_display: 'Kompetitif (Standar UMK / Korporasi)',
           salary_prompt: 'Gaji kompetitif sesuai standar penempatan kerja & kebijakan perusahaan.',
           job_type: 'Full time',
@@ -1208,7 +1212,11 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
             company_name: parsed.company,
             company: parsed.company,
             location: cleanLoc,
+            pubDate,
+            pubTimestamp: timeInfo.timestamp,
+            timeAgo: timeInfo.text,
             posted_time: timeInfo.text || 'Baru saja',
+            isFresh: timeInfo.isFresh,
             salary_display: 'Kompetitif (Standar Industri & BUMN)',
             salary_prompt: 'Gaji kompetitif sesuai standar industri dan peraturan yang berlaku.',
             job_type: 'Full time',
@@ -1288,13 +1296,20 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
           description: dj.description || 'Lowongan resmi terverifikasi di portal KerjaHub.',
           responsibilities: Array.isArray(dj.responsibilities) ? dj.responsibilities : [dj.description || 'Menjalankan tugas operasional sesuai posisi.'],
           requirements: Array.isArray(dj.requirements) ? dj.requirements : ['Pendidikan relevan', 'Disiplin dan bertanggung jawab'],
-          benefits: Array.isArray(dj.benefits) ? dj.benefits : ['Gaji pokok sesuai UMK', 'BPJS Ketenagakerjaan & Kesehatan']
+          benefits: Array.isArray(dj.benefits) ? dj.benefits : ['Gaji pokok sesuai UMK', 'BPJS Ketenagakerjaan & Kesehatan'],
+          pubDate: dj.created_at || new Date().toISOString(),
+          pubTimestamp: dj.created_at ? new Date(dj.created_at).getTime() : Date.now(),
+          timeAgo: 'Diposting di Portal',
+          isFresh: true
         });
       }
     }
   } catch (e) {
     console.warn('DB merge error:', e.message);
   }
+
+  // Sort strictly by timestamp descending (Absolute freshest postings first!)
+  results.sort((a, b) => (b.pubTimestamp || 0) - (a.pubTimestamp || 0));
 
   return results;
 }
