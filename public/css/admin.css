@@ -1896,6 +1896,17 @@ body {
   box-shadow: 0 4px 14px rgba(24, 119, 242, 0.4);
 }
 
+.official-source-pills .source-pill.pill-twitter.active {
+  background: #0f172a !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.4);
+}
+
+.official-source-pills .source-pill.pill-media.active {
+  background: #0284c7 !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+}
+
+.official-source-pills .source-pill.pill-bumn.active,
 .official-source-pills .source-pill.pill-official.active {
   background: #059669 !important;
   box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
@@ -2065,10 +2076,56 @@ body {
   border: 1px solid #bfdbfe;
 }
 
+.official-platform-badge.twitter {
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+}
+
 .official-platform-badge.official {
   background: #ecfdf5;
   color: #047857;
   border: 1px solid #a7f3d0;
+}
+
+/* Card Social Media Borders */
+.official-job-card.card-linkedin {
+  border-left: 4px solid #0077b5;
+}
+.official-job-card.card-instagram {
+  border-left: 4px solid #e1306c;
+}
+.official-job-card.card-facebook {
+  border-left: 4px solid #1877f2;
+}
+.official-job-card.card-twitter {
+  border-left: 4px solid #0f172a;
+}
+.official-job-card.card-bumn {
+  border-left: 4px solid #059669;
+}
+.official-job-card.card-media {
+  border-left: 4px solid #0284c7;
+}
+
+.btn-copy-caption {
+  background: #f8fafc;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-copy-caption:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
 }
 
 .official-sector-tag {

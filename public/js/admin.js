@@ -1123,7 +1123,10 @@ let autoloadCountdown = 30; // 30 seconds interval
 let isAutoloadFetching = false;
 let lastAutoloadTime = null;
 
-async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackgroundAutoload = false) {
+async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackgroundAutoload = false, targetPlatform = null) {
+  const activeSourceBtn = document.querySelector('.official-source-pills .source-pill.active');
+  const activePlatform = targetPlatform || (activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all');
+
   // If not background silent autoload, rebuild base list with DB jobs
   if (!isBackgroundAutoload) {
     OFFICIAL_VACANCIES_DB = [];
@@ -1154,6 +1157,10 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
           pubTimestamp: dbCreated,
           timeAgo: 'Diposting di Portal',
           isFresh: dbCreated > (Date.now() - 24 * 60 * 60 * 1000),
+          platform: 'official',
+          platform_label: 'Database Resmi Portal',
+          platform_icon: 'fa-solid fa-building-circle-check',
+          platform_class: 'official',
           official_url: dbJob.website_url || './',
           contact_type: 'link',
           contact_value: JSON.stringify({ whatsapp: dbJob.whatsapp || '', email: dbJob.email || '', website: dbJob.website_url || '' }),
@@ -1175,7 +1182,7 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
   // 2. Fetch real live portal jobs from /api/live-jobs
   let newArrivalsCount = 0;
   try {
-    const res = await fetch(`/api/live-jobs?keyword=${encodeURIComponent(keyword || 'lowongan')}&platform=all`);
+    const res = await fetch(`/api/live-jobs?keyword=${encodeURIComponent(keyword || 'lowongan')}&platform=${encodeURIComponent(activePlatform || 'all')}`);
     if (res.ok) {
       const json = await res.json();
       if (json && json.success && Array.isArray(json.data)) {
@@ -1186,6 +1193,32 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
           );
           if (!exists) {
             newArrivalsCount++;
+
+            const plat = lj.platform || 'web';
+            const compClean = (lj.company_name || 'Perusahaan').replace(/[^a-zA-Z0-9]/g, '');
+            let defaultTheme = 'modern';
+            let defaultHashtag = '#LokerWebAsli #InfoLowongan';
+
+            if (plat === 'linkedin') {
+              defaultTheme = 'linkedin';
+              defaultHashtag = `#LokerLinkedIn #InfoKarir #HiringNow #${compClean}`;
+            } else if (plat === 'instagram') {
+              defaultTheme = 'instagram';
+              defaultHashtag = `#LokerInstagram #InfoLoker2026 #KarirIG #${compClean}`;
+            } else if (plat === 'facebook') {
+              defaultTheme = 'facebook';
+              defaultHashtag = `#LokerFacebook #InfoLowonganKerja #${compClean}`;
+            } else if (plat === 'twitter') {
+              defaultTheme = 'twitter';
+              defaultHashtag = `#LokerTwitter #InfoLoker #${compClean}`;
+            } else if (plat === 'bumn') {
+              defaultTheme = 'bumn';
+              defaultHashtag = `#LokerBUMN #RekrutmenBUMN #BUMNUntukIndonesia #${compClean}`;
+            } else if ((lj.title || '').toLowerCase().includes('operator') || (lj.title || '').toLowerCase().includes('teknisi')) {
+              defaultTheme = 'factory';
+              defaultHashtag = `#LokerPabrik #OperatorProduksi #${compClean}`;
+            }
+
             OFFICIAL_VACANCIES_DB.push({
               id: lj.id || ('live_web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
               title: lj.title,
@@ -1207,6 +1240,10 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
               pubTimestamp: lj.pubTimestamp || Date.now(),
               timeAgo: lj.timeAgo || 'Baru saja',
               isFresh: lj.isFresh !== undefined ? lj.isFresh : true,
+              platform: plat,
+              platform_label: lj.platform_label || 'Website Resmi Terverifikasi',
+              platform_icon: lj.platform_icon || 'fa-solid fa-globe',
+              platform_class: lj.platform_class || 'web',
               official_url: lj.official_url || lj.website_url || lj.url,
               contact_type: 'link',
               contact_value: JSON.stringify({ whatsapp: lj.contact_whatsapp || '', email: lj.contact_email || '', website: lj.official_url || lj.website_url || lj.url }),
@@ -1215,11 +1252,11 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
               requirements: Array.isArray(lj.requirements) && lj.requirements.length > 0 ? lj.requirements : ['Kualifikasi tercantum pada postingan web resmi', 'Pendidikan relevan', 'Disiplin dan bertanggung jawab'],
               responsibilities: Array.isArray(lj.responsibilities) && lj.responsibilities.length > 0 ? lj.responsibilities : ['Menjalankan tugas sesuai arahan operasional'],
               benefits: Array.isArray(lj.benefits) && lj.benefits.length > 0 ? lj.benefits : ['Gaji pokok sesuai standar UMK / korporasi', 'BPJS Ketenagakerjaan & Kesehatan'],
-              theme: 'modern',
-              mascot: 'corporate',
-              verified_badge: 'Web Terverifikasi',
-              apply_info: 'Klik "Buka Postingan Asli Web" untuk membuka link sumber.',
-              hashtag: '#LokerAsli #' + (lj.company_name || '').replace(/[^a-zA-Z0-9]/g, '')
+              theme: defaultTheme,
+              mascot: (lj.title || '').toLowerCase().includes('operator') ? 'factory' : 'corporate',
+              verified_badge: lj.platform_label || 'Web Terverifikasi',
+              apply_info: `Klik "Buka Postingan Asli" untuk membuka link sumber ${lj.platform_label || 'Web'}.`,
+              hashtag: defaultHashtag
             });
           }
         });
@@ -1293,8 +1330,10 @@ async function triggerManualWebSync() {
   try {
     const kwInput = document.getElementById('official-keyword');
     const kw = kwInput ? (kwInput.value.trim() || 'lowongan') : 'lowongan';
-    await populateOfficialVacanciesFromSystem(kw, false);
-    showAutoloadToast('Sinkronisasi selesai! Lowongan web paling baru telah dimuat.');
+    const activeSourceBtn = document.querySelector('.official-source-pills .source-pill.active');
+    const source = activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all';
+    await populateOfficialVacanciesFromSystem(kw, false, source);
+    showAutoloadToast('Sinkronisasi selesai! Lowongan sesuai platform terpilih telah dimuat.');
   } finally {
     if (icon) icon.classList.remove('fa-spin');
     updateAutoloadStatusUi();
@@ -1308,7 +1347,9 @@ async function triggerBackgroundAutoload() {
     const kwInput = document.getElementById('official-keyword');
     const isTyping = document.activeElement === kwInput;
     const kw = (kwInput && !isTyping) ? (kwInput.value.trim() || 'lowongan') : 'lowongan';
-    await populateOfficialVacanciesFromSystem(kw, true);
+    const activeSourceBtn = document.querySelector('.official-source-pills .source-pill.active');
+    const source = activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all';
+    await populateOfficialVacanciesFromSystem(kw, true, source);
   } finally {
     isAutoloadFetching = false;
   }
@@ -1419,8 +1460,12 @@ function filterAndRenderOfficialJobs() {
 
     // Platform / Medsos filter
     if (source !== 'all') {
-      const jobPlat = job.platform || 'official';
-      if (jobPlat !== source) return false;
+      const jobPlat = (job.platform || 'web').toLowerCase();
+      if (source === 'corporate') {
+        if (jobPlat !== 'corporate' && jobPlat !== 'web' && jobPlat !== 'official') return false;
+      } else {
+        if (jobPlat !== source) return false;
+      }
     }
 
     // Sector filter
@@ -1462,9 +1507,13 @@ function renderOfficialJobsGrid() {
   const activeSourceBtn = document.querySelector('.official-source-pills .source-pill.active');
   const source = activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all';
   const sourceLabels = {
-    all: 'Semua Situs Web Resmi',
-    media: 'Portal Media (Kompas, Detik, Tribun)',
-    bumn: 'BUMN & Kedinasan',
+    all: 'Semua Platform & Media Sosial',
+    linkedin: 'LinkedIn Postingan Karir',
+    instagram: 'Instagram Info Karir',
+    facebook: 'Facebook Postingan Karir',
+    twitter: 'Twitter (X) Karir',
+    media: 'Portal Media Berita (Kompas, Detik, Tribun)',
+    bumn: 'BUMN & Karir Resmi',
     corporate: 'Perusahaan Swasta & Korporasi'
   };
 
@@ -1472,20 +1521,20 @@ function renderOfficialJobsGrid() {
     titleEl.textContent = `Ditemukan ${currentOfficialFilteredJobs.length} Lowongan ${sourceLabels[source] || ''}`;
   }
   if (subEl) {
-    subEl.textContent = `Menampilkan lowongan aktual yang dipublikasikan di website resmi. Sekali klik langsung menuju postingan aslinya di internet!`;
+    subEl.textContent = `Menampilkan lowongan aktual yang dipublikasikan di ${sourceLabels[source] || 'website resmi'}. Sekali klik langsung menuju postingan aslinya di internet!`;
   }
 
   if (currentOfficialFilteredJobs.length === 0) {
     container.innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: #ffffff; border-radius: 12px; border: 1.5px dashed #cbd5e1;">
         <i class="fa-solid fa-file-circle-xmark" style="font-size: 2.5rem; color: #94a3b8; margin-bottom: 14px;"></i>
-        <h4 style="color: #334155; font-size: 1.1rem; margin-bottom: 6px;">Tidak ada lowongan yang cocok dengan filter "${sourceLabels[source] || source}"</h4>
+        <h4 style="color: #334155; font-size: 1.1rem; margin-bottom: 6px;">Belum ada lowongan termuat untuk "${sourceLabels[source] || source}"</h4>
         <p style="font-size: 0.84rem; color: #64748b; max-width: 480px; margin: 0 auto 16px;">
-          Klik tombol "Tarik Lowongan Asli Terbaru dari Web (Live)" di atas untuk memindai website dan media berita secara langsung.
+          Klik tombol "Tarik Lowongan Sesuai Sosmed Terpilih" di bawah untuk memindai internet secara langsung.
         </p>
         <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
           <button type="button" class="btn btn-outline btn-sm" onclick="resetOfficialFilters()">Reset Filter</button>
-          <button type="button" class="btn btn-primary btn-sm" onclick="fetchLiveMedsosPostings()"><i class="fa-solid fa-magnifying-glass-location"></i> Tarik Loker Web Terkini</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="triggerManualWebSync()"><i class="fa-solid fa-magnifying-glass-location"></i> Tarik Loker ${sourceLabels[source] || ''} Terkini</button>
         </div>
       </div>
     `;
@@ -1506,6 +1555,8 @@ function renderOfficialJobsGrid() {
     // Is fresh check: isFresh flag or within 24 hours
     const isVeryFresh = job.isFresh || (job.pubTimestamp && (Date.now() - job.pubTimestamp < 24 * 60 * 60 * 1000));
 
+    const platNameShort = job.platform === 'linkedin' ? 'LinkedIn' : (job.platform === 'instagram' ? 'Instagram' : (job.platform === 'facebook' ? 'Facebook' : (job.platform === 'twitter' ? 'Twitter' : (job.platform === 'bumn' ? 'BUMN' : 'Web'))));
+
     return `
       <div class="official-job-card card-${platClass}">
         <div class="official-card-top">
@@ -1523,7 +1574,7 @@ function renderOfficialJobsGrid() {
         </div>
 
         <h3 class="official-job-title">
-          <a href="${escapeHtml(job.official_url || '#')}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;" title="Buka Postingan Asli Web">
+          <a href="${escapeHtml(job.official_url || '#')}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;" title="Buka Postingan Asli ${platNameShort}">
             ${escapeHtml(job.title)} <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.78rem; color: #0284c7; margin-left: 4px;"></i>
           </a>
         </h3>
@@ -1543,7 +1594,7 @@ function renderOfficialJobsGrid() {
 
         <div class="official-screening-card">
           <i class="fa-solid fa-shield-check" style="color: #10b981; font-size: 1rem; flex-shrink: 0;"></i>
-          <span><strong>Lolos Screening Anti-Hoax:</strong> Terbit di Website Resmi • 100% Bebas Biaya • Tautan Asli Valid</span>
+          <span><strong>Lolos Screening Anti-Hoax:</strong> Terbit di ${escapeHtml(platLabel)} • 100% Bebas Biaya • Tautan Valid</span>
         </div>
 
         <div style="font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
@@ -1555,10 +1606,10 @@ function renderOfficialJobsGrid() {
 
         <div class="official-apply-note">
           <i class="fa-solid fa-circle-info" style="color: #0284c7;"></i>
-          <span>${escapeHtml(job.apply_info || 'Klik Buka Postingan Asli Web untuk langsung menuju sumber pengumuman resmi.')}</span>
+          <span>${escapeHtml(job.apply_info || 'Klik Buka Postingan Asli untuk langsung menuju sumber pengumuman resmi.')}</span>
         </div>
 
-        <!-- 3 ACTION BUTTONS -->
+        <!-- ACTION BUTTONS -->
         <div class="official-card-actions">
           ${isAlreadyPublished ? `
             <button type="button" class="btn-gas-publish-action published" disabled title="Lowongan ini sudah aktif terbit di portal KerjaHub">
@@ -1574,8 +1625,11 @@ function renderOfficialJobsGrid() {
             <button type="button" class="btn btn-outline" onclick="openPosterStudioFromOfficialIndex(${idx})" title="Buka Studio Flyer Poster untuk kustomisasi tema / warna">
               <i class="fa-solid fa-palette"></i> Studio Poster
             </button>
-            <a href="${escapeHtml(job.official_url || '#')}" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="border-color: #0284c7; color: #0284c7; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;" title="Buka Postingan Asli Langsung di Website">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Postingan Asli Web ↗
+            <button type="button" class="btn-copy-caption" onclick="copyJobSosmedCaption(${idx})" title="Salin teks caption siap diposting ke medsos">
+              <i class="fa-regular fa-copy"></i> Salin Caption
+            </button>
+            <a href="${escapeHtml(job.official_url || '#')}" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="border-color: #0284c7; color: #0284c7; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;" title="Buka Postingan Asli Langsung di ${platNameShort}">
+              <i class="${platIcon}"></i> Buka Postingan ${platNameShort} ↗
             </a>
           </div>
         </div>
@@ -1583,6 +1637,37 @@ function renderOfficialJobsGrid() {
     `;
   }).join('');
 }
+
+window.copyJobSosmedCaption = function(idx) {
+  const job = currentOfficialFilteredJobs[idx];
+  if (!job) return;
+  const plat = job.platform_label || 'Web Resmi';
+  const text = `📢 [LOWONGAN KERJA RESMI - ${job.company_name}]
+
+Posisi: ${job.title}
+🏢 Perusahaan: ${job.company_name}
+📍 Lokasi: ${job.location}
+💰 Gaji: ${job.salary_display}
+⏰ Batas Waktu: ${job.deadline}
+
+Persyaratan Utama:
+${job.requirements.slice(0, 4).map(r => `• ${r}`).join('\n')}
+
+🔗 Buka Link Postingan Asli (${plat}):
+${job.official_url}
+
+${job.hashtag || '#LokerResmi #InfoLowongan'} @KerjaHubOfficial`;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      showAutoloadToast(`📋 Caption postingan ${plat} berhasil disalin ke clipboard!`);
+    }).catch(() => {
+      prompt('Salin teks caption berikut:', text);
+    });
+  } else {
+    prompt('Salin teks caption berikut:', text);
+  }
+};
 
 window.openWebJobDirectFromIndex = function(idx) {
   const job = currentOfficialFilteredJobs[idx];
@@ -2205,7 +2290,63 @@ function renderPosterCanvas() {
     footerBg: '#0f172a'
   };
 
-  if (selectedTheme === 'bumn') {
+  if (selectedTheme === 'linkedin') {
+    p = {
+      bg: '#ffffff',
+      outerBorder: '#0a66c2',
+      primary: '#0a66c2',
+      accentOrange: '#0077b5',
+      textDark: '#0f172a',
+      badgeBg: '#0a66c2',
+      badgeBorder: '#38bdf8',
+      badgeText: '#ffffff',
+      applyBoxBorder: '#0077b5',
+      applyBoxBg: '#ffffff',
+      footerBg: '#0f172a'
+    };
+  } else if (selectedTheme === 'instagram') {
+    p = {
+      bg: '#ffffff',
+      outerBorder: '#e1306c',
+      primary: '#c13584',
+      accentOrange: '#e1306c',
+      textDark: '#0f172a',
+      badgeBg: '#833ab4',
+      badgeBorder: '#e1306c',
+      badgeText: '#ffffff',
+      applyBoxBorder: '#e1306c',
+      applyBoxBg: '#ffffff',
+      footerBg: '#1e1b4b'
+    };
+  } else if (selectedTheme === 'facebook') {
+    p = {
+      bg: '#ffffff',
+      outerBorder: '#1877f2',
+      primary: '#1877f2',
+      accentOrange: '#0866ff',
+      textDark: '#0f172a',
+      badgeBg: '#1877f2',
+      badgeBorder: '#60a5fa',
+      badgeText: '#ffffff',
+      applyBoxBorder: '#1877f2',
+      applyBoxBg: '#ffffff',
+      footerBg: '#0f172a'
+    };
+  } else if (selectedTheme === 'twitter') {
+    p = {
+      bg: '#ffffff',
+      outerBorder: '#0f172a',
+      primary: '#0f172a',
+      accentOrange: '#38bdf8',
+      textDark: '#0f172a',
+      badgeBg: '#0f172a',
+      badgeBorder: '#38bdf8',
+      badgeText: '#ffffff',
+      applyBoxBorder: '#38bdf8',
+      applyBoxBg: '#ffffff',
+      footerBg: '#0f172a'
+    };
+  } else if (selectedTheme === 'bumn') {
     p = {
       bg: '#ffffff',
       outerBorder: '#0f172a',
@@ -2764,12 +2905,38 @@ async function fetchLiveMedsosPostings() {
 }
 
 function setupOfficialVacancyGenerator() {
-  // Platform source filter tabs (LinkedIn, IG, FB, Resmi)
+  // Helper to sync Google Dork query input with chosen platform
+  function updateGoogleDorkQueryForPlatform(source) {
+    const dorkInput = document.getElementById('live-dork-query');
+    const dorkBtn = document.getElementById('btn-open-dork-direct');
+    const kw = (document.getElementById('official-keyword')?.value || 'lowongan kerja').trim();
+    let q = `lowongan kerja "${kw}"`;
+    if (source === 'linkedin') q = `site:linkedin.com/posts "lowongan kerja" "${kw}"`;
+    else if (source === 'instagram') q = `site:instagram.com "lowongan kerja" "${kw}"`;
+    else if (source === 'facebook') q = `site:facebook.com "lowongan kerja" "${kw}"`;
+    else if (source === 'twitter') q = `(site:x.com OR site:twitter.com) "lowongan kerja" "${kw}"`;
+    else if (source === 'media') q = `(site:kompas.com OR site:detik.com OR site:tribunnews.com) "lowongan kerja" "${kw}"`;
+    else if (source === 'bumn') q = `("bumn" OR "rekrutmen bersama bumn") "lowongan kerja" "${kw}"`;
+    else q = `(site:linkedin.com OR site:instagram.com OR site:facebook.com OR site:kompas.com OR site:detik.com) "lowongan kerja" "${kw}"`;
+
+    if (dorkInput) dorkInput.value = q;
+    if (dorkBtn) dorkBtn.href = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+  }
+
+  // Platform source filter tabs (LinkedIn, IG, FB, Twitter, Media, BUMN, All)
   document.querySelectorAll('.official-source-pills .source-pill').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.official-source-pills .source-pill').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      const source = btn.getAttribute('data-source');
+      updateGoogleDorkQueryForPlatform(source);
       filterAndRenderOfficialJobs();
+
+      // If no matching jobs loaded in memory yet for this specific platform, auto-generate from live web!
+      if (currentOfficialFilteredJobs.length === 0) {
+        const kw = (kwInput ? kwInput.value.trim() : '') || 'lowongan';
+        populateOfficialVacanciesFromSystem(kw, false, source);
+      }
     });
   });
 
@@ -2788,16 +2955,28 @@ function setupOfficialVacancyGenerator() {
   const btnGenerate = document.getElementById('btn-generate-official-jobs');
   const btnFetchLive = document.getElementById('btn-fetch-live-scout');
 
-  if (kwInput) kwInput.addEventListener('input', () => filterAndRenderOfficialJobs());
+  if (kwInput) kwInput.addEventListener('input', () => {
+    filterAndRenderOfficialJobs();
+    const activeSourceBtn = document.querySelector('.official-source-pills .source-pill.active');
+    updateGoogleDorkQueryForPlatform(activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all');
+  });
   if (locInput) locInput.addEventListener('input', () => filterAndRenderOfficialJobs());
   if (eduSelect) eduSelect.addEventListener('change', () => filterAndRenderOfficialJobs());
   if (btnGenerate) btnGenerate.addEventListener('click', () => {
-    const kw = kwInput ? kwInput.value.trim() : 'admin';
-    populateOfficialVacanciesFromSystem(kw);
+    const kw = (kwInput ? kwInput.value.trim() : '') || 'lowongan';
+    const activeSourceBtn = document.querySelector('.official-source-pills .source-pill.active');
+    const source = activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all';
+    populateOfficialVacanciesFromSystem(kw, false, source);
     document.getElementById('scout-results-area')?.scrollIntoView({ behavior: 'smooth' });
   });
   if (btnFetchLive) {
-    btnFetchLive.addEventListener('click', fetchLiveMedsosPostings);
+    btnFetchLive.addEventListener('click', () => {
+      const kw = (kwInput ? kwInput.value.trim() : '') || 'lowongan';
+      const activeSourceBtn = document.querySelector('.official-source-pills .source-pill.active');
+      const source = activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all';
+      populateOfficialVacanciesFromSystem(kw, false, source);
+      document.getElementById('scout-results-area')?.scrollIntoView({ behavior: 'smooth' });
+    });
   }
 
   // Toggle sosmed dorking drawer

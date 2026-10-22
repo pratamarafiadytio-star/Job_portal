@@ -597,26 +597,35 @@
               <!-- CONTROLS -->
               <div class="scout-controls-card">
 
-                <!-- PLATFORM / SUMBER SELECTOR PILLS -->
+                <!-- PLATFORM / SUMBER SELECTOR PILLS (GENERATE BY SOSMED) -->
                 <div style="margin-bottom: 14px;">
                   <div style="font-size: 0.82rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                      <i class="fa-solid fa-filter" style="color: #0284c7;"></i> Pilih Sumber Web Resmi:
+                      <i class="fa-solid fa-share-nodes" style="color: #0284c7;"></i> Pilih Media Sosial / Sumber Web:
                     </div>
-                    <span style="font-size: 0.74rem; color: var(--text-muted);">Tautan langsung ke artikel & postingan asli di website</span>
+                    <span style="font-size: 0.74rem; color: var(--text-muted);">Pilih media sosial untuk generate & tarik lowongan spesifik</span>
                   </div>
                   <div class="official-source-pills" id="official-source-pills" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button type="button" class="source-pill active" data-source="all">
-                      <i class="fa-solid fa-globe"></i> Semua Situs Web Resmi
+                    <button type="button" class="source-pill active" data-source="all" title="Generate dari semua media sosial & situs web">
+                      <i class="fa-solid fa-globe"></i> Semua Sosmed & Web
                     </button>
-                    <button type="button" class="source-pill pill-media" data-source="media">
-                      <i class="fa-solid fa-newspaper" style="color: #0284c7;"></i> Portal Media (Kompas, Detik, Tribun)
+                    <button type="button" class="source-pill pill-linkedin" data-source="linkedin" title="Generate khusus lowongan postingan resmi LinkedIn">
+                      <i class="fa-brands fa-linkedin" style="color: #0077b5;"></i> LinkedIn
                     </button>
-                    <button type="button" class="source-pill pill-bumn" data-source="bumn">
-                      <i class="fa-solid fa-landmark" style="color: #10b981;"></i> BUMN & Kedinasan
+                    <button type="button" class="source-pill pill-instagram" data-source="instagram" title="Generate khusus lowongan akun karir Instagram">
+                      <i class="fa-brands fa-instagram" style="color: #e1306c;"></i> Instagram
                     </button>
-                    <button type="button" class="source-pill pill-official" data-source="corporate">
-                      <i class="fa-solid fa-building-circle-check" style="color: #6366f1;"></i> Perusahaan Swasta & Korporasi
+                    <button type="button" class="source-pill pill-facebook" data-source="facebook" title="Generate khusus lowongan grup & fanspage Facebook">
+                      <i class="fa-brands fa-facebook" style="color: #1877f2;"></i> Facebook
+                    </button>
+                    <button type="button" class="source-pill pill-twitter" data-source="twitter" title="Generate khusus lowongan terbitan Twitter / X">
+                      <i class="fa-brands fa-x-twitter" style="color: #0f172a;"></i> Twitter (X)
+                    </button>
+                    <button type="button" class="source-pill pill-media" data-source="media" title="Generate khusus dari portal media berita nasional (Kompas, Detik, Tribun)">
+                      <i class="fa-solid fa-newspaper" style="color: #0284c7;"></i> Portal Berita Media
+                    </button>
+                    <button type="button" class="source-pill pill-bumn" data-source="bumn" title="Generate khusus lowongan BUMN & Kedinasan">
+                      <i class="fa-solid fa-landmark" style="color: #10b981;"></i> BUMN & Karir Resmi
                     </button>
                   </div>
                 </div>
@@ -1177,10 +1186,25 @@
                   <span class="theme-color-dots"><span style="background: #1e3a8a;"></span><span style="background: #f97316;"></span></span>
                   <span>Manufaktur & Pabrik (Biru - Oranye)</span>
                 </label>
+                <label class="poster-theme-pill" id="theme-pill-linkedin">
+                  <input type="radio" name="poster_theme" value="linkedin" style="display: none;">
+                  <span class="theme-color-dots"><span style="background: #0a66c2;"></span><span style="background: #0077b5;"></span></span>
+                  <span><i class="fa-brands fa-linkedin" style="color: #0077b5;"></i> LinkedIn Pro (Biru Korporat)</span>
+                </label>
+                <label class="poster-theme-pill" id="theme-pill-instagram">
+                  <input type="radio" name="poster_theme" value="instagram" style="display: none;">
+                  <span class="theme-color-dots"><span style="background: #833ab4;"></span><span style="background: #e1306c;"></span></span>
+                  <span><i class="fa-brands fa-instagram" style="color: #e1306c;"></i> Instagram Feed (Vibrant)</span>
+                </label>
+                <label class="poster-theme-pill" id="theme-pill-facebook">
+                  <input type="radio" name="poster_theme" value="facebook" style="display: none;">
+                  <span class="theme-color-dots"><span style="background: #1877f2;"></span><span style="background: #0866ff;"></span></span>
+                  <span><i class="fa-brands fa-facebook" style="color: #1877f2;"></i> Facebook (Biru Klasik)</span>
+                </label>
                 <label class="poster-theme-pill" id="theme-pill-bumn">
                   <input type="radio" name="poster_theme" value="bumn" style="display: none;">
                   <span class="theme-color-dots"><span style="background: #0f172a;"></span><span style="background: #10b981;"></span></span>
-                  <span>BUMN & Korporat (Navy - Emerald)</span>
+                  <span>BUMN & Kedinasan (Navy - Emerald)</span>
                 </label>
                 <label class="poster-theme-pill" id="theme-pill-modern">
                   <input type="radio" name="poster_theme" value="modern" style="display: none;">
