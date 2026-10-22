@@ -1265,6 +1265,168 @@ window.removeFilterChip = function(idx) {
   }
 };
 
+// -------------------------------------------------------------
+// DYNAMIC CORPORATE COMPANY BANNER GENERATOR
+// Automatically generates sleek corporate banners featuring the Company Name
+// Only uploaded manual flyers take precedence from actual files!
+// -------------------------------------------------------------
+function hashStr(str) {
+  let hash = 0;
+  if (!str) return 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+const corporateBannerPalettes = [
+  { bg1: '#0f172a', bg2: '#1e1b4b', bg3: '#312e81', accent: '#6366f1', textAccent: '#a5b4fc', border: 'rgba(99,102,241,0.3)' },
+  { bg1: '#022c22', bg2: '#064e3b', bg3: '#065f46', accent: '#10b981', textAccent: '#6ee7b7', border: 'rgba(16,185,129,0.3)' },
+  { bg1: '#082f49', bg2: '#0c4a6e', bg3: '#075985', accent: '#0284c7', textAccent: '#7dd3fc', border: 'rgba(2,132,199,0.3)' },
+  { bg1: '#1e1035', bg2: '#2e1065', bg3: '#581c87', accent: '#a855f7', textAccent: '#d8b4fe', border: 'rgba(168,85,247,0.3)' },
+  { bg1: '#1c1917', bg2: '#292524', bg3: '#44403c', accent: '#f59e0b', textAccent: '#fde68a', border: 'rgba(245,158,11,0.3)' },
+  { bg1: '#090d16', bg2: '#1e293b', bg3: '#334155', accent: '#38bdf8', textAccent: '#bae6fd', border: 'rgba(56,189,248,0.3)' }
+];
+
+function escapeSvgText(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function getEffectiveCompanyName(job) {
+  if (!job) return 'Perusahaan Terverifikasi';
+  const comp = (job.company_name || '').trim();
+  const title = (job.title || '').trim();
+  const isGeneric = /^(bukajobs|linkedin|instagram|facebook|portal|web|loker|official|resmi)/i.test(comp);
+  const ptMatch = title.match(/(?:(?:Lowongan|Rekrutmen|Karir|Loker)\s+(?:di\s+|pada\s+)?)?((?:PT|CV|Bank|Yayasan|RSUD|RS)\s+[^–\-|:]+)/i);
+  if (ptMatch && ptMatch[1] && (isGeneric || comp.length < 5)) {
+    return ptMatch[1].trim();
+  }
+  if (/^(PT|CV|Bank|Yayasan)\s+/i.test(title) && isGeneric) {
+    return title;
+  }
+  return comp || title || 'Perusahaan Terverifikasi';
+}
+
+function isManualJobFlyer(job) {
+  if (!job || !job.poster_image) return false;
+  const p = String(job.poster_image).trim();
+  if (!p) return false;
+  if (p.includes('unsplash.com')) return false;
+  if (p.includes('placeholder')) return false;
+  if (p.includes('corporate_worker_mascot') || p.includes('factory_operator_mascot')) {
+    return false;
+  }
+  if (p.startsWith('/uploads/') || p.startsWith('./uploads/') || p.startsWith('uploads/') || p.startsWith('data:image/')) {
+    return true;
+  }
+  if (p.startsWith('http://') || p.startsWith('https://')) {
+    return true;
+  }
+  return false;
+}
+
+function generateCompanyBannerDataUrl(job) {
+  const compName = getEffectiveCompanyName(job);
+  const title = (job.title || '').trim();
+  const cat = (job.category || 'Lowongan Resmi').toUpperCase();
+  const initial = compName ? compName.replace(/^(PT|CV)\s+/i, '').trim().charAt(0).toUpperCase() || 'C' : 'C';
+
+  const hash = hashStr(compName);
+  const palette = corporateBannerPalettes[hash % corporateBannerPalettes.length];
+
+  const displayComp = escapeSvgText(compName);
+  const displayTitle = escapeSvgText(title);
+  const displayCat = escapeSvgText(cat);
+
+  let compFontSize = 32;
+  if (displayComp.length > 35) compFontSize = 22;
+  else if (displayComp.length > 25) compFontSize = 26;
+  else if (displayComp.length > 18) compFontSize = 29;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="100%" height="100%">
+    <defs>
+      <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${palette.bg1}"/>
+        <stop offset="50%" stop-color="${palette.bg2}"/>
+        <stop offset="100%" stop-color="${palette.bg3}"/>
+      </linearGradient>
+      <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
+        <stop offset="100%" stop-color="rgba(255,255,255,0.04)"/>
+      </linearGradient>
+      <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+        <path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+      </pattern>
+      <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+        <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.45"/>
+      </filter>
+    </defs>
+    <rect width="800" height="420" fill="url(#bgGrad)"/>
+    <rect width="800" height="420" fill="url(#grid)"/>
+    <circle cx="720" cy="80" r="140" fill="${palette.accent}" opacity="0.18"/>
+    <circle cx="80" cy="340" r="160" fill="${palette.textAccent}" opacity="0.12"/>
+    <g transform="translate(40, 36)">
+      <rect width="170" height="30" rx="15" fill="rgba(255,255,255,0.12)" stroke="${palette.border}" stroke-width="1"/>
+      <circle cx="16" cy="15" r="4.5" fill="#10b981"/>
+      <text x="30" y="19" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#ffffff" letter-spacing="1">REKRUTMEN RESMI</text>
+    </g>
+    <g transform="translate(560, 36)">
+      <rect width="200" height="30" rx="15" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+      <text x="100" y="19" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="${palette.textAccent}">${displayCat}</text>
+    </g>
+    <g transform="translate(400, 160)" text-anchor="middle">
+      <circle cx="0" cy="0" r="42" fill="url(#badgeGrad)" stroke="${palette.accent}" stroke-width="2.5" filter="url(#shadow)"/>
+      <text x="0" y="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="32" font-weight="800" fill="#ffffff">${initial}</text>
+    </g>
+    <text x="400" y="248" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="${compFontSize}" font-weight="800" fill="#ffffff" filter="url(#shadow)">
+      ${displayComp}
+    </text>
+    <text x="400" y="286" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="${palette.textAccent}">
+      ${displayTitle.length > 55 ? displayTitle.substring(0, 52) + '...' : displayTitle}
+    </text>
+    <line x1="40" y1="350" x2="760" y2="350" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+    <g transform="translate(40, 376)">
+      <text x="0" y="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="rgba(255,255,255,0.7)">
+        🛡️ TERVERIFIKASI KERJAHUB PORTAL
+      </text>
+      <text x="720" y="12" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#34d399">
+        ✓ 100% BEBAS BIAYA SELEKSI
+      </text>
+    </g>
+  </svg>`;
+
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+function getEffectiveJobPoster(job) {
+  if (!job) return '';
+  if (isManualJobFlyer(job)) {
+    let p = String(job.poster_image).trim();
+    if (p.startsWith('/uploads/')) p = '.' + p;
+    return p;
+  }
+  return generateCompanyBannerDataUrl(job);
+}
+
+function openJobPosterById(jobId) {
+  const job = (rawAllJobs || []).find(j => Number(j.id) === Number(jobId)) || (window.rawAllJobs || []).find(j => Number(j.id) === Number(jobId));
+  if (!job) return;
+  const posterSrc = getEffectiveJobPoster(job);
+  openLightbox(posterSrc, job.title);
+}
+
+window.getEffectiveJobPoster = getEffectiveJobPoster;
+window.generateCompanyBannerDataUrl = generateCompanyBannerDataUrl;
+window.openJobPosterById = openJobPosterById;
+window.isManualJobFlyer = isManualJobFlyer;
+
 // Render Job Cards
 function renderJobs(jobs) {
   const container = document.getElementById('jobs-container');
@@ -1276,11 +1438,7 @@ function renderJobs(jobs) {
   }
 
   const cardsHtml = jobs.map(job => {
-    const defaultPoster = 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&auto=format&fit=crop&q=80';
-    let posterSrc = job.poster_image ? job.poster_image : defaultPoster;
-    if (posterSrc.startsWith('/uploads/')) {
-      posterSrc = '.' + posterSrc;
-    }
+    const posterSrc = getEffectiveJobPoster(job);
 
     const dObj = parseDateSafe(job.deadline);
     const isPassedDeadline = dObj ? (dObj.getTime() < Date.now()) : false;
@@ -1312,8 +1470,8 @@ function renderJobs(jobs) {
       <div class="job-card ${isLocked ? 'job-card-locked' : ''}" data-id="${job.id}">
 
         <!-- Poster Design Preview with Lightbox trigger -->
-        <div class="job-poster-preview" onclick="${isLocked ? `showLockedNotice('${safeTitle}')` : `openLightbox('${posterSrc}', '${safeTitle}')`}">
-          <img src="${posterSrc}" alt="${escapeHtml(job.title)}" loading="lazy" onerror="this.src='${defaultPoster}'">
+        <div class="job-poster-preview" onclick="${isLocked ? `showLockedNotice('${safeTitle}')` : `openJobPosterById(${job.id})`}">
+          <img src="${posterSrc}" alt="${escapeHtml(job.title)}" loading="lazy">
           ${isLocked ? '<div class="badge-locked-overlay"><i class="fa-solid fa-lock"></i> TELAH DITUTUP (EXPIRED)</div>' : ''}
           ${job.is_featured && !isLocked ? '<div class="badge-featured"><i class="fa-solid fa-star"></i> Unggulan</div>' : ''}
           <div class="badge-category">${escapeHtml(job.category)}</div>
@@ -1547,11 +1705,7 @@ function openJobDetail(jobId) {
     sbClient.from('jobs').update({ views_count: (job.views_count || 0) + 1 }).eq('id', job.id).then();
   }
 
-  const defaultPoster = 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&auto=format&fit=crop&q=80';
-  let posterSrc = job.poster_image ? job.poster_image : defaultPoster;
-  if (posterSrc.startsWith('/uploads/')) {
-    posterSrc = '.' + posterSrc;
-  }
+  const posterSrc = getEffectiveJobPoster(job);
 
   const contacts = extractJobContacts(job);
   const contactBtnHtml = renderContactButton(job);
@@ -1569,7 +1723,7 @@ function openJobDetail(jobId) {
   content.innerHTML = `
     <!-- Banner / Poster Highlight -->
     <div class="modal-hero-banner">
-      <img src="${posterSrc}" alt="${escapeHtml(job.title)}" onerror="this.src='${defaultPoster}'">
+      <img src="${posterSrc}" alt="${escapeHtml(job.title)}">
       <div class="modal-banner-overlay">
         <div class="modal-header-info">
           <h2>${escapeHtml(job.title)}</h2>
@@ -1686,9 +1840,9 @@ function openJobDetail(jobId) {
             <p style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
               <i class="fa-solid fa-file-image"></i> POSTER REKRUTMEN RESMI
             </p>
-            <img src="${posterSrc}" alt="Poster Lowongan" onclick="openLightbox('${posterSrc}', '${safeTitle}')">
+            <img src="${posterSrc}" alt="Poster Lowongan" onclick="openJobPosterById(${job.id})">
             <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: center;">
-              <button type="button" class="btn btn-outline btn-sm" onclick="openLightbox('${posterSrc}', '${safeTitle}')">
+              <button type="button" class="btn btn-outline btn-sm" onclick="openJobPosterById(${job.id})">
                 <i class="fa-solid fa-expand"></i> Perbesar
               </button>
               <a href="${posterSrc}" target="_blank" download class="btn btn-outline btn-sm">

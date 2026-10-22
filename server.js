@@ -1655,7 +1655,7 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
   // 4. Merge system database jobs if searching all or matching
   if (activePlat === 'all' || activePlat === 'corporate' || activePlat === 'web') {
     try {
-      const dbJobs = await db.getAllJobs();
+      const dbJobs = await (typeof db.getAllJobs === 'function' ? db.getAllJobs() : db.getJobs({ status: 'all' }));
       if (Array.isArray(dbJobs)) {
         const dbMatches = dbJobs.filter(j => {
           if (j.status === 'system_settings') return false;

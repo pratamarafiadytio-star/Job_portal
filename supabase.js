@@ -137,6 +137,10 @@ const localStore = {
     return jobs;
   },
 
+  getAllJobs() {
+    return this.getJobs({ status: 'all' });
+  },
+
   getJobById(id) {
     const jobs = readLocalJobs();
     const job = jobs.find(j => Number(j.id) === Number(id));
@@ -401,6 +405,10 @@ const db = {
       console.warn('⚠️ Supabase fetch exception, using local storage:', err.message);
       return localStore.getJobs(filters);
     }
+  },
+
+  async getAllJobs() {
+    return this.getJobs({ status: 'all' });
   },
 
   // Get job by ID
