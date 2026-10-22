@@ -1903,28 +1903,43 @@ function extractJobContacts(job) {
     if (m) website = m[0];
   }
 
-  // Fallback defaults for verified companies if missing
+  // If website contains an unresolvable Google News / Bing tracking link or is missing, resolve to direct genuine career portal
+  const isGenericNewsUrl = !website || website.startsWith('{') || website.includes('news.google.com') || website.includes('bing.com/news');
   const comp = (job.company_name || '').toLowerCase();
-  if (!website || website.startsWith('{')) {
-    if (comp.includes('toyota')) website = 'https://recruitment.toyota.co.id';
-    else if (comp.includes('astra honda') || comp.includes('ahm')) website = 'https://recruitment.astra-honda.com';
-    else if (comp.includes('telkom')) website = 'https://careers.telkom.co.id';
-    else if (comp.includes('bri') || comp.includes('rakyat indonesia')) website = 'https://e-recruitment.bri.co.id';
-    else if (comp.includes('mayora')) website = 'https://mayorakarir.com';
-    else if (comp.includes('kai') || comp.includes('kereta api')) website = 'https://recruitment.kai.id';
-    else if (comp.includes('kalbe')) website = 'https://careers.kalbe.co.id';
-    else if (comp.includes('yamaha')) website = 'https://www.yamaha-motor.co.id/career';
-    else if (comp.includes('indofood')) website = 'https://careers.indofood.com';
-    else if (comp.includes('shopee')) website = 'https://careers.shopee.co.id';
-    else if (comp.includes('bca') || comp.includes('central asia')) website = 'https://karir.bca.co.id';
-    else if (comp.includes('epson')) website = 'https://epson.co.id/careers';
-    else if (comp.includes('krakatau')) website = 'https://krakatausteel.com/career';
-    else if (comp.includes('sumco')) website = 'https://www.sumco.co.jp/english/';
-    else if (comp.includes('denso')) website = 'https://www.denso.com/id/id/careers/';
-    else if (comp.includes('glico')) website = 'https://glicowings.com/career';
-    else if (comp.includes('tech innovations')) website = 'https://techinnovations.com/careers';
-    else if (comp.includes('synergy')) website = 'https://synergytech.global/jobs';
-    else if (comp.includes('creative sparks')) website = 'https://creativesparks.agency/careers';
+  const title = (job.title || '').toLowerCase();
+
+  if (isGenericNewsUrl) {
+    if (comp.includes('patra drilling') || comp.includes('pdc') || title.includes('patra drilling')) {
+      website = 'https://karir.pertamina-pdc.com';
+    } else if (comp.includes('bukajobs') || (job.source_platform || '').includes('bukajobs') || (job.source_label || '').includes('bukajobs')) {
+      website = 'https://bukajobs.com';
+    } else if (comp.includes('bca') || comp.includes('central asia')) {
+      website = 'https://karir.bca.co.id';
+    } else if (comp.includes('toyota') || comp.includes('tmmin')) {
+      website = 'https://recruitment.toyota.co.id';
+    } else if (comp.includes('astra honda') || comp.includes('ahm')) {
+      website = 'https://recruitment.astra-honda.com';
+    } else if (comp.includes('telkom')) {
+      website = 'https://careers.telkom.co.id';
+    } else if (comp.includes('bri') || comp.includes('rakyat indonesia')) {
+      website = 'https://e-recruitment.bri.co.id';
+    } else if (comp.includes('mayora')) {
+      website = 'https://mayorakarir.com';
+    } else if (comp.includes('kai') || comp.includes('kereta api')) {
+      website = 'https://recruitment.kai.id';
+    } else if (comp.includes('kalbe')) {
+      website = 'https://careers.kalbe.co.id';
+    } else if (comp.includes('yamaha')) {
+      website = 'https://www.yamaha-motor.co.id/career';
+    } else if (comp.includes('indofood') || comp.includes('indolakto')) {
+      website = 'https://careers.indofood.com';
+    } else if (comp.includes('shopee')) {
+      website = 'https://careers.shopee.co.id';
+    } else if (comp.includes('krakatau')) {
+      website = 'https://krakatausteel.com/career';
+    } else if (comp.includes('bumn')) {
+      website = 'https://rekrutmenbersama.fhcibumn.id';
+    }
   }
 
   // Ensure website has proper protocol
@@ -2075,11 +2090,24 @@ function renderContactButton(job) {
   if (contacts.website_url) {
     const webUrl = contacts.website_url.startsWith('http') ? contacts.website_url : `https://${contacts.website_url}`;
     const sp = (job.source_platform || '').toLowerCase();
+    const compLower = (job.company_name || '').toLowerCase();
     let btnClass = 'btn-web-direct';
     let btnIcon = 'fa-solid fa-arrow-up-right-from-square';
     let btnText = 'Lamar di Website Resmi Perusahaan';
 
-    if (webUrl.includes('linkedin.com') || sp === 'linkedin') {
+    if (webUrl.includes('bukajobs.com') || sp === 'bukajobs') {
+      btnClass = 'btn-web-direct btn-bukajobs-direct';
+      btnIcon = 'fa-solid fa-arrow-up-right-from-square';
+      btnText = 'Lamar Langsung di Bukajobs';
+    } else if (webUrl.includes('pertamina-pdc.com') || compLower.includes('patra drilling') || compLower.includes('pdc')) {
+      btnClass = 'btn-web-direct btn-pertamina-direct';
+      btnIcon = 'fa-solid fa-arrow-up-right-from-square';
+      btnText = 'Lamar di Portal Rekrutmen PDC';
+    } else if (webUrl.includes('karir.bca.co.id') || compLower.includes('bca')) {
+      btnClass = 'btn-web-direct btn-bca-direct';
+      btnIcon = 'fa-solid fa-arrow-up-right-from-square';
+      btnText = 'Lamar di Portal Karir BCA';
+    } else if (webUrl.includes('linkedin.com') || sp === 'linkedin') {
       btnClass = 'btn-web-direct btn-linkedin-direct';
       btnIcon = 'fa-brands fa-linkedin';
       btnText = 'Buka Lowongan Resmi di LinkedIn';

@@ -2681,6 +2681,33 @@ textarea.form-control {
   transform: translateY(-2px);
 }
 
+.btn-bukajobs-direct {
+  background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35) !important;
+}
+
+.btn-bukajobs-direct:hover {
+  background: linear-gradient(135deg, #4338ca, #4f46e5) !important;
+}
+
+.btn-pertamina-direct {
+  background: linear-gradient(135deg, #059669, #10b981) !important;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35) !important;
+}
+
+.btn-pertamina-direct:hover {
+  background: linear-gradient(135deg, #047857, #059669) !important;
+}
+
+.btn-bca-direct {
+  background: linear-gradient(135deg, #005696, #0077c8) !important;
+  box-shadow: 0 4px 14px rgba(0, 86, 150, 0.35) !important;
+}
+
+.btn-bca-direct:hover {
+  background: linear-gradient(135deg, #004375, #005696) !important;
+}
+
 /* ============================================================== */
 /* FLOATING WHATSAPP CV ORDER BUTTON & BANNER                      */
 /* ============================================================== */

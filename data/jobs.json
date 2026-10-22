@@ -26,14 +26,14 @@
       "Perlindungan jaminan sosial ketenagakerjaan dan kesehatan (BPJS)"
     ],
     "contact_type": "link",
-    "contact_value": "{\"url\":\"https://news.google.com/rss/articles/CBMiUkFVX3lxTE0wc1lVT0Z4RGx2clhjOURmam1ZRU55Yk5tci11RVYxNGg3bkl2RWpTOS1wUUh1ZWJ6NHZzU003clFOSHBrRDlPcXB6QktPWG1jR3c?oc=5\",\"website\":\"https://news.google.com/rss/articles/CBMiUkFVX3lxTE0wc1lVT0Z4RGx2clhjOURmam1ZRU55Yk5tci11RVYxNGg3bkl2RWpTOS1wUUh1ZWJ6NHZzU003clFOSHBrRDlPcXB6QktPWG1jR3c?oc=5\",\"email\":\"\",\"whatsapp\":\"\",\"source_platform\":\"instagram\",\"source_label\":\"Instagram Karir\",\"is_verified_anti_hoax\":true,\"verified_screening_status\":\"passed\"}",
+    "contact_value": "{\"url\":\"https://karir.pertamina-pdc.com\",\"website\":\"https://karir.pertamina-pdc.com\",\"email\":\"\",\"whatsapp\":\"\",\"source_platform\":\"official\",\"source_label\":\"Portal Rekrutmen Resmi Pertamina PDC\",\"is_verified_anti_hoax\":true,\"verified_screening_status\":\"passed\"}",
     "deadline": "2026-11-22",
     "status": "active",
     "is_featured": true,
     "views_count": 0,
     "created_at": "2026-10-22T18:39:14.358Z",
-    "source_platform": "instagram",
-    "source_label": "Instagram Karir"
+    "source_platform": "official",
+    "source_label": "Portal Rekrutmen Resmi Pertamina PDC"
   },
   {
     "id": 39,
@@ -61,7 +61,7 @@
       "Jaminan BPJS Ketenagakerjaan & Kesehatan, serta asuransi kesehatan tambahan"
     ],
     "contact_type": "link",
-    "contact_value": "{\"url\":\"https://money.kompas.com/read/2026/10/22/110337526/bca-buka-lowongan-kerja-untuk-lulusan-s1-simak-persyaratannya\",\"website\":\"https://money.kompas.com/read/2026/10/22/110337526/bca-buka-lowongan-kerja-untuk-lulusan-s1-simak-persyaratannya\",\"email\":\"\",\"whatsapp\":\"\",\"source_platform\":\"media\",\"source_label\":\"Portal Media Resmi\",\"is_verified_anti_hoax\":true,\"verified_screening_status\":\"passed\"}",
+    "contact_value": "{\"url\":\"https://karir.bca.co.id\",\"website\":\"https://karir.bca.co.id\",\"email\":\"\",\"whatsapp\":\"\",\"source_platform\":\"official\",\"source_label\":\"Portal Karir Resmi BCA\",\"is_verified_anti_hoax\":true,\"verified_screening_status\":\"passed\"}",
     "deadline": "2026-11-22",
     "status": "active",
     "is_featured": true,

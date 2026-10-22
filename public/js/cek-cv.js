@@ -687,6 +687,49 @@ function extractJobContacts(job) {
     }
   }
 
+  // Intercept Google News links or missing links and route to genuine portal
+  const isGenericNewsUrl = !website || website.startsWith('{') || website.includes('news.google.com') || website.includes('bing.com/news');
+  const comp = (job.company_name || '').toLowerCase();
+  const title = (job.title || '').toLowerCase();
+
+  if (isGenericNewsUrl) {
+    if (comp.includes('patra drilling') || comp.includes('pdc') || title.includes('patra drilling')) {
+      website = 'https://karir.pertamina-pdc.com';
+    } else if (comp.includes('bukajobs') || (job.source_platform || '').includes('bukajobs')) {
+      website = 'https://bukajobs.com';
+    } else if (comp.includes('bca') || comp.includes('central asia')) {
+      website = 'https://karir.bca.co.id';
+    } else if (comp.includes('toyota') || comp.includes('tmmin')) {
+      website = 'https://recruitment.toyota.co.id';
+    } else if (comp.includes('astra honda') || comp.includes('ahm')) {
+      website = 'https://recruitment.astra-honda.com';
+    } else if (comp.includes('telkom')) {
+      website = 'https://careers.telkom.co.id';
+    } else if (comp.includes('bri') || comp.includes('rakyat indonesia')) {
+      website = 'https://e-recruitment.bri.co.id';
+    } else if (comp.includes('mayora')) {
+      website = 'https://mayorakarir.com';
+    } else if (comp.includes('kai') || comp.includes('kereta api')) {
+      website = 'https://recruitment.kai.id';
+    } else if (comp.includes('kalbe')) {
+      website = 'https://careers.kalbe.co.id';
+    } else if (comp.includes('yamaha')) {
+      website = 'https://www.yamaha-motor.co.id/career';
+    } else if (comp.includes('indofood') || comp.includes('indolakto')) {
+      website = 'https://careers.indofood.com';
+    } else if (comp.includes('shopee')) {
+      website = 'https://careers.shopee.co.id';
+    } else if (comp.includes('krakatau')) {
+      website = 'https://krakatausteel.com/career';
+    } else if (comp.includes('bumn')) {
+      website = 'https://rekrutmenbersama.fhcibumn.id';
+    }
+  }
+
+  if (website && !website.startsWith('http://') && !website.startsWith('https://')) {
+    website = `https://${website}`;
+  }
+
   return { whatsapp: wa, email, website_url: website };
 }
 

@@ -968,6 +968,59 @@ async function fetchRealSocialJobs(keyword, location, platforms = ['web', 'bumn'
     console.warn('Scout Bing fetch error:', e.message);
   }
 
+  // 1.5. Fetch from Bukajobs RSS (Direct articles on Bukajobs with authentic direct links)
+  try {
+    const bukaRes = await fetch('https://bukajobs.com/feed', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    if (bukaRes.ok) {
+      const bukaXml = await bukaRes.text();
+      const bukaItems = [...bukaXml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<\/item>/g)];
+      for (const bi of bukaItems) {
+        const rawTitle = cleanHtmlSnippet(bi[1]);
+        const link = bi[2].trim();
+        const pubDate = bi[3].trim();
+        const rawDesc = cleanHtmlSnippet(bi[4]);
+
+        if (seenUrls.has(link)) continue;
+        seenUrls.add(link);
+
+        const parsed = parseJobHeadline(rawTitle, 'Bukajobs Karir', rawDesc);
+        const timeInfo = formatTimeAgo(pubDate);
+
+        results.unshift({
+          id: 'scout_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+          title: parsed.title,
+          company: parsed.company,
+          company_name: parsed.company,
+          location: cleanLoc,
+          platform: 'bukajobs',
+          platformLabel: 'BUKAJOBS',
+          platformIcon: 'fa-solid fa-briefcase',
+          platformClass: 'bukajobs',
+          sourceName: `${parsed.company} • Bukajobs.com`,
+          url: link,
+          official_url: link,
+          website_url: link,
+          pubDate,
+          pubTimestamp: timeInfo.timestamp,
+          timeAgo: timeInfo.text,
+          timeBadge: timeInfo.badge,
+          badgeColor: timeInfo.badgeColor,
+          isFresh: timeInfo.isFresh,
+          description: rawDesc.substring(0, 240) + (rawDesc.length > 240 ? '...' : ''),
+          whatsapp: '',
+          email: '',
+          salary: 'Kompetitif (Standar BUMN / Korporasi)'
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Scout Bukajobs fetch warning:', err.message);
+  }
+
   // 2. Fetch from Google News RSS for additional live web postings
   if (results.length < 12) {
     try {
@@ -1177,6 +1230,17 @@ function detectJobPlatformMeta(directUrl, rawTitle, sourceName, requestedPlatfor
   const urlLower = (directUrl || '').toLowerCase();
   const titleLower = (rawTitle || '').toLowerCase();
   const sourceLower = (sourceName || '').toLowerCase();
+  const req = (requestedPlatform || 'all').toLowerCase();
+
+  if (urlLower.includes('bukajobs.com') || titleLower.includes('bukajobs') || sourceLower.includes('bukajobs') || req === 'bukajobs') {
+    return {
+      platform: 'bukajobs',
+      platformLabel: 'Bukajobs Karir',
+      platformIcon: 'fa-solid fa-briefcase',
+      platformClass: 'bukajobs',
+      sourceWebsite: 'Bukajobs.com'
+    };
+  }
 
   if (urlLower.includes('linkedin.com') || titleLower.endsWith('- linkedin') || sourceLower.includes('linkedin')) {
     return {
@@ -1234,7 +1298,15 @@ function detectJobPlatformMeta(directUrl, rawTitle, sourceName, requestedPlatfor
   }
 
   // Fallback to requested platform if specified
-  const req = (requestedPlatform || 'web').toLowerCase();
+  if (req === 'bukajobs') {
+    return {
+      platform: 'bukajobs',
+      platformLabel: 'Bukajobs Karir',
+      platformIcon: 'fa-solid fa-briefcase',
+      platformClass: 'bukajobs',
+      sourceWebsite: 'Bukajobs.com'
+    };
+  }
   if (req === 'linkedin') {
     return {
       platform: 'linkedin',
@@ -1505,7 +1577,82 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
     console.warn('Google news web query error:', err.message);
   }
 
-  // 3. Merge system database jobs if searching all or matching
+  // 3. Fetch from Bukajobs RSS (Top authentic Indonesian career portal with direct apply URLs)
+  if (activePlat === 'all' || activePlat === 'bukajobs' || activePlat === 'web' || activePlat === 'corporate') {
+    try {
+      const bukaRes = await fetch('https://bukajobs.com/feed', {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      if (bukaRes.ok) {
+        const bukaXml = await bukaRes.text();
+        const bukaItems = [...bukaXml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<\/item>/g)];
+        for (const bi of bukaItems) {
+          const rawTitle = cleanHtmlSnippet(bi[1]);
+          const link = bi[2].trim();
+          const pubDate = bi[3].trim();
+          const desc = cleanHtmlSnippet(bi[4]);
+
+          if (seenUrls.has(link)) continue;
+          seenUrls.add(link);
+
+          const parsed = parseJobHeadline(rawTitle, 'Bukajobs Karir', desc);
+          const timeInfo = formatTimeAgo(pubDate);
+
+          results.unshift({
+            id: 'buka_' + crypto.randomBytes(6).toString('hex'),
+            source: 'bukajobs',
+            platform: 'bukajobs',
+            platform_label: 'Bukajobs Resmi',
+            platform_icon: 'fa-solid fa-briefcase',
+            platform_class: 'bukajobs',
+            title: parsed.title,
+            company_name: parsed.company,
+            company: parsed.company,
+            location: cleanLoc || 'Indonesia',
+            pubDate,
+            pubTimestamp: timeInfo.timestamp,
+            timeAgo: timeInfo.text,
+            posted_time: timeInfo.text || 'Baru saja',
+            isFresh: timeInfo.isFresh,
+            salary_display: 'Kompetitif (Standar Industri & Korporasi)',
+            salary_prompt: 'Gaji kompetitif sesuai standar industri dan peraturan yang berlaku.',
+            job_type: parsed.statusVal || 'Full time',
+            category: 'Loker Asli Web',
+            role_department: parsed.title,
+            badge_fresh: true,
+            badge_kandidat: true,
+            is_live_actual: true,
+            official_url: link,
+            url: link,
+            website_url: link,
+            source_website: 'Bukajobs.com',
+            poster_image: '',
+            rating: '4.9',
+            contact_email: '',
+            contact_whatsapp: '',
+            anti_fraud_notice: 'Informasi lowongan kerja tervalidasi dari portal Bukajobs.com. Bebas pungutan biaya apapun.',
+            description: parsed.cleanDesc || desc || `Perekrutan posisi ${parsed.title} di ${parsed.company}. Dipublikasikan secara aktual melalui Bukajobs.`,
+            responsibilities: parsed.responsibilities,
+            requirements: [
+              parsed.eduVal ? `Kualifikasi jenjang pendidikan: ${parsed.eduVal}.` : `Pendidikan sesuai kualifikasi yang disyaratkan posisi.`,
+              `Memiliki etos kerja tinggi, integritas, dan siap berkembang.`,
+              `Ketentuan dan dokumen lamaran dapat dicek langsung pada postingan resmi Bukajobs.`
+            ],
+            benefits: [
+              `Gaji & tunjangan sesuai standar perusahaan`,
+              `Perlindungan jaminan sosial tenaga kerja (BPJS)`
+            ]
+          });
+        }
+      }
+    } catch(err) {
+      console.warn('Bukajobs feed fetch error:', err.message);
+    }
+  }
+
+  // 4. Merge system database jobs if searching all or matching
   if (activePlat === 'all' || activePlat === 'corporate' || activePlat === 'web') {
     try {
       const dbJobs = await db.getAllJobs();
