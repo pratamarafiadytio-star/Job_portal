@@ -452,6 +452,258 @@ function setupPosterDropzone() {
   }
 }
 
+// =============================================================
+// DYNAMIC ITEM MANAGER (TANGGUNG JAWAB, KUALIFIKASI, BENEFIT)
+// Per-column layout, dynamic + and delete, max 10 items limit
+// =============================================================
+const DM_CATEGORY_PLACEHOLDERS = {
+  responsibilities: [
+    'Merancang desain user interface mobile & web yang responsif',
+    'Melakukan usability testing berkala bersama end-user',
+    'Membuat interactive prototype di Figma dan dokumentasi design system',
+    'Berkolaborasi aktif dengan tim Product Manager dan Frontend Engineer',
+    'Memantau performa implementasi desain pasca-rilis'
+  ],
+  requirements: [
+    'Pendidikan minimal D3/S1 di bidang relevan atau pengalaman setara',
+    'Pengalaman kerja minimal 1-2 tahun di bidang posisi terkait',
+    'Memiliki kemampuan komunikasi, kerja sama tim, dan kepemimpinan',
+    'Menguasai tools kerja modern dan terbiasa dengan target kerja',
+    'Disiplin, teliti, dan memiliki integritas tinggi'
+  ],
+  benefits: [
+    'Gaji kompetitif + THR Keagamaan + Bonus performa tahunan',
+    'BPJS Kesehatan & BPJS Ketenagakerjaan lengkap',
+    'Fasilitas kerja fleksibel (Hybrid / Remote)',
+    'Tunjangan laptop, internet, dan program pengembangan skill',
+    'Jenjang karir transparan dan lingkungan kerja positif'
+  ]
+};
+
+window.addDynamicItemRow = function(containerId, category, counterId, initialValue = '', focus = true) {
+  const container = document.getElementById(containerId);
+  if (!container) return null;
+
+  const currentRows = container.querySelectorAll('.dm-item-row');
+  if (currentRows.length >= 10) {
+    alert('Maksimal 10 poin telah tercapai untuk kategori ini.');
+    return null;
+  }
+
+  // Remove empty state if present
+  const emptyState = container.querySelector('.dm-empty-state');
+  if (emptyState) emptyState.remove();
+
+  const nextIndex = currentRows.length + 1;
+  const numFormatted = String(nextIndex).padStart(2, '0');
+
+  const defaultPlaceholders = DM_CATEGORY_PLACEHOLDERS[category] || [
+    'Ketik keterangan poin di sini...',
+    'Tambahkan poin detail lainnya...'
+  ];
+  const placeholderText = defaultPlaceholders[(nextIndex - 1) % defaultPlaceholders.length] || 'Ketik keterangan poin di sini...';
+
+  const row = document.createElement('div');
+  row.className = 'dm-item-row';
+  row.innerHTML = `
+    <span class="dm-item-num">${numFormatted}</span>
+    <input type="text" class="dm-item-input" value="${(initialValue || '').replace(/"/g, '&quot;')}" placeholder="${placeholderText}" oninput="window.syncDynamicItems('${containerId}')">
+    <button type="button" class="btn-dm-del" title="Hapus poin ini" onclick="window.removeDynamicItemRow(this)">
+      <i class="fa-solid fa-trash-can"></i>
+    </button>
+  `;
+
+  // Enter key in input adds next row if under 10
+  const inputEl = row.querySelector('.dm-item-input');
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const rows = container.querySelectorAll('.dm-item-row');
+      if (rows.length < 10) {
+        window.addDynamicItemRow(containerId, category, counterId, '', true);
+      }
+    }
+  });
+
+  container.appendChild(row);
+
+  window.refreshDynamicManagerNumbers(containerId, counterId);
+  window.syncDynamicItems(containerId);
+
+  if (focus && inputEl) {
+    setTimeout(() => { inputEl.focus(); }, 50);
+  }
+
+  return row;
+};
+
+window.removeDynamicItemRow = function(btn) {
+  const row = btn.closest('.dm-item-row');
+  if (!row) return;
+  const container = row.closest('.dm-items-container');
+  if (!container) return;
+
+  const containerId = container.id;
+  const card = container.closest('.dynamic-manager-card');
+  const counterId = card?.querySelector('.dm-counter-badge')?.id || '';
+  const category = card?.getAttribute('data-category') || 'requirements';
+
+  row.remove();
+
+  window.refreshDynamicManagerNumbers(containerId, counterId);
+  window.syncDynamicItems(containerId);
+
+  // If container is now empty, show empty state
+  const remainingRows = container.querySelectorAll('.dm-item-row');
+  if (remainingRows.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'dm-empty-state';
+    empty.onclick = () => window.addDynamicItemRow(containerId, category, counterId, '', true);
+    empty.innerHTML = `
+      <i class="fa-regular fa-clipboard"></i>
+      <span>Belum ada poin ditambahkan.</span>
+      <span class="dm-quick-add-link">+ Tambah Poin Pertama</span>
+    `;
+    container.appendChild(empty);
+  }
+};
+
+window.refreshDynamicManagerNumbers = function(containerId, counterId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const rows = container.querySelectorAll('.dm-item-row');
+  rows.forEach((r, idx) => {
+    const numEl = r.querySelector('.dm-item-num');
+    if (numEl) numEl.textContent = String(idx + 1).padStart(2, '0');
+  });
+
+  const count = rows.length;
+  const counterEl = counterId ? document.getElementById(counterId) : null;
+  if (counterEl) {
+    counterEl.textContent = `${count}/10`;
+    if (count >= 10) {
+      counterEl.classList.add('full');
+      counterEl.title = 'Maksimal 10 poin tercapai';
+    } else {
+      counterEl.classList.remove('full');
+      counterEl.title = '';
+    }
+  }
+
+  // Update add button state
+  const card = container.closest('.dynamic-manager-card');
+  const addBtn = card?.querySelector('.btn-dm-add');
+  if (addBtn) {
+    if (count >= 10) {
+      addBtn.disabled = true;
+      addBtn.title = 'Maksimal 10 poin tercapai';
+    } else {
+      addBtn.disabled = false;
+      addBtn.title = 'Tambah poin baru';
+    }
+  }
+};
+
+window.getDynamicListValues = function(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return [];
+  const inputs = container.querySelectorAll('.dm-item-input');
+  const values = [];
+  inputs.forEach(inp => {
+    const val = inp.value.trim();
+    if (val) values.push(val);
+  });
+  return values;
+};
+
+window.setDynamicListValues = function(containerId, itemsArray, category, counterId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  let list = [];
+  if (Array.isArray(itemsArray)) {
+    list = itemsArray.map(s => String(s || '').trim()).filter(Boolean);
+  } else if (typeof itemsArray === 'string' && itemsArray.trim()) {
+    if (itemsArray.trim().startsWith('[') && itemsArray.trim().endsWith(']')) {
+      try {
+        const parsed = JSON.parse(itemsArray);
+        if (Array.isArray(parsed)) list = parsed.map(s => String(s || '').trim()).filter(Boolean);
+      } catch (e) {}
+    }
+    if (list.length === 0) {
+      list = itemsArray.split(/\r?\n/).map(s => s.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+    }
+  }
+
+  // Cap at 10 items
+  const capped = list.slice(0, 10);
+
+  if (capped.length > 0) {
+    capped.forEach(item => {
+      window.addDynamicItemRow(containerId, category, counterId, item, false);
+    });
+  } else {
+    // Show empty state
+    const empty = document.createElement('div');
+    empty.className = 'dm-empty-state';
+    empty.onclick = () => window.addDynamicItemRow(containerId, category, counterId, '', true);
+    empty.innerHTML = `
+      <i class="fa-regular fa-clipboard"></i>
+      <span>Belum ada poin ditambahkan.</span>
+      <span class="dm-quick-add-link">+ Tambah Poin Pertama</span>
+    `;
+    container.appendChild(empty);
+  }
+
+  window.refreshDynamicManagerNumbers(containerId, counterId);
+  window.syncDynamicItems(containerId);
+};
+
+window.syncDynamicItems = function(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const card = container.closest('.dynamic-manager-card');
+  const hiddenTextarea = card?.querySelector('textarea');
+  const values = window.getDynamicListValues(containerId);
+
+  if (hiddenTextarea) {
+    hiddenTextarea.value = values.join('\n');
+  }
+
+  // If this is poster studio, re-draw flyer canvas immediately!
+  if (containerId === 'poster-req-items') {
+    const legacyReq = document.getElementById('poster-input-requirements');
+    if (legacyReq) legacyReq.value = values.join('\n');
+    if (typeof renderPosterCanvas === 'function') {
+      renderPosterCanvas();
+    }
+  }
+};
+
+function initUploadFormDynamicLists() {
+  window.setDynamicListValues('upload-resp-items', [
+    'Merancang desain user interface mobile & web yang responsif',
+    'Melakukan usability testing berkala bersama end-user',
+    'Membuat interactive prototype di Figma dan dokumentasi design system'
+  ], 'responsibilities', 'upload-resp-counter');
+
+  window.setDynamicListValues('upload-req-items', [
+    'Pendidikan minimal D3 / S1 atau pengalaman kerja setara',
+    'Pengalaman kerja minimal 1-2 tahun di bidang posisi terkait',
+    'Memiliki kemampuan komunikasi dan kerja sama tim yang baik'
+  ], 'requirements', 'upload-req-counter');
+
+  window.setDynamicListValues('upload-ben-items', [
+    'Gaji kompetitif + THR + Bonus performa tahunan',
+    'BPJS Kesehatan & BPJS Ketenagakerjaan lengkap',
+    'Fasilitas kerja fleksibel & tunjangan penunjang'
+  ], 'benefits', 'upload-ben-counter');
+}
+
 // -------------------------------------------------------------
 // UPLOAD JOB FORM SUBMISSION (WITH 3 CONTACT FIELDS)
 // -------------------------------------------------------------
@@ -459,12 +711,21 @@ function setupJobFormSubmit() {
   const form = document.getElementById('form-upload-job');
   if (!form) return;
 
+  // Initialize upload form dynamic rows with starter points
+  initUploadFormDynamicLists();
+
+  form.addEventListener('reset', () => {
+    setTimeout(() => {
+      initUploadFormDynamicLists();
+    }, 10);
+  });
+
   const btnGenPoster = document.getElementById('btn-generate-poster-from-form');
   if (btnGenPoster) {
     btnGenPoster.addEventListener('click', () => {
       const title = form.querySelector('[name="title"]')?.value.trim() || 'OPERATOR PRODUKSI';
       const company = form.querySelector('[name="company_name"]')?.value.trim() || 'PT TOYOTA MOTOR MANUFACTURING INDONESIA';
-      const reqLines = (form.querySelector('[name="requirements"]')?.value || '').split(/\r?\n/).map(s => s.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+      const reqLines = window.getDynamicListValues('upload-req-items');
       const deadline = form.querySelector('[name="deadline"]')?.value.trim() || '30 Oktober 2026';
       const website = form.querySelector('[name="website"]')?.value.trim() || '';
 
@@ -511,7 +772,9 @@ function setupJobFormSubmit() {
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan ke Supabase Cloud...';
 
-    const parseLines = (val) => val ? val.split(/\r?\n/).map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean) : [];
+    const reqValues = window.getDynamicListValues('upload-req-items');
+    const respValues = window.getDynamicListValues('upload-resp-items');
+    const benValues = window.getDynamicListValues('upload-ben-items');
 
     const cleanPayload = {
       title,
@@ -525,9 +788,9 @@ function setupJobFormSubmit() {
       contact_type: primaryContactType,
       contact_value: contactValueJSON,
       description: desc,
-      requirements: parseLines(form.querySelector('[name="requirements"]').value),
-      responsibilities: parseLines(form.querySelector('[name="responsibilities"]').value),
-      benefits: parseLines(form.querySelector('[name="benefits"]').value),
+      requirements: reqValues,
+      responsibilities: respValues,
+      benefits: benValues,
       is_featured: form.querySelector('[name="is_featured"]').checked,
       status: 'active',
       poster_image: currentSelectedFileBase64 || './uploads/sample_uiux.jpg',
@@ -544,6 +807,9 @@ function setupJobFormSubmit() {
       formData.set('whatsapp', whatsapp);
       formData.set('email', email);
       formData.set('website_url', website);
+      formData.set('requirements', reqValues.join('\n'));
+      formData.set('responsibilities', respValues.join('\n'));
+      formData.set('benefits', benValues.join('\n'));
 
       const token = sessionStorage.getItem('kerja_admin_token') || '';
       const res = await fetch(getApiEndpoint('/api/jobs'), {
@@ -929,10 +1195,20 @@ window.openEditJobModal = function(jobId) {
 
   form.querySelector('[name="description"]').value = job.description || '';
 
-  const parseOrStr = (v) => Array.isArray(v) ? v.join('\n') : (typeof v === 'string' && v.startsWith('[') ? JSON.parse(v).join('\n') : (v || ''));
-  form.querySelector('[name="requirements"]').value = parseOrStr(job.requirements);
-  form.querySelector('[name="responsibilities"]').value = parseOrStr(job.responsibilities);
-  form.querySelector('[name="benefits"]').value = parseOrStr(job.benefits);
+  const parseToList = (v) => {
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'string') {
+      if (v.trim().startsWith('[') && v.trim().endsWith(']')) {
+        try { const p = JSON.parse(v); if (Array.isArray(p)) return p; } catch(e){}
+      }
+      return v.split(/\r?\n/).map(s => s.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  window.setDynamicListValues('edit-resp-items', parseToList(job.responsibilities), 'responsibilities', 'edit-resp-counter');
+  window.setDynamicListValues('edit-req-items', parseToList(job.requirements), 'requirements', 'edit-req-counter');
+  window.setDynamicListValues('edit-ben-items', parseToList(job.benefits), 'benefits', 'edit-ben-counter');
 
   modal.classList.add('active');
 };
@@ -955,7 +1231,9 @@ function setupEditFormSubmit() {
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
 
-    const parseLines = (val) => val ? val.split(/\r?\n/).map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean) : [];
+    const reqValues = window.getDynamicListValues('edit-req-items');
+    const respValues = window.getDynamicListValues('edit-resp-items');
+    const benValues = window.getDynamicListValues('edit-ben-items');
 
     const whatsapp = form.querySelector('[name="whatsapp"]')?.value.trim() || '';
     const email = form.querySelector('[name="email"]')?.value.trim() || '';
@@ -976,9 +1254,9 @@ function setupEditFormSubmit() {
       contact_type: primaryContactType,
       contact_value: contactValueJSON,
       description: form.querySelector('[name="description"]').value.trim(),
-      requirements: parseLines(form.querySelector('[name="requirements"]').value),
-      responsibilities: parseLines(form.querySelector('[name="responsibilities"]').value),
-      benefits: parseLines(form.querySelector('[name="benefits"]').value),
+      requirements: reqValues,
+      responsibilities: respValues,
+      benefits: benValues,
       updated_at: new Date().toISOString()
     };
 
@@ -993,6 +1271,9 @@ function setupEditFormSubmit() {
       formData.set('whatsapp', whatsapp);
       formData.set('email', email);
       formData.set('website_url', website);
+      formData.set('requirements', reqValues.join('\n'));
+      formData.set('responsibilities', respValues.join('\n'));
+      formData.set('benefits', benValues.join('\n'));
 
       const token = sessionStorage.getItem('kerja_admin_token') || '';
       const res = await fetch(getApiEndpoint(`/api/jobs/${jobId}`), {
@@ -2093,18 +2374,9 @@ window.applyJobTemplateToForm = function(templateId) {
 
   if (form.elements['description']) form.elements['description'].value = job.description;
 
-  const reqInp = form.querySelector('[name="requirements"]');
-  if (reqInp && Array.isArray(job.requirements)) {
-    reqInp.value = job.requirements.join('\n');
-  }
-  const respInp = form.querySelector('[name="responsibilities"]');
-  if (respInp && Array.isArray(job.responsibilities)) {
-    respInp.value = job.responsibilities.join('\n');
-  }
-  const benInp = form.querySelector('[name="benefits"]');
-  if (benInp && Array.isArray(job.benefits)) {
-    benInp.value = job.benefits.join('\n');
-  }
+  window.setDynamicListValues('upload-resp-items', job.responsibilities || [], 'responsibilities', 'upload-resp-counter');
+  window.setDynamicListValues('upload-req-items', job.requirements || [], 'requirements', 'upload-req-counter');
+  window.setDynamicListValues('upload-ben-items', job.benefits || [], 'benefits', 'upload-ben-counter');
 
   if (form.elements['website']) form.elements['website'].value = job.official_url || '';
   if (form.elements['email']) {
@@ -2205,16 +2477,17 @@ function openPosterStudio(jobData) {
   if (compInp) compInp.value = jobData.company_name || 'PT TOYOTA MOTOR MANUFACTURING INDONESIA';
   if (titleInp) titleInp.value = jobData.title || 'OPERATOR PRODUKSI & LOGISTIK';
 
+  const reqList = Array.isArray(jobData.requirements) && jobData.requirements.length > 0
+    ? jobData.requirements
+    : [
+        'Pendidikan minimal SMA/SMK sederajat',
+        'Memiliki kemampuan Komunikasi, Kerja sama tim, dan Kedisiplinan yang baik',
+        'Dapat mengoperasikan Microsoft word, Excel dan Sistem Produksi',
+        'Bersedia bekerja dalam sistem shift'
+      ];
+  window.setDynamicListValues('poster-req-items', reqList, 'requirements', 'poster-req-counter');
   if (reqInp) {
-    const reqList = Array.isArray(jobData.requirements) && jobData.requirements.length > 0
-      ? jobData.requirements
-      : [
-          'Pendidikan minimal SMA/SMK sederajat',
-          'Memiliki kemampuan Komunikasi, Kerja sama tim, dan Kedisiplinan yang baik',
-          'Dapat mengoperasikan Microsoft word, Excel dan Sistem Produksi',
-          'Bersedia bekerja dalam sistem shift'
-        ];
-    reqInp.value = reqList.slice(0, 4).join('\n');
+    reqInp.value = reqList.slice(0, 10).join('\n');
   }
 
   if (deadInp) deadInp.value = jobData.deadline || '30 Oktober 2026';
@@ -2265,8 +2538,9 @@ function renderPosterCanvas() {
 
   const company = (document.getElementById('poster-input-company')?.value || 'PT TOYOTA MOTOR MANUFACTURING INDONESIA').trim();
   const title = (document.getElementById('poster-input-title')?.value || 'OPERATOR PRODUKSI & LOGISTIK').trim().toUpperCase();
+  const dynReqs = window.getDynamicListValues('poster-req-items');
   const reqText = document.getElementById('poster-input-requirements')?.value || '';
-  const requirements = reqText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const requirements = dynReqs.length > 0 ? dynReqs : reqText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   const deadline = (document.getElementById('poster-input-deadline')?.value || '30 November 2026').trim();
   const applyInfo = (document.getElementById('poster-input-apply-info')?.value || `Kirim CV/Lamaran melalui website resmi ${company}.`).trim();
   const qrUrl = (document.getElementById('poster-input-qr-url')?.value || 'https://recruitment.toyota.co.id').trim();

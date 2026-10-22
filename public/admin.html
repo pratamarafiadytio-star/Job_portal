@@ -488,23 +488,70 @@
                     <textarea name="description" class="form-textarea" rows="4" placeholder="Tuliskan gambaran pekerjaan, visi tim, dan poin utama peran yang dicari..." required></textarea>
                   </div>
 
-                  <div class="form-grid-2">
-                    <div class="form-group">
-                      <label class="form-label">Tanggung Jawab Utama (Pisahkan per baris)</label>
-                      <textarea name="responsibilities" class="form-textarea" rows="4" placeholder="Merancang desain user interface mobile & web&#10;Melakukan usability testing bersama user&#10;Membuat interactive prototype di Figma"></textarea>
-                      <div class="form-hint">Setiap baris baru akan menjadi poin checklist tersendiri.</div>
+                  <!-- 3 KOLOM DINAMIS: TANGGUNG JAWAB, KUALIFIKASI, BENEFIT (MAKS 10 DENGAN TOMBOL +) -->
+                  <div class="dynamic-columns-grid">
+                    <!-- KOLOM 1: TANGGUNG JAWAB -->
+                    <div class="dynamic-manager-card" data-category="responsibilities" id="upload-resp-card">
+                      <div class="dm-card-header">
+                        <div class="dm-header-left">
+                          <span class="dm-icon-pill resp-pill"><i class="fa-solid fa-list-check"></i></span>
+                          <div>
+                            <h4 class="dm-title">Tanggung Jawab</h4>
+                            <span class="dm-subtitle">Tugas & kewajiban harian</span>
+                          </div>
+                        </div>
+                        <div class="dm-header-right">
+                          <span class="dm-counter-badge" id="upload-resp-counter">0/10</span>
+                          <button type="button" class="btn-dm-add" id="upload-resp-add-btn" onclick="addDynamicItemRow('upload-resp-items', 'responsibilities', 'upload-resp-counter')">
+                            <i class="fa-solid fa-plus"></i> Tambah
+                          </button>
+                        </div>
+                      </div>
+                      <div class="dm-items-container" id="upload-resp-items" data-max="10"></div>
+                      <textarea name="responsibilities" style="display:none;"></textarea>
                     </div>
 
-                    <div class="form-group">
-                      <label class="form-label">Kualifikasi / Persyaratan (Pisahkan per baris)</label>
-                      <textarea name="requirements" class="form-textarea" rows="4" placeholder="Pengalaman minimal 2 tahun di bidang relevan&#10;Menguasai Figma & Design System&#10;Kemampuan komunikasi yang baik"></textarea>
-                      <div class="form-hint">Setiap baris akan menjadi indikator evaluasi kecocokan pelamar.</div>
+                    <!-- KOLOM 2: KUALIFIKASI -->
+                    <div class="dynamic-manager-card" data-category="requirements" id="upload-req-card">
+                      <div class="dm-card-header">
+                        <div class="dm-header-left">
+                          <span class="dm-icon-pill req-pill"><i class="fa-solid fa-user-check"></i></span>
+                          <div>
+                            <h4 class="dm-title">Kualifikasi</h4>
+                            <span class="dm-subtitle">Syarat & kriteria pelamar</span>
+                          </div>
+                        </div>
+                        <div class="dm-header-right">
+                          <span class="dm-counter-badge" id="upload-req-counter">0/10</span>
+                          <button type="button" class="btn-dm-add" id="upload-req-add-btn" onclick="addDynamicItemRow('upload-req-items', 'requirements', 'upload-req-counter')">
+                            <i class="fa-solid fa-plus"></i> Tambah
+                          </button>
+                        </div>
+                      </div>
+                      <div class="dm-items-container" id="upload-req-items" data-max="10"></div>
+                      <textarea name="requirements" style="display:none;"></textarea>
                     </div>
-                  </div>
 
-                  <div class="form-group full-width">
-                    <label class="form-label">Benefit & Fasilitas (Pisahkan per baris)</label>
-                    <textarea name="benefits" class="form-textarea" rows="3" placeholder="Gaji kompetitif + THR + Bonus kuartalan&#10;Kerja Remote Fleksibel&#10;Tunjangan Laptop & Internet"></textarea>
+                    <!-- KOLOM 3: BENEFIT & FASILITAS -->
+                    <div class="dynamic-manager-card" data-category="benefits" id="upload-ben-card">
+                      <div class="dm-card-header">
+                        <div class="dm-header-left">
+                          <span class="dm-icon-pill ben-pill"><i class="fa-solid fa-gift"></i></span>
+                          <div>
+                            <h4 class="dm-title">Benefit & Fasilitas</h4>
+                            <span class="dm-subtitle">Tunjangan & fasilitas kerja</span>
+                          </div>
+                        </div>
+                        <div class="dm-header-right">
+                          <span class="dm-counter-badge" id="upload-ben-counter">0/10</span>
+                          <button type="button" class="btn-dm-add" id="upload-ben-add-btn" onclick="addDynamicItemRow('upload-ben-items', 'benefits', 'upload-ben-counter')">
+                            <i class="fa-solid fa-plus"></i> Tambah
+                          </button>
+                        </div>
+                      </div>
+                      <div class="dm-items-container" id="upload-ben-items" data-max="10"></div>
+                      <textarea name="benefits" style="display:none;"></textarea>
+                    </div>
                   </div>
                 </div>
 
@@ -1101,20 +1148,70 @@
             <textarea name="description" class="form-textarea" rows="4" required></textarea>
           </div>
 
-          <div class="form-grid-2">
-            <div class="form-group">
-              <label class="form-label">Tanggung Jawab (Per baris)</label>
-              <textarea name="responsibilities" class="form-textarea" rows="4"></textarea>
+          <!-- 3 KOLOM DINAMIS EDIT: TANGGUNG JAWAB, KUALIFIKASI, BENEFIT (MAKS 10 DENGAN TOMBOL +) -->
+          <div class="dynamic-columns-grid" style="margin-bottom: 20px;">
+            <!-- KOLOM 1: TANGGUNG JAWAB -->
+            <div class="dynamic-manager-card" data-category="responsibilities" id="edit-resp-card">
+              <div class="dm-card-header">
+                <div class="dm-header-left">
+                  <span class="dm-icon-pill resp-pill"><i class="fa-solid fa-list-check"></i></span>
+                  <div>
+                    <h4 class="dm-title">Tanggung Jawab</h4>
+                    <span class="dm-subtitle">Tugas & kewajiban harian</span>
+                  </div>
+                </div>
+                <div class="dm-header-right">
+                  <span class="dm-counter-badge" id="edit-resp-counter">0/10</span>
+                  <button type="button" class="btn-dm-add" id="edit-resp-add-btn" onclick="addDynamicItemRow('edit-resp-items', 'responsibilities', 'edit-resp-counter')">
+                    <i class="fa-solid fa-plus"></i> Tambah
+                  </button>
+                </div>
+              </div>
+              <div class="dm-items-container" id="edit-resp-items" data-max="10"></div>
+              <textarea name="responsibilities" style="display:none;"></textarea>
             </div>
-            <div class="form-group">
-              <label class="form-label">Kualifikasi / Syarat (Per baris)</label>
-              <textarea name="requirements" class="form-textarea" rows="4"></textarea>
-            </div>
-          </div>
 
-          <div class="form-group">
-            <label class="form-label">Benefit & Fasilitas (Per baris)</label>
-            <textarea name="benefits" class="form-textarea" rows="3"></textarea>
+            <!-- KOLOM 2: KUALIFIKASI -->
+            <div class="dynamic-manager-card" data-category="requirements" id="edit-req-card">
+              <div class="dm-card-header">
+                <div class="dm-header-left">
+                  <span class="dm-icon-pill req-pill"><i class="fa-solid fa-user-check"></i></span>
+                  <div>
+                    <h4 class="dm-title">Kualifikasi</h4>
+                    <span class="dm-subtitle">Persyaratan & kriteria</span>
+                  </div>
+                </div>
+                <div class="dm-header-right">
+                  <span class="dm-counter-badge" id="edit-req-counter">0/10</span>
+                  <button type="button" class="btn-dm-add" id="edit-req-add-btn" onclick="addDynamicItemRow('edit-req-items', 'requirements', 'edit-req-counter')">
+                    <i class="fa-solid fa-plus"></i> Tambah
+                  </button>
+                </div>
+              </div>
+              <div class="dm-items-container" id="edit-req-items" data-max="10"></div>
+              <textarea name="requirements" style="display:none;"></textarea>
+            </div>
+
+            <!-- KOLOM 3: BENEFIT & FASILITAS -->
+            <div class="dynamic-manager-card" data-category="benefits" id="edit-ben-card">
+              <div class="dm-card-header">
+                <div class="dm-header-left">
+                  <span class="dm-icon-pill ben-pill"><i class="fa-solid fa-gift"></i></span>
+                  <div>
+                    <h4 class="dm-title">Benefit & Fasilitas</h4>
+                    <span class="dm-subtitle">Tunjangan & fasilitas kerja</span>
+                  </div>
+                </div>
+                <div class="dm-header-right">
+                  <span class="dm-counter-badge" id="edit-ben-counter">0/10</span>
+                  <button type="button" class="btn-dm-add" id="edit-ben-add-btn" onclick="addDynamicItemRow('edit-ben-items', 'benefits', 'edit-ben-counter')">
+                    <i class="fa-solid fa-plus"></i> Tambah
+                  </button>
+                </div>
+              </div>
+              <div class="dm-items-container" id="edit-ben-items" data-max="10"></div>
+              <textarea name="benefits" style="display:none;"></textarea>
+            </div>
           </div>
 
           <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px; padding-top: 14px; border-top: 1px solid var(--admin-border);">
@@ -1253,9 +1350,24 @@
                 <input type="text" id="poster-input-title" class="form-input" placeholder="OPERATOR PRODUKSI">
               </div>
 
-              <div class="form-group" style="margin-bottom: 10px;">
-                <label class="form-label">Kualifikasi (Maks 4-5 poin, pisahkan per baris)</label>
-                <textarea id="poster-input-requirements" class="form-textarea" rows="4" placeholder="Pendidikan minimal SMA/SMK sederajat&#10;Memiliki kemampuan Komunikasi dan Kedisiplinan&#10;Dapat mengoperasikan komputer & sistem kerja&#10;Bersedia bekerja sistem shift"></textarea>
+              <div class="dynamic-manager-card" data-category="requirements" id="poster-req-card" style="margin-bottom: 12px;">
+                <div class="dm-card-header">
+                  <div class="dm-header-left">
+                    <span class="dm-icon-pill req-pill"><i class="fa-solid fa-user-check"></i></span>
+                    <div>
+                      <h4 class="dm-title">Kualifikasi Poster</h4>
+                      <span class="dm-subtitle">Digambar ke poster flyer (Maks 10)</span>
+                    </div>
+                  </div>
+                  <div class="dm-header-right">
+                    <span class="dm-counter-badge" id="poster-req-counter">0/10</span>
+                    <button type="button" class="btn-dm-add" id="poster-req-add-btn" onclick="addDynamicItemRow('poster-req-items', 'requirements', 'poster-req-counter')">
+                      <i class="fa-solid fa-plus"></i> Tambah
+                    </button>
+                  </div>
+                </div>
+                <div class="dm-items-container" id="poster-req-items" data-max="10"></div>
+                <textarea id="poster-input-requirements" style="display:none;"></textarea>
               </div>
 
               <div class="form-grid-2" style="margin-bottom: 10px;">

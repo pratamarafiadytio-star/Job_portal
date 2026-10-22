@@ -1557,15 +1557,16 @@ body {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(8px);
+  background: rgba(11, 15, 25, 0.76);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 24px;
   opacity: 0;
   visibility: hidden;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .admin-modal-overlay.active {
@@ -1575,29 +1576,37 @@ body {
 
 .admin-modal-box {
   background: #ffffff;
-  border-radius: var(--radius-xl);
+  border-radius: 20px;
   width: 100%;
-  max-width: 840px;
-  max-height: 90vh;
+  max-width: 1080px;
+  max-height: 92vh;
   overflow-y: auto;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 30px 60px -12px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(226, 232, 240, 0.8), 0 0 40px rgba(79, 70, 229, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  transform: scale(0.96) translateY(12px);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+}
+
+.admin-modal-overlay.active .admin-modal-box {
+  transform: scale(1) translateY(0);
 }
 
 .admin-modal-header {
-  padding: 20px 28px;
-  border-bottom: 1px solid var(--admin-border);
+  padding: 18px 28px;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f8fafc;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   position: sticky;
   top: 0;
   z-index: 10;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
 }
 
 .admin-modal-body {
-  padding: 28px;
+  padding: 26px 28px;
 }
 
 /* ==============================================================
@@ -2547,6 +2556,358 @@ body {
     transform: translateY(0);
   }
 }
+
+/* ==============================================================
+   DYNAMIC 3-COLUMN ITEM MANAGER (TANGGUNG JAWAB, KUALIFIKASI, BENEFIT)
+   Per-column layout, dynamic + / delete, max 10 items, real-time counters
+   ============================================================== */
+.dynamic-columns-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 1024px) {
+  .dynamic-columns-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dynamic-manager-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 14px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.dynamic-manager-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #cbd5e1;
+  transition: all 0.2s ease;
+}
+
+.dynamic-manager-card[data-category="responsibilities"]::before {
+  background: linear-gradient(90deg, #4f46e5, #6366f1);
+}
+
+.dynamic-manager-card[data-category="requirements"]::before {
+  background: linear-gradient(90deg, #059669, #10b981);
+}
+
+.dynamic-manager-card[data-category="benefits"]::before {
+  background: linear-gradient(90deg, #d97706, #8b5cf6);
+}
+
+.dynamic-manager-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 6px 16px -2px rgba(15, 23, 42, 0.07);
+}
+
+.dynamic-manager-card:focus-within {
+  border-color: #cbd5e1;
+  box-shadow: 0 8px 20px -2px rgba(15, 23, 42, 0.09);
+}
+
+.dm-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.dm-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dm-icon-pill {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.dm-icon-pill.resp-pill {
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+}
+
+.dm-icon-pill.req-pill {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.dm-icon-pill.ben-pill {
+  background: #fdf4ff;
+  color: #9333ea;
+  border: 1px solid #f5d0fe;
+}
+
+.dm-title {
+  font-family: var(--font-heading);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.dm-subtitle {
+  font-size: 0.72rem;
+  color: #64748b;
+  display: block;
+}
+
+.dm-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dm-counter-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  font-family: monospace;
+  transition: all 0.2s ease;
+}
+
+.dm-counter-badge.full {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+  font-weight: 800;
+}
+
+.btn-dm-add {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.btn-dm-add:hover:not(:disabled) {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.28);
+}
+
+.btn-dm-add:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(1);
+  box-shadow: none;
+}
+
+.dm-items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 60px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Custom modern scrollbar for item container */
+.dm-items-container::-webkit-scrollbar {
+  width: 5px;
+}
+.dm-items-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dm-items-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.dm-items-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dm-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  padding: 6px 9px;
+  transition: all 0.15s ease;
+  animation: fadeInRow 0.2s ease-out;
+}
+
+@keyframes fadeInRow {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dm-item-row:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+}
+
+.dm-item-row:focus-within {
+  background: #ffffff;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2.5px rgba(99, 102, 241, 0.18);
+}
+
+.dm-item-num {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: monospace;
+}
+
+.dm-item-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font-size: 0.82rem;
+  color: #0f172a;
+  outline: none;
+  font-family: inherit;
+  padding: 3px 0;
+}
+
+.dm-item-input::placeholder {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.btn-dm-del {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.btn-dm-del:hover {
+  background: #fee2e2;
+  color: #ef4444;
+  border-color: #fecaca;
+  transform: scale(1.08);
+}
+
+.dm-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 12px;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.75rem;
+  text-align: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dm-empty-state:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.dm-empty-state i {
+  font-size: 1.1rem;
+  color: #94a3b8;
+}
+
+.dm-quick-add-link {
+  color: #4f46e5;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+/* Custom Modal Scrollbar */
+.admin-modal-box::-webkit-scrollbar {
+  width: 7px;
+}
+.admin-modal-box::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+.admin-modal-box::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 6px;
+}
+.admin-modal-box::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Visual Glow for Primary Submit in modals */
+.btn-submit-glow {
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-submit-glow:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
+}
+
 
 
 
