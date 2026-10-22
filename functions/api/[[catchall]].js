@@ -3,9 +3,10 @@
 // High Performance, Sub-10ms Global Edge Execution with Supabase
 // ==============================================================
 
-const DEFAULT_SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co";
-const DEFAULT_SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
-const DEFAULT_ADMIN_PASSWORD = "admin_supersecret_portal_2026";
+const DEFAULT_SUPABASE_URL = "";
+const DEFAULT_SUPABASE_KEY = "";
+const DEFAULT_ADMIN_PASSWORD = "";
+
 
 
 const DEFAULT_SETTINGS = {

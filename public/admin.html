@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <link rel="stylesheet" href="./css/admin.css">
+  <link rel="stylesheet" href="./css/jobstreet.css">
   <!-- Supabase JS Client for Online Cloud Operation -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- QRCode.js for generating scannable QR Codes on posters -->
@@ -107,6 +108,13 @@
             <i class="fa-solid fa-certificate" style="color: #10b981;"></i>
             <span>Loker Resmi & Poster</span>
             <span class="menu-pill-sparkle" style="background: linear-gradient(135deg, #10b981, #06b6d4);">RESMI</span>
+          </a>
+        </li>
+        <li class="menu-item" id="nav-item-jobstreet-view">
+          <a href="#jobstreet-view">
+            <i class="fa-solid fa-table-columns" style="color: #ec4899;"></i>
+            <span>Pratinjau Loker (JobStreet)</span>
+            <span class="menu-pill-sparkle" style="background: linear-gradient(135deg, #e11d48, #ec4899); color: white;">LIVE</span>
           </a>
         </li>
         <li class="menu-item">
@@ -744,6 +752,13 @@
         </section>
 
         <!-- ========================================== -->
+        <!-- SECTION 5: PRATINJAU LOKER DUAL-PANE VIEW  -->
+        <!-- ========================================== -->
+        <section id="section-jobstreet-view" style="display: none;">
+          <div id="admin-jobstreet-target"></div>
+        </section>
+
+        <!-- ========================================== -->
         <!-- SECTION 5: MASTER DATA & FILTER SETTINGS   -->
         <!-- ========================================== -->
         <section id="section-settings-master" style="display: none;">
@@ -1234,6 +1249,7 @@
   <!-- HIDDEN QR CODE HOLDER -->
   <div id="poster-qrcode-temp" style="display: none;"></div>
 
+  <script src="./js/jobstreet.js"></script>
   <script src="./js/admin.js"></script>
 </body>
 </html>

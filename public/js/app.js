@@ -4,19 +4,7 @@
 // Professional Corporate Presentation (No Emojis & Clean Icons)
 // ==============================================================
 
-const SUPABASE_FALLBACK_URL = "https://nptmawuukuysqzqakwej.supabase.co";
-const SUPABASE_FALLBACK_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
-
 let sbClient = null;
-
-// Immediate fallback initialization so client queries are ready at startup
-if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
-  try {
-    sbClient = window.supabase.createClient(SUPABASE_FALLBACK_URL, SUPABASE_FALLBACK_KEY);
-  } catch (e) {
-    console.warn('Initial Supabase client init warning:', e);
-  }
-}
 
 function getApiEndpoint(endpoint) {
   if (!endpoint) return '';
@@ -90,27 +78,14 @@ window.filterByPlatform = function(plat) {
 };
 
 async function initSupabaseClient() {
-  let url = SUPABASE_FALLBACK_URL;
-  let key = SUPABASE_FALLBACK_KEY;
-
-  if (!sbClient && window.supabase && typeof window.supabase.createClient === 'function') {
-    try {
-      sbClient = window.supabase.createClient(url, key);
-    } catch (e) {
-      console.warn('Supabase fallback createClient error:', e);
-    }
-  }
-
   try {
     const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
     if (ok && data) {
       if (data.supabaseUrl && data.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function') {
-        if (data.supabaseUrl !== url || data.supabaseKey !== key || !sbClient) {
-          try {
-            sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey);
-          } catch (e) {
-            console.warn('Supabase createClient error:', e);
-          }
+        try {
+          sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey);
+        } catch (e) {
+          console.warn('Supabase createClient error:', e);
         }
       }
       if (data.cv_whatsapp) {
@@ -1655,6 +1630,7 @@ function openJobDetail(jobId) {
             <span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location)}</span>
             <span><i class="fa-solid fa-tag"></i> ${escapeHtml(job.category)}</span>
             <span><i class="fa-regular fa-eye"></i> Dilihat ${(job.views_count || 0) + 1}x</span>
+            <a href="./loker.html?job=${job.id}" target="_blank" style="color:#ffffff; font-weight:700; background:rgba(230,0,92,0.9); padding:4px 10px; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:5px; font-size:0.75rem;"><i class="fa-solid fa-table-columns"></i> Mode JobStreet ↗</a>
           </div>
         </div>
       </div>

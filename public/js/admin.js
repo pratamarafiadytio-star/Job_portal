@@ -2,19 +2,7 @@
 // KerjaHub - Admin Panel Logic (Enhanced Multi-Contact, Lock System & Social Scout)
 // ==============================================================
 
-const SUPABASE_FALLBACK_URL = "https://nptmawuukuysqzqakwej.supabase.co";
-const SUPABASE_FALLBACK_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
-
 let sbClient = null;
-
-// Immediate fallback initialization so admin queries are ready at startup
-if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
-  try {
-    sbClient = window.supabase.createClient(SUPABASE_FALLBACK_URL, SUPABASE_FALLBACK_KEY);
-  } catch (e) {
-    console.warn('Initial admin Supabase client init warning:', e);
-  }
-}
 
 function getApiEndpoint(endpoint) {
   if (!endpoint) return '';
@@ -45,26 +33,13 @@ async function safeFetchJson(url, options = {}) {
 }
 
 async function initSupabaseClient() {
-  let url = SUPABASE_FALLBACK_URL;
-  let key = SUPABASE_FALLBACK_KEY;
-
-  if (!sbClient && window.supabase && typeof window.supabase.createClient === 'function') {
-    try {
-      sbClient = window.supabase.createClient(url, key);
-    } catch (e) {
-      console.warn('Supabase fallback createClient error in admin:', e);
-    }
-  }
-
   try {
     const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
     if (ok && data && data.supabaseUrl && data.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function') {
-      if (data.supabaseUrl !== url || data.supabaseKey !== key || !sbClient) {
-        try {
-          sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey);
-        } catch (e) {
-          console.warn('Supabase createClient error in admin:', e);
-        }
+      try {
+        sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey);
+      } catch (e) {
+        console.warn('Supabase createClient error in admin:', e);
       }
     }
   } catch (e) {
@@ -367,7 +342,7 @@ function setupNavigation() {
 }
 
 function switchSection(sectionName) {
-  const sections = ['dashboard', 'upload-job', 'manage-jobs', 'sosmed-generator', 'settings-master', 'settings-cv'];
+  const sections = ['dashboard', 'upload-job', 'manage-jobs', 'sosmed-generator', 'jobstreet-view', 'settings-master', 'settings-cv'];
   sections.forEach(sec => {
     const el = document.getElementById(`section-${sec}`);
     if (el) el.style.display = (sec === sectionName) ? 'block' : 'none';
@@ -390,6 +365,12 @@ function switchSection(sectionName) {
   } else if (sectionName === 'sosmed-generator') {
     if (titleEl) titleEl.textContent = 'Scout & Generator Loker Sosmed';
     if (subEl) subEl.textContent = 'Cari dan generate materi postingan lowongan kerja dari LinkedIn, IG, dan FB.';
+  } else if (sectionName === 'jobstreet-view') {
+    if (titleEl) titleEl.textContent = 'Pratinjau Loker Interaktif (JobStreet Dual-Pane)';
+    if (subEl) subEl.textContent = 'Tampilan split-screen interaktif ala JobStreet dengan rincian korporat, banner produk & aksi lamaran cepat.';
+    if (window.JobStreetViewer) {
+      window.JobStreetViewer.mount('admin-jobstreet-target', { isAdmin: true });
+    }
   } else if (sectionName === 'settings-master') {
     if (titleEl) titleEl.textContent = 'Pengaturan Master Data & Filter';
     if (subEl) subEl.textContent = 'Kelola Kategori Bidang, Tipe Pekerjaan, Level Pengalaman, dan Lokasi.';
@@ -725,7 +706,7 @@ function renderAdminJobsTable() {
           <div class="job-cell">
             <img src="${posterSrc}" alt="Poster" class="job-cell-poster" onerror="this.src='${defaultPoster}'">
             <div class="job-cell-info">
-              <a href="./?job=${job.id}" target="_blank" class="job-cell-title">${escapeHtml(job.title)}</a>
+              <a href="javascript:void(0)" onclick="openJobStreetViewerFromExistingId(${job.id})" class="job-cell-title" title="Buka Pratinjau Loker JobStreet">${escapeHtml(job.title)}</a>
               <span class="job-cell-company">${escapeHtml(job.company_name)}</span>
             </div>
           </div>
@@ -738,6 +719,7 @@ function renderAdminJobsTable() {
         <td><small>${job.created_at ? new Date(job.created_at).toLocaleDateString('id-ID') : '-'}</small></td>
         <td>
           <div class="action-buttons">
+            <button class="btn-table" onclick="openJobStreetViewerFromExistingId(${job.id})" title="Pratinjau Loker (JobStreet Dual-Pane)"><i class="fa-solid fa-table-columns" style="color: #ec4899;"></i></button>
             <a href="./?job=${job.id}" target="_blank" class="btn-table" title="Lihat di Web Publik"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
             <button class="btn-table" onclick="openPosterStudioFromExistingId(${job.id})" title="Generate Poster Gambar (Download)"><i class="fa-solid fa-palette" style="color: #4f46e5;"></i></button>
             <button class="btn-table btn-lock" onclick="toggleJobLock(${job.id}, '${nextStatus}')" title="${lockTooltip}">
@@ -1129,6 +1111,174 @@ function getDeadlineMeta(deadlineStr, fallbackDaysAhead = 30) {
 // ==============================================================
 
 const OFFICIAL_VACANCIES_DB = [
+  {
+    id: 'indolakto_01',
+    title: 'Internal Audit Supervisor (Finance Focused)',
+    company_name: 'PT Indolakto - Indofood CBP (INDOMILK)',
+    brand_logo_text: 'PT INDOLAKTO',
+    brand_banner: './uploads/indolakto_indomilk_banner.jpg',
+    sector: 'fmcg',
+    sector_label: 'FMCG, Dairy & Pangan',
+    category: 'Administrasi & Keuangan',
+    role_department: 'Audit - Internal (Akuntansi)',
+    job_type: 'Full time',
+    location: 'Jakarta Timur, Jakarta Raya',
+    education_level: 's1',
+    education_label: 'Sarjana (S1)',
+    experience_level: '3-5 Tahun',
+    salary_display: 'Rp 12.000.000 - Rp 18.000.000 / bln',
+    deadline: '30 November 2026',
+    official_url: 'https://careers.indofood.com',
+    contact_type: 'email',
+    contact_value: JSON.stringify({ whatsapp: '081234567890', email: 'recruitment.indolakto@indofood.co.id', website: 'https://careers.indofood.com', is_verified_anti_hoax: true }),
+    anti_fraud_notice: 'PT Indolakto never charges any fees during the recruitment process, nor do we collaborate with travel agents or bureaus. Please ignore any requests for payment related to tickets, accommodation, or administration fees.',
+    description: 'This position is responsible to conduct efficient and effective audit plans and audit programs, ensuring compliance with company financial policies and SOX/internal controls across Indofood CBP Indolakto business units.',
+    requirements: [
+      'Bachelor Degree (S1) in Accounting, Finance, or equivalent from a reputable university.',
+      'Minimum 4-5 years of experience in Internal Audit, Risk Assurance, or Public Accounting Firm (Big 4 preferred).',
+      'Strong knowledge of Indonesian Accounting Standards (PSAK), internal control frameworks (COSO), and audit methodologies.',
+      'Proficiency in SAP (FI/CO modules) and computerized audit tools (ACL, IDEA, or advanced Excel).'
+    ],
+    responsibilities: [
+      'Conduct comprehensive risk-based financial, operational, and compliance internal audit programs across factories and corporate divisions.',
+      'Evaluate the adequacy and effectiveness of internal accounting controls and operating procedures.',
+      'Prepare clear, concise audit reports and present constructive findings and recommendations to senior management.'
+    ],
+    benefits: [
+      'Competitive salary + Attractive performance bonus & THR',
+      'Comprehensive private medical insurance (BPJS & Inhealth/Class 1)',
+      'Monthly product allowance of Indofood & Indolakto products (Milk, Snacks, Cooking Essentials)'
+    ],
+    theme: 'corporate',
+    mascot: 'corporate',
+    verified_badge: 'Resmi Indolakto Career',
+    apply_info: 'Submit CV dan portofolio resmi via email recruitment.indolakto@indofood.co.id atau portal karir Indofood.'
+  },
+  {
+    id: 'indolakto_02',
+    title: 'Industrial Relations Manager',
+    company_name: 'PT Indolakto - Indofood CBP (INDOMILK)',
+    brand_logo_text: 'PT INDOLAKTO',
+    brand_banner: './uploads/indolakto_indomilk_banner.jpg',
+    sector: 'fmcg',
+    sector_label: 'FMCG, Dairy & Pangan',
+    category: 'Administrasi & Keuangan',
+    role_department: 'Human Resources & Industrial Relations',
+    job_type: 'Full time',
+    location: 'Jakarta Timur, Jakarta Raya',
+    education_level: 's1',
+    education_label: 'Sarjana (S1 / S2)',
+    experience_level: 'Senior (5+ Tahun)',
+    salary_display: 'Rp 20.000.000 - Rp 30.000.000 / bln',
+    deadline: '30 November 2026',
+    official_url: 'https://careers.indofood.com',
+    contact_type: 'email',
+    contact_value: JSON.stringify({ whatsapp: '081234567890', email: 'recruitment.indolakto@indofood.co.id', website: 'https://careers.indofood.com', is_verified_anti_hoax: true }),
+    anti_fraud_notice: 'PT Indolakto never charges any fees during the recruitment process, nor do we collaborate with travel agents or bureaus.',
+    description: 'This position is responsible to develop and implement Industrial Relations strategies and policies across HO, factories, and distribution operations.',
+    requirements: [
+      'Bachelor or Master Degree in Law (Hukum) or Human Resource Management.',
+      'Minimum 7-8 years of extensive experience in Industrial Relations within manufacturing or FMCG.',
+      'Demonstrated track record in successful union negotiations and mediation.'
+    ],
+    responsibilities: [
+      'Lead and maintain constructive relationships with labor unions (SPSI) and bipartite cooperation.',
+      'Provide expert guidance on Indonesian Labor Law (UU Ketenagakerjaan & UU Cipta Kerja).',
+      'Manage grievance handling, disciplinary procedures, and industrial dispute resolution.'
+    ],
+    benefits: [
+      'Executive remuneration package + Performance bonus + Annual company car allowance',
+      'Complete family medical health coverage (Inpatient, Outpatient, Dental)',
+      'Indofood product hampers & family welfare benefits'
+    ],
+    theme: 'corporate',
+    mascot: 'corporate',
+    verified_badge: 'Resmi Indolakto Career',
+    apply_info: 'Submit CV resmi melalui email rekrutmen Indolakto atau portal karir Indofood.'
+  },
+  {
+    id: 'indofood_hr_03',
+    title: 'Human Resources Staff',
+    company_name: 'PT Indofood CBP Sukses Makmur Tbk',
+    brand_logo_text: 'INDOFOOD CBP',
+    brand_banner: './uploads/indolakto_indomilk_banner.jpg',
+    sector: 'fmcg',
+    sector_label: 'FMCG & Pangan',
+    category: 'Administrasi & Keuangan',
+    role_department: 'People & Organization / HR Operations',
+    job_type: 'Full time',
+    location: 'Jakarta Raya / Cibitung',
+    education_level: 's1',
+    education_label: 'Sarjana (S1)',
+    experience_level: 'Fresh Graduate',
+    salary_display: 'Rp 6.000.000 - Rp 8.500.000 / bln',
+    deadline: '30 November 2026',
+    official_url: 'https://careers.indofood.com',
+    contact_type: 'email',
+    contact_value: JSON.stringify({ whatsapp: '081234567890', email: 'recruitment@indofood.co.id', website: 'https://careers.indofood.com', is_verified_anti_hoax: true }),
+    anti_fraud_notice: 'PT Indofood CBP Sukses Makmur Tbk tidak pernah memungut biaya apapun dalam proses rekrutmen.',
+    description: 'Info Terbaru Lowongan Kerja Human Resources Staff Jakarta November 2026 di Indofood CBP. Mengelola administrasi kepersonaliaan, rekrutmen karyawan, dan absensi digital.',
+    requirements: [
+      'Lulusan S1 Psikologi, Manajemen SDM, Hukum, atau Administrasi Bisnis.',
+      'Fresh Graduate dengan IPK min. 3.20 atau pengalaman 1 tahun di bidang HR.',
+      'Menguasai Microsoft Excel (VLOOKUP, Pivot Table) dan dasar HRIS.'
+    ],
+    responsibilities: [
+      'Memproses administrasi kepegawaian harian (absensi, cuti, lembur, dan BPJS).',
+      'Membantu proses talent acquisition (screening CV, penjadwalan interview).'
+    ],
+    benefits: [
+      'Gaji kompetitif + THR + Bonus tahunan grup Indofood',
+      'Asuransi kesehatan rawat jalan & inap',
+      'Paket sembako dan produk Indofood bulanan'
+    ],
+    theme: 'corporate',
+    mascot: 'corporate',
+    verified_badge: 'Resmi Indofood Career',
+    apply_info: 'Submit lamaran online via careers.indofood.com atau email rekrutmen.'
+  },
+  {
+    id: 'indolakto_comben_04',
+    title: 'Compensation & Benefit Manager',
+    company_name: 'PT Indolakto - Indofood CBP (INDOMILK)',
+    brand_logo_text: 'PT INDOLAKTO',
+    brand_banner: './uploads/indolakto_indomilk_banner.jpg',
+    sector: 'fmcg',
+    sector_label: 'FMCG, Dairy & Pangan',
+    category: 'Administrasi & Keuangan',
+    role_department: 'Total Rewards / C&B',
+    job_type: 'Full time',
+    location: 'Jakarta Timur, Jakarta Raya',
+    education_level: 's1',
+    education_label: 'Sarjana (S1)',
+    experience_level: 'Senior (5+ Tahun)',
+    salary_display: 'Rp 22.000.000 - Rp 32.000.000 / bln',
+    deadline: '30 November 2026',
+    official_url: 'https://careers.indofood.com',
+    contact_type: 'email',
+    contact_value: JSON.stringify({ whatsapp: '081234567890', email: 'recruitment.indolakto@indofood.co.id', website: 'https://careers.indofood.com', is_verified_anti_hoax: true }),
+    anti_fraud_notice: 'PT Indolakto never charges any fees during the recruitment process, nor do we collaborate with travel agents or bureaus.',
+    description: 'Responsible to design, benchmark, and administer competitive compensation structures, grading systems, executive salary scales, and comprehensive employee welfare benefits programs.',
+    requirements: [
+      'Bachelor Degree in Economics, Statistics, Mathematics, or Human Resources.',
+      'Minimum 6-8 years in Compensation & Benefits with prior managerial role in FMCG.',
+      'Advanced analytical abilities with deep expertise in compensation modeling and taxation (PPh 21).'
+    ],
+    responsibilities: [
+      'Conduct comprehensive salary surveys and market benchmarking.',
+      'Formulate and maintain the job evaluation and grading system (Hay methodology).',
+      'Manage annual merit increase, bonus distribution schemes, and variable incentive plans.'
+    ],
+    benefits: [
+      'Executive salary package + Car allowance + Annual performance bonus',
+      'Full medical insurance coverage for employee and family',
+      'Indofood welfare hampers'
+    ],
+    theme: 'corporate',
+    mascot: 'corporate',
+    verified_badge: 'Resmi Indolakto Career',
+    apply_info: 'Submit CV resmi melalui email rekrutmen Indolakto atau portal karir Indofood.'
+  },
   {
     id: 'off_toyota_01',
     title: 'OPERATOR PRODUKSI & LOGISTIK MANUFAKTUR',
@@ -2034,15 +2184,114 @@ function renderOfficialJobsGrid() {
             <button type="button" class="btn btn-outline" onclick="openPosterStudioFromOfficialIndex(${idx})" title="Buka Studio Flyer Poster untuk kustomisasi tema / warna">
               <i class="fa-solid fa-palette"></i> Studio Poster
             </button>
-            <a href="${job.official_url}" target="_blank" rel="noopener noreferrer" class="btn btn-outline" title="Buka postingan lowongan di ${platLabel}">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> Lihat Loker
-            </a>
+            <button type="button" class="btn btn-outline" onclick="openJobStreetViewerFromOfficialIndex(${idx})" title="Lihat Tampilan Loker Lengkap (JobStreet Dual-Pane View)" style="border-color: #ec4899; color: #db2777; font-weight: 700;">
+              <i class="fa-solid fa-table-columns"></i> Lihat Loker
+            </button>
           </div>
         </div>
       </div>
     `;
   }).join('');
 }
+
+window.openJobStreetViewerFromOfficialIndex = function(idx) {
+  const job = currentOfficialFilteredJobs[idx];
+  if (!job) return;
+
+  switchSection('jobstreet-view');
+
+  const navItem = document.querySelector('#nav-item-jobstreet-view a');
+  if (navItem) {
+    document.querySelectorAll('.sidebar-menu .menu-item').forEach(m => m.classList.remove('active'));
+    navItem.parentElement.classList.add('active');
+  }
+
+  setTimeout(() => {
+    if (window.JobStreetViewer) {
+      window.JobStreetViewer.focusJob(job.id);
+    }
+  }, 80);
+};
+
+window.openJobStreetViewerFromExistingId = function(jobId) {
+  switchSection('jobstreet-view');
+
+  const navItem = document.querySelector('#nav-item-jobstreet-view a');
+  if (navItem) {
+    document.querySelectorAll('.sidebar-menu .menu-item').forEach(m => m.classList.remove('active'));
+    navItem.parentElement.classList.add('active');
+  }
+
+  setTimeout(() => {
+    if (window.JobStreetViewer) {
+      window.JobStreetViewer.focusJob('db_' + jobId);
+    }
+  }, 80);
+};
+
+window.publishJobDataDirectly = function(job) {
+  if (!job) return;
+  // Find matching job in OFFICIAL_VACANCIES_DB if available
+  const matchIdx = OFFICIAL_VACANCIES_DB.findIndex(j => j.id === job.id);
+  if (matchIdx >= 0) {
+    generateAndPublishOfficialJob(matchIdx);
+  } else {
+    // Generate new DB job
+    const formData = new FormData();
+    formData.append('title', job.title);
+    formData.append('company_name', job.company_name);
+    formData.append('category', job.category || 'Administrasi & Keuangan');
+    formData.append('job_type', job.job_type || 'Full Time');
+    formData.append('location', job.location || 'Indonesia');
+    formData.append('salary_display', job.salary_display || 'Kompetitif');
+    formData.append('experience_level', job.experience_level || '1-3 Tahun');
+    formData.append('description', job.description || '');
+    formData.append('requirements', (job.requirements || []).join('\n'));
+    formData.append('responsibilities', (job.responsibilities || []).join('\n'));
+    formData.append('benefits', (job.benefits || []).join('\n'));
+    formData.append('whatsapp', job.contact_whatsapp || '');
+    formData.append('email', job.contact_email || '');
+    formData.append('website', job.official_url || '');
+    formData.append('deadline', '2026-11-30');
+    formData.append('is_featured', '1');
+
+    safeFetchJson(getApiEndpoint('/api/jobs'), {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${getAdminToken()}` },
+      body: formData
+    }).then(({ ok, data }) => {
+      if (ok) {
+        alert(`⚡ Lowongan "${job.title}" (${job.company_name}) berhasil diterbitkan ke portal KerjaHub!`);
+        loadAdminJobs(true);
+      } else {
+        alert('Gagal menerbitkan: ' + (data?.message || 'Error server'));
+      }
+    });
+  }
+};
+
+window.openPosterStudioWithData = function(job) {
+  if (!job) return;
+  const matchIdx = OFFICIAL_VACANCIES_DB.findIndex(j => j.id === job.id);
+  if (matchIdx >= 0) {
+    openPosterStudioFromOfficialIndex(matchIdx);
+  } else {
+    currentPosterJobData = {
+      title: job.title,
+      company_name: job.company_name,
+      location: job.location,
+      salary_display: job.salary_display,
+      deadline: '30 November 2026',
+      requirements: job.requirements || [],
+      apply_info: `Kirim lamaran via email ${job.contact_email || 'rekrutmen'}`
+    };
+    const modal = document.getElementById('poster-studio-modal');
+    if (modal) {
+      modal.classList.add('active');
+      renderPosterCanvas();
+    }
+  }
+};
 
 window.resetOfficialFilters = function() {
   const kw = document.getElementById('official-keyword');
