@@ -1031,6 +1031,15 @@ function getEffectiveJobPoster(job) {
     if (p.startsWith('/uploads/')) p = '.' + p;
     return p;
   }
+  const cName = getEffectiveCompanyName(job);
+  if (job.company_image && !job.company_image.includes('unsplash.com')) {
+    return job.company_image;
+  }
+  if (window._companyImagesCache) {
+    if (window._companyImagesCache[cName]) return window._companyImagesCache[cName];
+    if (window._companyImagesCache[job.company_name]) return window._companyImagesCache[job.company_name];
+    if (window._companyImagesCache[job.title]) return window._companyImagesCache[job.title];
+  }
   return generateCompanyBannerDataUrl(job);
 }
 

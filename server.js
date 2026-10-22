@@ -21,6 +21,47 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// Cache for real company images / logos
+const companyImagesPath = path.join(__dirname, 'data', 'company_images.json');
+let companyImagesCache = {};
+try {
+  if (fs.existsSync(companyImagesPath)) {
+    companyImagesCache = JSON.parse(fs.readFileSync(companyImagesPath, 'utf8'));
+  }
+} catch (e) {
+  companyImagesCache = {};
+}
+
+function saveCompanyImagesCache() {
+  try {
+    fs.writeFileSync(companyImagesPath, JSON.stringify(companyImagesCache, null, 2), 'utf8');
+  } catch (e) {}
+}
+
+async function fetchCompanyImageOnline(companyName) {
+  if (!companyName) return null;
+  const clean = companyName.replace(/^(PT|CV|Bank)\s+/i, '').replace(/\(Persero\)/i, '').replace(/Tbk/i, '').trim();
+  if (companyImagesCache[companyName]) return companyImagesCache[companyName];
+  if (companyImagesCache[clean]) return companyImagesCache[clean];
+
+  try {
+    const url = 'https://www.bing.com/images/search?q=' + encodeURIComponent(clean + ' indonesia logo kantor gedung') + '&FORM=HDRSC2';
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      }
+    });
+    const html = await res.text();
+    const m = html.match(/murl&quot;:&quot;(https?:\/\/[^&]+?\.(?:jpg|jpeg|png|webp))/i);
+    if (m && m[1]) {
+      companyImagesCache[companyName] = m[1];
+      saveCompanyImagesCache();
+      return m[1];
+    }
+  } catch (e) {}
+  return null;
+}
+
 // Multer storage for flyer posters
 const multerStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -390,13 +431,39 @@ app.post('/api/admin/logout', (req, res) => {
 });
 
 // -------------------------------------------------------------
+// PUBLIC API: GET /api/company-images (Cached real company photos & logos)
+// -------------------------------------------------------------
+app.get('/api/company-images', (req, res) => {
+  res.json({ success: true, data: companyImagesCache });
+});
+
+app.get('/api/company-image', async (req, res) => {
+  const comp = (req.query.company || '').trim();
+  if (!comp) return res.status(400).json({ success: false, message: 'Nama perusahaan wajib diisi.' });
+
+  let img = companyImagesCache[comp];
+  if (!img) {
+    img = await fetchCompanyImageOnline(comp);
+  }
+  if (img) {
+    return res.json({ success: true, company: comp, imageUrl: img });
+  }
+  return res.json({ success: false, company: comp, imageUrl: null });
+});
+
+// -------------------------------------------------------------
 // PUBLIC API: GET /api/jobs (Visitors can only VIEW)
 // -------------------------------------------------------------
 app.get('/api/jobs', async (req, res) => {
   try {
     const { search, category, job_type, location, status, sort, platform } = req.query;
     const jobs = await db.getJobs({ search, category, job_type, location, status, sort, platform });
-    res.json({ success: true, count: jobs.length, data: jobs });
+    const enriched = jobs.map(j => {
+      const cName = j.company_name || '';
+      const img = companyImagesCache[cName] || companyImagesCache[j.title] || '';
+      return { ...j, company_image: img || '' };
+    });
+    res.json({ success: true, count: enriched.length, data: enriched });
   } catch (err) {
     console.error('Error fetching jobs:', err);
     res.status(500).json({ success: false, message: 'Gagal memuat lowongan: ' + err.message });
@@ -412,7 +479,9 @@ app.get('/api/jobs/:id', async (req, res) => {
     if (!job) {
       return res.status(404).json({ success: false, message: 'Lowongan tidak ditemukan' });
     }
-    res.json({ success: true, data: job });
+    const cName = job.company_name || '';
+    const img = companyImagesCache[cName] || companyImagesCache[job.title] || '';
+    res.json({ success: true, data: { ...job, company_image: img || '' } });
   } catch (err) {
     console.error('Error fetching job details:', err);
     res.status(500).json({ success: false, message: err.message });

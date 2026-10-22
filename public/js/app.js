@@ -262,10 +262,10 @@ let activeFilters = {
 
 let searchDebounceTimer = null;
 
-// Initialize on DOM Ready
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   await initSupabaseClient();
+  loadCompanyImagesCache();
   setupEventListeners();
   setupCustomDropdowns();
   setupModalDismiss('job-detail-modal');
@@ -274,6 +274,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadMasterDataFilters();
   loadJobs();
 });
+
+async function loadCompanyImagesCache() {
+  try {
+    const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/company-images'));
+    if (ok && json && json.success && json.data) {
+      window._companyImagesCache = json.data;
+      if (rawAllJobs && rawAllJobs.length > 0) {
+        applyFiltersAndRender();
+      }
+    }
+  } catch (e) {}
+}
 
 // Theme handling
 function initTheme() {
@@ -1407,11 +1419,23 @@ function generateCompanyBannerDataUrl(job) {
 
 function getEffectiveJobPoster(job) {
   if (!job) return '';
+  // 1. Manual flyer upload takes highest priority if present
   if (isManualJobFlyer(job)) {
     let p = String(job.poster_image).trim();
     if (p.startsWith('/uploads/')) p = '.' + p;
     return p;
   }
+  // 2. Real company photo/logo (headquarters building / official logo)
+  const cName = getEffectiveCompanyName(job);
+  if (job.company_image && !job.company_image.includes('unsplash.com')) {
+    return job.company_image;
+  }
+  if (window._companyImagesCache) {
+    if (window._companyImagesCache[cName]) return window._companyImagesCache[cName];
+    if (window._companyImagesCache[job.company_name]) return window._companyImagesCache[job.company_name];
+    if (window._companyImagesCache[job.title]) return window._companyImagesCache[job.title];
+  }
+  // 3. Dynamic corporate SVG branded banner with Company Name
   return generateCompanyBannerDataUrl(job);
 }
 
@@ -1447,20 +1471,8 @@ function renderJobs(jobs) {
     const timeAgo = formatTimeAgo(job.created_at);
     const urgencyBadge = calculateUrgencyBadge(job.deadline);
 
-    // Platform source pill (LinkedIn, IG, FB, Resmi)
-    const sp = (job.source_platform || '').toLowerCase();
-    const comp = (job.company_name || '').toLowerCase();
-    const web = (job.website_url || job.contact_value || '').toLowerCase();
-    let platformPill = '';
-    if (sp === 'linkedin' || comp.includes('linkedin') || web.includes('linkedin.com')) {
-      platformPill = '<span class="pill pill-platform pill-linkedin"><i class="fa-brands fa-linkedin"></i> LinkedIn</span>';
-    } else if (sp === 'instagram' || comp.includes('instagram') || web.includes('instagram.com')) {
-      platformPill = '<span class="pill pill-platform pill-instagram"><i class="fa-brands fa-instagram"></i> Instagram</span>';
-    } else if (sp === 'facebook' || comp.includes('facebook') || web.includes('facebook.com')) {
-      platformPill = '<span class="pill pill-platform pill-facebook"><i class="fa-brands fa-facebook"></i> Facebook</span>';
-    } else {
-      platformPill = '<span class="pill pill-platform pill-official"><i class="fa-solid fa-circle-check"></i> Resmi BUMN</span>';
-    }
+    // Clean official verified pill for users
+    const platformPill = '<span class="pill pill-platform pill-official"><i class="fa-solid fa-circle-check"></i> Rekrutmen Resmi</span>';
 
     // Dynamic skill pills from category & job
     const skillTags = generateSkillPills(job);
@@ -1471,7 +1483,7 @@ function renderJobs(jobs) {
 
         <!-- Poster Design Preview with Lightbox trigger -->
         <div class="job-poster-preview" onclick="${isLocked ? `showLockedNotice('${safeTitle}')` : `openJobPosterById(${job.id})`}">
-          <img src="${posterSrc}" alt="${escapeHtml(job.title)}" loading="lazy">
+          <img src="${posterSrc}" alt="${escapeHtml(job.title)}" loading="lazy" onerror="this.onerror=null; this.src=window.generateCompanyBannerDataUrl ? window.generateCompanyBannerDataUrl({company_name:'${escapeHtml(job.company_name)}', title:'${escapeHtml(job.title)}', category:'${escapeHtml(job.category)}'}) : ''">
           ${isLocked ? '<div class="badge-locked-overlay"><i class="fa-solid fa-lock"></i> TELAH DITUTUP (EXPIRED)</div>' : ''}
           ${job.is_featured && !isLocked ? '<div class="badge-featured"><i class="fa-solid fa-star"></i> Unggulan</div>' : ''}
           <div class="badge-category">${escapeHtml(job.category)}</div>
@@ -1723,7 +1735,7 @@ function openJobDetail(jobId) {
   content.innerHTML = `
     <!-- Banner / Poster Highlight -->
     <div class="modal-hero-banner">
-      <img src="${posterSrc}" alt="${escapeHtml(job.title)}">
+      <img src="${posterSrc}" alt="${escapeHtml(job.title)}" onerror="this.onerror=null; this.src=window.generateCompanyBannerDataUrl ? window.generateCompanyBannerDataUrl({company_name:'${escapeHtml(job.company_name)}', title:'${escapeHtml(job.title)}', category:'${escapeHtml(job.category)}'}) : ''">
       <div class="modal-banner-overlay">
         <div class="modal-header-info">
           <h2>${escapeHtml(job.title)}</h2>
@@ -1838,15 +1850,15 @@ function openJobDetail(jobId) {
           <!-- Poster Showcase -->
           <div class="poster-showcase-box">
             <p style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
-              <i class="fa-solid fa-file-image"></i> POSTER REKRUTMEN RESMI
+              <i class="fa-solid fa-file-image"></i> ${isManualJobFlyer(job) ? 'POSTER REKRUTMEN RESMI' : 'FOTO & LOGO RESMI PERUSAHAAN'}
             </p>
-            <img src="${posterSrc}" alt="Poster Lowongan" onclick="openJobPosterById(${job.id})">
+            <img src="${posterSrc}" alt="Foto Lowongan" onclick="openJobPosterById(${job.id})" onerror="this.onerror=null; this.src=window.generateCompanyBannerDataUrl ? window.generateCompanyBannerDataUrl({company_name:'${escapeHtml(job.company_name)}', title:'${escapeHtml(job.title)}', category:'${escapeHtml(job.category)}'}) : ''">
             <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: center;">
               <button type="button" class="btn btn-outline btn-sm" onclick="openJobPosterById(${job.id})">
                 <i class="fa-solid fa-expand"></i> Perbesar
               </button>
               <a href="${posterSrc}" target="_blank" download class="btn btn-outline btn-sm">
-                <i class="fa-solid fa-download"></i> Unduh Poster
+                <i class="fa-solid fa-download"></i> Unduh Foto
               </a>
             </div>
           </div>
