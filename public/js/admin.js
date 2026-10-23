@@ -673,20 +673,121 @@ function switchSection(sectionName) {
 // -------------------------------------------------------------
 // POSTER DROPZONE WITH PREVIEW
 // -------------------------------------------------------------
+// -------------------------------------------------------------
+// POSTER DROPZONE & MULTI-FLYER GALLERY (MANUAL FORM UPLOAD)
+// -------------------------------------------------------------
+let manualUploadedFlyers = [];
+
+function renderManualFlyerGallery() {
+  const placeholder = document.getElementById('dropzone-placeholder');
+  const galleryWrapper = document.getElementById('manual-flyer-gallery-wrapper');
+  const grid = document.getElementById('manual-flyer-grid');
+  const countBadge = document.getElementById('manual-flyer-count-badge');
+  const countText = document.getElementById('manual-flyer-count-text');
+
+  if (!galleryWrapper || !grid) return;
+
+  const count = manualUploadedFlyers.length;
+
+  if (count === 0) {
+    galleryWrapper.style.display = 'none';
+    if (placeholder) placeholder.style.display = 'block';
+    if (countBadge) countBadge.style.display = 'none';
+    currentSelectedFileBase64 = '';
+    return;
+  }
+
+  if (placeholder) placeholder.style.display = 'none';
+  galleryWrapper.style.display = 'block';
+
+  if (countBadge && countText) {
+    countBadge.style.display = 'inline-flex';
+    countText.textContent = `${count} Gambar Flyer`;
+    if (count > 1) {
+      countBadge.style.background = '#dcfce7';
+      countBadge.style.color = '#15803d';
+      countBadge.style.borderColor = '#86efac';
+    } else {
+      countBadge.style.background = '#eef2ff';
+      countBadge.style.color = '#4f46e5';
+      countBadge.style.borderColor = '#c7d2fe';
+    }
+  }
+
+  currentSelectedFileBase64 = manualUploadedFlyers[0] || '';
+
+  let html = '';
+  manualUploadedFlyers.forEach((imgSrc, idx) => {
+    const isPrimary = idx === 0;
+    html += `
+      <div class="manual-flyer-card" title="Slide #${idx + 1}${isPrimary ? ' (Cover Utama)' : ''}">
+        <img src="${imgSrc}" alt="Flyer ${idx + 1}">
+        <span class="manual-flyer-badge ${isPrimary ? 'primary' : ''}">
+          ${isPrimary ? '★ Cover' : `#${idx + 1}`}
+        </span>
+        <button type="button" class="manual-flyer-delete-btn" onclick="removeManualFlyer(${idx}, event)" title="Hapus gambar ini">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    `;
+  });
+
+  grid.innerHTML = html;
+}
+
+window.removeManualFlyer = function(idx, e) {
+  if (e) e.stopPropagation();
+  manualUploadedFlyers.splice(idx, 1);
+  renderManualFlyerGallery();
+};
+
+window.clearAllManualFlyers = function() {
+  manualUploadedFlyers = [];
+  const fileInput = document.getElementById('poster-file-input');
+  if (fileInput) fileInput.value = '';
+  renderManualFlyerGallery();
+};
+
+window.addManualFlyerImages = function(filesOrUrls) {
+  if (!filesOrUrls) return;
+
+  if (Array.isArray(filesOrUrls)) {
+    filesOrUrls.forEach(item => {
+      if (typeof item === 'string' && item.trim()) {
+        manualUploadedFlyers.push(item.trim());
+      }
+    });
+    renderManualFlyerGallery();
+    return;
+  }
+
+  const fileArray = Array.from(filesOrUrls).filter(f => f.type && f.type.startsWith('image/'));
+  if (fileArray.length === 0) return;
+
+  const readers = fileArray.map(file => {
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
+  });
+
+  Promise.all(readers).then(dataUrls => {
+    dataUrls.forEach(u => manualUploadedFlyers.push(u));
+    renderManualFlyerGallery();
+    showAdminToast('Flyer Dimuat!', `${dataUrls.length} flyer berhasil ditambahkan. Total: ${manualUploadedFlyers.length} flyer.`, 'success');
+  });
+};
+
 function setupPosterDropzone() {
   const dropzone = document.getElementById('poster-dropzone');
   const fileInput = document.getElementById('poster-file-input');
-  const placeholder = document.getElementById('dropzone-placeholder');
-  const previewWrapper = document.getElementById('poster-preview-wrapper');
-  const previewImg = document.getElementById('poster-img-preview');
-  const removeBtn = document.getElementById('btn-remove-poster-preview');
 
   if (!dropzone || !fileInput) return;
 
   dropzone.addEventListener('click', (e) => {
-    if (e.target !== removeBtn && !removeBtn?.contains(e.target)) {
-      fileInput.click();
-    }
+    if (e.target.closest('.manual-flyer-delete-btn') || e.target.closest('button')) return;
+    fileInput.click();
   });
 
   ['dragenter', 'dragover'].forEach(name => {
@@ -704,43 +805,17 @@ function setupPosterDropzone() {
   });
 
   dropzone.addEventListener('drop', (e) => {
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      fileInput.files = e.dataTransfer.files;
-      handleFileSelected(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      window.addManualFlyerImages(e.dataTransfer.files);
     }
   });
 
   fileInput.addEventListener('change', () => {
-    if (fileInput.files && fileInput.files[0]) {
-      handleFileSelected(fileInput.files[0]);
+    if (fileInput.files && fileInput.files.length > 0) {
+      window.addManualFlyerImages(fileInput.files);
+      fileInput.value = '';
     }
   });
-
-  function handleFileSelected(file) {
-    if (!file.type.startsWith('image/')) {
-      alert('Harap unggah berkas gambar poster (JPG, PNG, atau WEBP)!');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      currentSelectedFileBase64 = e.target.result;
-      if (previewImg) previewImg.src = currentSelectedFileBase64;
-      if (previewWrapper) previewWrapper.style.display = 'inline-block';
-      if (placeholder) placeholder.style.display = 'none';
-    };
-    reader.readAsDataURL(file);
-  }
-
-  if (removeBtn) {
-    removeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      fileInput.value = '';
-      currentSelectedFileBase64 = '';
-      if (previewImg) previewImg.src = '';
-      if (previewWrapper) previewWrapper.style.display = 'none';
-      if (placeholder) placeholder.style.display = 'block';
-    });
-  }
 }
 
 // =============================================================
@@ -989,6 +1064,7 @@ function setupJobFormSubmit() {
   form.addEventListener('reset', () => {
     setTimeout(() => {
       initUploadFormDynamicLists();
+      if (typeof clearAllManualFlyers === 'function') clearAllManualFlyers();
     }, 10);
   });
 
@@ -1062,7 +1138,19 @@ function setupJobFormSubmit() {
     const email = form.querySelector('[name="email"]')?.value.trim() || '';
     const website = form.querySelector('[name="website"]')?.value.trim() || '';
 
-    const contactsObj = { whatsapp, email, website };
+    const primaryFlyer = (manualUploadedFlyers && manualUploadedFlyers.length > 0)
+      ? manualUploadedFlyers[0]
+      : (currentSelectedFileBase64 || '');
+    const allFlyers = (manualUploadedFlyers && manualUploadedFlyers.length > 0)
+      ? [...manualUploadedFlyers]
+      : (primaryFlyer ? [primaryFlyer] : []);
+
+    const contactsObj = {
+      whatsapp,
+      email,
+      website,
+      flyer_images: allFlyers
+    };
     const primaryContactType = whatsapp ? 'whatsapp' : (email ? 'email' : 'link');
     const contactValueJSON = JSON.stringify(contactsObj);
 
@@ -1092,7 +1180,8 @@ function setupJobFormSubmit() {
       benefits: benValues,
       is_featured: form.querySelector('[name="is_featured"]').checked,
       status: 'active',
-      poster_image: currentSelectedFileBase64 || '',
+      poster_image: primaryFlyer,
+      flyer_images: allFlyers,
       views_count: 0
     };
 
@@ -1147,8 +1236,7 @@ function setupJobFormSubmit() {
       alert('Berhasil! Poster lowongan dan saluran kontak telah tersimpan ke Supabase Cloud.');
       form.reset();
       currentSelectedFileBase64 = '';
-      const btnRemove = document.getElementById('btn-remove-poster-preview');
-      if (btnRemove) btnRemove.click();
+      if (typeof clearAllManualFlyers === 'function') clearAllManualFlyers();
 
       loadAdminJobs(true);
       const manageLink = document.querySelector('a[href="#manage-jobs"]');
@@ -1487,28 +1575,26 @@ async function loadAdminJobs(forceRefresh = false) {
   let jobs = null;
 
   try {
-    // 1. Fetch from Supabase Cloud with 7-second timeout safety
-    if (sbClient) {
+    // 1. Fast-track local API or cached server
+    try {
+      const { ok, data } = await safeFetchJson(getApiEndpoint('/api/jobs?status=all'));
+      if (ok && data && data.success && Array.isArray(data.data) && data.data.length > 0) {
+        jobs = data.data;
+      }
+    } catch (e) {}
+
+    // 2. Query Supabase Cloud if local query yielded nothing or for sync
+    if ((!jobs || jobs.length === 0) && sbClient) {
       try {
         const fetchPromise = sbClient.from('jobs').select('*').order('id', { ascending: false });
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase loadAdminJobs timeout')), 7000));
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000));
         const res = await Promise.race([fetchPromise, timeoutPromise]);
         if (res && !res.error && Array.isArray(res.data) && res.data.length > 0) {
           jobs = res.data;
         }
       } catch (e) {
-        console.warn('Supabase loadAdminJobs warning:', e);
+        // silent fallback to existing adminJobs cache
       }
-    }
-
-    // 2. Fallback to API if Supabase query yielded nothing
-    if (!jobs) {
-      try {
-        const { ok, data } = await safeFetchJson(getApiEndpoint('/api/jobs?status=all'));
-        if (ok && data && data.success && Array.isArray(data.data) && data.data.length > 0) {
-          jobs = data.data;
-        }
-      } catch (e) {}
     }
 
     if (jobs) {
@@ -5179,8 +5265,16 @@ window.publishJobFromStudio = async function() {
     let saved = false;
     let errorMsg = '';
 
-    if (currentPosterJobData && currentPosterJobData.id) {
-      const jobId = Number(currentPosterJobData.id);
+    const rawId = currentPosterJobData && currentPosterJobData.id;
+    const numId = Number(rawId);
+    const isExistingDbJob = currentPosterJobData &&
+      currentPosterJobData.origin !== 'scout' &&
+      !isNaN(numId) &&
+      numId > 0 &&
+      Number.isInteger(numId);
+
+    if (isExistingDbJob) {
+      const jobId = numId;
       payload.updated_at = new Date().toISOString();
       const sbPayload = prepareJobPayloadForSupabase(payload);
 
@@ -5216,36 +5310,39 @@ window.publishJobFromStudio = async function() {
         renderAdminJobsTable();
       }
     } else {
-      try {
-        const token = getAdminToken();
-        const formData = new FormData();
-        for (const [k, v] of Object.entries(payload)) {
-          formData.set(k, Array.isArray(v) ? JSON.stringify(v) : v);
-        }
-        const res = await fetch(getApiEndpoint('/api/jobs'), {
-          method: 'POST',
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-          body: formData
-        });
-        if (res.ok) {
-          const json = await res.json().catch(() => ({}));
-          if (json.success !== false) saved = true;
-        } else {
-          const errJson = await res.json().catch(() => ({}));
-          errorMsg = errJson.message || '';
-        }
-      } catch (e) {
-        console.warn('Backend unavailable, inserting via Supabase:', e);
-      }
-
-      if (!saved && sbClient) {
+      // NEW JOB FROM SCOUT / STUDIO: INSERT INTO DATABASE
+      if (sbClient) {
         try {
-          const { error } = await sbClient.from('jobs').insert([prepareJobPayloadForSupabase(payload)]);
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+          const insPromise = sbClient.from('jobs').insert([prepareJobPayloadForSupabase(payload)]);
+          const { error } = await Promise.race([insPromise, timeoutPromise]);
           if (!error) saved = true;
-          else if (!errorMsg) errorMsg = error.message;
+          else {
+            console.warn('Supabase insert warning:', error);
+            if (!errorMsg) errorMsg = error.message;
+          }
         } catch (e) {
+          console.warn('Supabase insert error:', e);
           if (!errorMsg) errorMsg = e.message;
         }
+      }
+
+      // Also sync to Backend API
+      try {
+        const token = getAdminToken();
+        const res = await safeFetchJson(getApiEndpoint('/api/jobs'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          saved = true;
+        }
+      } catch (e) {
+        console.warn('Backend API insert warning:', e);
       }
     }
 
@@ -5318,8 +5415,16 @@ window.savePosterChangesToJob = async function() {
 
     currentSelectedFileBase64 = posterDataUrl;
 
-    if (currentPosterJobData && currentPosterJobData.id) {
-      const jobId = Number(currentPosterJobData.id);
+    const rawId = currentPosterJobData && currentPosterJobData.id;
+    const numId = Number(rawId);
+    const isExistingDbJob = currentPosterJobData &&
+      currentPosterJobData.origin !== 'scout' &&
+      !isNaN(numId) &&
+      numId > 0 &&
+      Number.isInteger(numId);
+
+    if (isExistingDbJob) {
+      const jobId = numId;
 
       let contacts = {};
       try {
@@ -5424,13 +5529,12 @@ window.savePosterChangesToJob = async function() {
           window.setDynamicListValues('upload-ben-items', benList, 'benefits', 'upload-ben-counter');
         }
 
-        const dropzonePlaceholder = document.getElementById('dropzone-placeholder') || document.getElementById('dropzone-prompt');
-        const previewWrapper = document.getElementById('poster-preview-wrapper') || document.getElementById('poster-preview');
-        const previewImg = document.getElementById('poster-img-preview') || document.getElementById('poster-preview-img');
-
-        if (previewImg) previewImg.src = posterDataUrl;
-        if (previewWrapper) previewWrapper.style.display = 'block';
-        if (dropzonePlaceholder) dropzonePlaceholder.style.display = 'none';
+        if (currentFlyerSlides && currentFlyerSlides.length > 0) {
+          manualUploadedFlyers = [...currentFlyerSlides];
+        } else {
+          manualUploadedFlyers = [posterDataUrl];
+        }
+        if (typeof renderManualFlyerGallery === 'function') renderManualFlyerGallery();
 
         const uploadNav = document.querySelector('li[data-tab="upload"]') || document.querySelector('a[href="#upload"]') || document.querySelector('a[href="#upload-job"]');
         if (uploadNav) uploadNav.click();
@@ -5457,20 +5561,19 @@ function usePosterForJob() {
   const dataUrl = canvas.toDataURL('image/png');
   currentSelectedFileBase64 = dataUrl;
 
-  const dropzonePlaceholder = document.getElementById('dropzone-placeholder') || document.getElementById('dropzone-prompt');
-  const previewWrapper = document.getElementById('poster-preview-wrapper') || document.getElementById('poster-preview');
-  const previewImg = document.getElementById('poster-img-preview') || document.getElementById('poster-preview-img');
-
-  if (previewImg) previewImg.src = dataUrl;
-  if (previewWrapper) previewWrapper.style.display = 'block';
-  if (dropzonePlaceholder) dropzonePlaceholder.style.display = 'none';
+  if (currentFlyerSlides && currentFlyerSlides.length > 0) {
+    manualUploadedFlyers = [...currentFlyerSlides];
+  } else {
+    manualUploadedFlyers = [dataUrl];
+  }
+  if (typeof renderManualFlyerGallery === 'function') renderManualFlyerGallery();
 
   closePosterStudioModal();
 
   const uploadNav = document.querySelector('li[data-tab="upload"]') || document.querySelector('a[href="#upload"]') || document.querySelector('a[href="#upload-job"]');
   if (uploadNav) uploadNav.click();
 
-  showAdminToast('Poster Disetel!', 'Poster yang baru di-generate telah disetel sebagai gambar resmi formulir upload.', 'success');
+  showAdminToast('Poster Disetel!', `${manualUploadedFlyers.length} gambar flyer disetel ke formulir upload.`, 'success');
 }
 window.usePosterForJob = usePosterForJob;
 

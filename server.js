@@ -526,6 +526,8 @@ app.post('/api/jobs', requireAdminAuth, upload.single('poster_image'), async (re
     let poster_image = '';
     if (req.file) {
       poster_image = '/uploads/' + req.file.filename;
+    } else if (req.body && req.body.poster_image) {
+      poster_image = req.body.poster_image;
     }
 
     const wa = (whatsapp || '').trim();
@@ -533,9 +535,21 @@ app.post('/api/jobs', requireAdminAuth, upload.single('poster_image'), async (re
     const wb = (website_url || website || '').trim();
 
     let finalContactVal = contact_value ? contact_value.trim() : '';
-    if (!finalContactVal && (wa || em || wb)) {
-      finalContactVal = JSON.stringify({ whatsapp: wa, email: em, website: wb });
+    let contactParsed = {};
+    if (finalContactVal) {
+      try { contactParsed = JSON.parse(finalContactVal); } catch (e) {}
+    } else if (wa || em || wb) {
+      contactParsed = { whatsapp: wa, email: em, website: wb };
     }
+    if (req.body && req.body.flyer_images) {
+      try {
+        const parsedFlyers = typeof req.body.flyer_images === 'string' ? JSON.parse(req.body.flyer_images) : req.body.flyer_images;
+        if (Array.isArray(parsedFlyers) && parsedFlyers.length > 0) {
+          contactParsed.flyer_images = parsedFlyers;
+        }
+      } catch (e) {}
+    }
+    finalContactVal = JSON.stringify(contactParsed);
 
     const newJob = await db.addJob({
       title: title.trim(),

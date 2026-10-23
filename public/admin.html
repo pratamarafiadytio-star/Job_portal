@@ -448,30 +448,44 @@
                   </div>
                 </div>
 
-                <!-- KELOMPOK 4: POSTER FLYER REKRUTMEN -->
+                <!-- KELOMPOK 4: POSTER FLYER REKRUTMEN (BISA 2 ATAU LEBIH GAMBAR) -->
                 <div class="form-section-card">
-                  <div class="section-card-header">
-                    <span class="section-badge"><i class="fa-solid fa-image"></i> 4. Poster Flyer Rekrutmen Resmi</span>
+                  <div class="section-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <span class="section-badge"><i class="fa-solid fa-images"></i> 4. Poster Flyer Rekrutmen Resmi (Bisa 2 atau Lebih Gambar)</span>
+                    <span class="badge" id="manual-flyer-count-badge" style="background: #eef2ff; color: #4f46e5; font-size: 0.76rem; font-weight: 700; border: 1px solid #c7d2fe; display: none;">
+                      <i class="fa-solid fa-layer-group"></i> <span id="manual-flyer-count-text">0 Gambar</span> (Slider Otomatis Aktif)
+                    </span>
                   </div>
                   
                   <div class="poster-upload-dropzone" id="poster-dropzone">
-                    <input type="file" id="poster-file-input" name="poster_image" accept="image/jpeg,image/png,image/webp,image/jpg" style="display: none;">
+                    <input type="file" id="poster-file-input" name="poster_images_input" accept="image/jpeg,image/png,image/webp,image/jpg" multiple style="display: none;">
                     
                     <div class="dropzone-content" id="dropzone-placeholder">
                       <div class="dropzone-icon">
                         <i class="fa-solid fa-cloud-arrow-up"></i>
                       </div>
                       <div class="dropzone-text">
-                        <h4>Seret & Lepas Gambar Poster di sini, atau <span class="highlight">Pilih Berkas</span></h4>
-                        <p>Format didukung: JPG, PNG, WEBP (Maksimal 15 MB). Pastikan teks pada flyer terbaca jelas.</p>
+                        <h4>Seret & Lepas Gambar Flyer di sini, atau <span class="highlight">Pilih Berkas (Bisa Pilih Banyak Sekaligus)</span></h4>
+                        <p>Format didukung: JPG, PNG, WEBP. Anda bisa memilih 2 atau lebih flyer untuk mengaktifkan Slider Otomatis di portal lowongan.</p>
                       </div>
                     </div>
 
-                    <div class="poster-preview-wrapper" id="poster-preview-wrapper" style="display: none;">
-                      <img id="poster-img-preview" src="" alt="Pratinjau Poster">
-                      <button type="button" class="btn-remove-preview" id="btn-remove-poster-preview" title="Hapus Gambar">
-                        <i class="fa-solid fa-xmark"></i>
-                      </button>
+                    <!-- MULTI-FLYER GALLERY PREVIEW -->
+                    <div id="manual-flyer-gallery-wrapper" style="display: none; width: 100%; padding: 12px;">
+                      <div id="manual-flyer-grid" style="display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; align-items: stretch;">
+                        <!-- Dynamically filled with flyer cards -->
+                      </div>
+                      <div style="margin-top: 14px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('poster-file-input').click()" style="border-color: #6366f1; color: #4f46e5; font-weight: 700; background: #ffffff;">
+                          <i class="fa-solid fa-plus"></i> Tambah Gambar Flyer Lagi
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="clearAllManualFlyers()" style="border-color: #ef4444; color: #ef4444; font-weight: 600; background: #ffffff;">
+                          <i class="fa-solid fa-trash-can"></i> Hapus Semua Flyer
+                        </button>
+                      </div>
+                      <div style="font-size: 0.74rem; color: #64748b; text-align: center; margin-top: 8px;">
+                        * Gambar #1 akan menjadi cover kartu lowongan, dan seluruh gambar akan bergulir otomatis di modal detail pengunjung.
+                      </div>
                     </div>
                   </div>
                 </div>

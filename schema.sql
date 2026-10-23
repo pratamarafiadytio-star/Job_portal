@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.jobs (
     salary_display TEXT DEFAULT 'Kompetitif',
     experience_level TEXT DEFAULT 'Semua Tingkat',
     poster_image TEXT DEFAULT '',
+    flyer_images JSONB DEFAULT '[]'::jsonb,
     description TEXT NOT NULL,
     requirements JSONB DEFAULT '[]'::jsonb,
     responsibilities JSONB DEFAULT '[]'::jsonb,
@@ -38,6 +39,7 @@ ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS email TEXT DEFAULT '';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS website_url TEXT DEFAULT '';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS source_platform TEXT DEFAULT 'official';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS source_label TEXT DEFAULT 'Resmi BUMN & Swasta';
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS flyer_images JSONB DEFAULT '[]'::jsonb;
 
 -- 2. Buat Index untuk pencarian dan filter cepat
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON public.jobs (status);
