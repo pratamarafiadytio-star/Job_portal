@@ -5,6 +5,54 @@
 // ==============================================================
 
 let sbClient = null;
+let currentSupabaseUrl = '';
+let currentSupabaseKey = '';
+
+// SAFE STORAGE HELPER (Anti Tracking Prevention block & Private Browsing safe)
+const _appMemoryStore = { local: {}, session: {} };
+function safeLocalGet(key) {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+  } catch (e) {}
+  return _appMemoryStore.local[key] || null;
+}
+function safeLocalSet(key, value) {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+      return;
+    }
+  } catch (e) {}
+  _appMemoryStore.local[key] = String(value);
+}
+function safeSessionGet(key) {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      return window.sessionStorage.getItem(key);
+    }
+  } catch (e) {}
+  return _appMemoryStore.session[key] || null;
+}
+function safeSessionSet(key, value) {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem(key, value);
+      return;
+    }
+  } catch (e) {}
+  _appMemoryStore.session[key] = String(value);
+}
+function safeSessionRemove(key) {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.removeItem(key);
+      return;
+    }
+  } catch (e) {}
+  delete _appMemoryStore.session[key];
+}
 
 const DEFAULT_SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co";
 const DEFAULT_SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
@@ -215,12 +263,24 @@ window.filterByPlatform = function(plat) {
 let isLoadingPublicJobs = false;
 
 async function initSupabaseClient() {
+  const clientOptions = {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    }
+  };
+
   // 1. Immediately initialize with client-side default Supabase credentials so it works on GitHub Pages, workdev, and static previews
   if (window.supabase && typeof window.supabase.createClient === 'function') {
-    try {
-      sbClient = window.supabase.createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY);
-    } catch (e) {
-      console.warn('Initial Supabase createClient error:', e);
+    if (!sbClient) {
+      try {
+        sbClient = window.supabase.createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY, clientOptions);
+        currentSupabaseUrl = DEFAULT_SUPABASE_URL;
+        currentSupabaseKey = DEFAULT_SUPABASE_KEY;
+      } catch (e) {
+        console.warn('Initial Supabase createClient error:', e);
+      }
     }
   }
 
@@ -230,10 +290,14 @@ async function initSupabaseClient() {
       const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
       if (ok && data) {
         if (data.supabaseUrl && data.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function') {
-          try {
-            sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey);
-          } catch (e) {
-            console.warn('Supabase createClient error:', e);
+          if (data.supabaseUrl !== currentSupabaseUrl || data.supabaseKey !== currentSupabaseKey) {
+            try {
+              sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey, clientOptions);
+              currentSupabaseUrl = data.supabaseUrl;
+              currentSupabaseKey = data.supabaseKey;
+            } catch (e) {
+              console.warn('Supabase createClient error:', e);
+            }
           }
         }
         if (data.cv_whatsapp) {
@@ -244,7 +308,7 @@ async function initSupabaseClient() {
         }
       }
     } catch (e) {
-      console.warn('Init Supabase config error:', e);
+      // offline/static preview
     }
 
     // 3. Resilient fallback for site settings directly from Supabase if needed
@@ -334,7 +398,7 @@ async function loadCompanyImagesCache() {
 
 // Theme handling
 function initTheme() {
-  const savedTheme = localStorage.getItem('kerjahub_theme') || 'light';
+  const savedTheme = safeLocalGet('kerjahub_theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
   updateThemeIcon(savedTheme);
 }
@@ -343,7 +407,7 @@ function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme') || 'light';
   const next = current === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('kerjahub_theme', next);
+  safeLocalSet('kerjahub_theme', next);
   updateThemeIcon(next);
 }
 
@@ -756,7 +820,7 @@ function renderMasterDataToDOM(data) {
 async function loadMasterDataFilters() {
   // Check client-side cache for instant display
   try {
-    const cached = sessionStorage.getItem('kerja_master_data_cache');
+    const cached = safeSessionGet('kerja_master_data_cache');
     if (cached) {
       const parsed = JSON.parse(cached);
       if (parsed && Array.isArray(parsed.categories) && parsed.categories.length > 0) {
@@ -791,7 +855,7 @@ async function loadMasterDataFilters() {
 
   if (data) {
     try {
-      sessionStorage.setItem('kerja_master_data_cache', JSON.stringify(data));
+      safeSessionSet('kerja_master_data_cache', JSON.stringify(data));
     } catch (e) {}
     renderMasterDataToDOM(data);
   }
@@ -933,7 +997,7 @@ async function loadJobs() {
     // 1. Instant display from sessionStorage cache if available (0ms perceived load time)
     let hadCached = false;
     try {
-      const cached = sessionStorage.getItem('kerja_public_jobs_cache');
+      const cached = safeSessionGet('kerja_public_jobs_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -997,7 +1061,7 @@ async function loadJobs() {
     if (jobs) {
       rawAllJobs = jobs.map(window.cleanJobData).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
       try {
-        sessionStorage.setItem('kerja_public_jobs_cache', JSON.stringify(rawAllJobs));
+        safeSessionSet('kerja_public_jobs_cache', JSON.stringify(rawAllJobs));
       } catch (e) {}
       updateTabCounters();
       applyFiltersAndRender();
@@ -1444,28 +1508,28 @@ function generateCompanyBannerDataUrl(job) {
     <g transform="translate(40, 36)">
       <rect width="170" height="30" rx="15" fill="rgba(255,255,255,0.12)" stroke="${palette.border}" stroke-width="1"/>
       <circle cx="16" cy="15" r="4.5" fill="#10b981"/>
-      <text x="30" y="19" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#ffffff" letter-spacing="1">REKRUTMEN RESMI</text>
+      <text x="30" y="19" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="11" font-weight="700" fill="#ffffff" letter-spacing="1">REKRUTMEN RESMI</text>
     </g>
     <g transform="translate(560, 36)">
       <rect width="200" height="30" rx="15" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
-      <text x="100" y="19" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="${palette.textAccent}">${displayCat}</text>
+      <text x="100" y="19" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="11" font-weight="700" fill="${palette.textAccent}">${displayCat}</text>
     </g>
     <g transform="translate(400, 160)" text-anchor="middle">
       <circle cx="0" cy="0" r="42" fill="url(#badgeGrad)" stroke="${palette.accent}" stroke-width="2.5" filter="url(#shadow)"/>
-      <text x="0" y="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="32" font-weight="800" fill="#ffffff">${initial}</text>
+      <text x="0" y="12" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="32" font-weight="800" fill="#ffffff">${initial}</text>
     </g>
-    <text x="400" y="248" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="${compFontSize}" font-weight="800" fill="#ffffff" filter="url(#shadow)">
+    <text x="400" y="248" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="${compFontSize}" font-weight="800" fill="#ffffff" filter="url(#shadow)">
       ${displayComp}
     </text>
-    <text x="400" y="286" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="${palette.textAccent}">
+    <text x="400" y="286" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="15" font-weight="600" fill="${palette.textAccent}">
       ${displayTitle.length > 55 ? displayTitle.substring(0, 52) + '...' : displayTitle}
     </text>
     <line x1="40" y1="350" x2="760" y2="350" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
     <g transform="translate(40, 376)">
-      <text x="0" y="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="rgba(255,255,255,0.7)">
+      <text x="0" y="12" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="12" font-weight="600" fill="rgba(255,255,255,0.7)">
         🛡️ TERVERIFIKASI KERJAHUB PORTAL
       </text>
-      <text x="720" y="12" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#34d399">
+      <text x="720" y="12" text-anchor="end" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="12" font-weight="600" fill="#34d399">
         ✓ 100% BEBAS BIAYA SELEKSI
       </text>
     </g>
@@ -1473,6 +1537,13 @@ function generateCompanyBannerDataUrl(job) {
 
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 }
+
+window.handlePublicPosterError = function(imgEl, jobId) {
+  if (!imgEl) return;
+  imgEl.onerror = null;
+  const job = (rawAllJobs || []).find(j => Number(j.id) === Number(jobId)) || (window.rawAllJobs || []).find(j => Number(j.id) === Number(jobId));
+  imgEl.src = generateCompanyBannerDataUrl(job || { company_name: 'KerjaHub', title: 'Lowongan Kerja' });
+};
 
 function getEffectiveJobPoster(job) {
   if (!job) return '';
@@ -1540,7 +1611,7 @@ function renderJobs(jobs) {
 
         <!-- Poster Design Preview with Lightbox trigger -->
         <div class="job-poster-preview" onclick="${isLocked ? `showLockedNotice('${safeTitle}')` : `openJobPosterById(${job.id})`}">
-          <img src="${posterSrc}" alt="${escapeHtml(job.title)}" loading="lazy" onerror="this.onerror=null; this.src=window.generateCompanyBannerDataUrl ? window.generateCompanyBannerDataUrl({company_name:'${escapeHtml(job.company_name)}', title:'${escapeHtml(job.title)}', category:'${escapeHtml(job.category)}'}) : ''">
+          <img src="${posterSrc}" alt="${escapeHtml(job.title)}" loading="lazy" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
           ${isLocked ? '<div class="badge-locked-overlay"><i class="fa-solid fa-lock"></i> TELAH DITUTUP (EXPIRED)</div>' : ''}
           ${job.is_featured && !isLocked ? '<div class="badge-featured"><i class="fa-solid fa-star"></i> Unggulan</div>' : ''}
           <div class="badge-category">${escapeHtml(job.category)}</div>
@@ -1792,7 +1863,7 @@ function openJobDetail(jobId) {
   content.innerHTML = `
     <!-- Banner / Poster Highlight -->
     <div class="modal-hero-banner">
-      <img src="${posterSrc}" alt="${escapeHtml(job.title)}" onerror="this.onerror=null; this.src=window.generateCompanyBannerDataUrl ? window.generateCompanyBannerDataUrl({company_name:'${escapeHtml(job.company_name)}', title:'${escapeHtml(job.title)}', category:'${escapeHtml(job.category)}'}) : ''">
+      <img src="${posterSrc}" alt="${escapeHtml(job.title)}" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
       <div class="modal-banner-overlay">
         <div class="modal-header-info">
           <h2>${escapeHtml(job.title)}</h2>
@@ -1909,7 +1980,7 @@ function openJobDetail(jobId) {
             <p style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
               <i class="fa-solid fa-file-image"></i> ${isManualJobFlyer(job) ? 'POSTER REKRUTMEN RESMI' : 'FOTO & LOGO RESMI PERUSAHAAN'}
             </p>
-            <img src="${posterSrc}" alt="Foto Lowongan" onclick="openJobPosterById(${job.id})" onerror="this.onerror=null; this.src=window.generateCompanyBannerDataUrl ? window.generateCompanyBannerDataUrl({company_name:'${escapeHtml(job.company_name)}', title:'${escapeHtml(job.title)}', category:'${escapeHtml(job.category)}'}) : ''">
+            <img src="${posterSrc}" alt="Foto Lowongan" onclick="openJobPosterById(${job.id})" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
             <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: center;">
               <button type="button" class="btn btn-outline btn-sm" onclick="openJobPosterById(${job.id})">
                 <i class="fa-solid fa-expand"></i> Perbesar

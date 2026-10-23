@@ -44,6 +44,14 @@
   box-sizing: border-box;
 }
 
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: var(--font-body);
   background-color: var(--admin-bg);
@@ -493,6 +501,9 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 .admin-header {
@@ -1697,32 +1708,192 @@ body {
     display: block;
   }
   .admin-header {
-    padding: 14px 18px;
+    padding: 12px 16px;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+  .page-title-box h1 {
+    font-size: 1.2rem;
+  }
+  .page-title-box p {
+    font-size: 0.78rem;
+    line-height: 1.35;
   }
   .admin-top-actions {
     width: 100%;
     justify-content: flex-start;
-    overflow-x: auto;
-    padding-bottom: 4px;
+    flex-wrap: wrap;
+    gap: 8px;
+    overflow-x: visible;
+    padding-bottom: 0;
   }
   .admin-main {
     margin-left: 0;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
   .admin-body {
-    padding: 16px;
+    padding: 14px 12px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
   .stats-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
   .form-grid-2, .form-grid-3 {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
   .form-footer-bar {
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
+    align-items: stretch;
+    width: 100%;
+  }
+  .action-btn-group {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+  .action-btn-group .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .panel {
+    border-radius: var(--radius-md);
+    margin-bottom: 20px;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 16px;
+    flex-direction: column;
     align-items: flex-start;
+    gap: 10px;
+  }
+  .panel-body {
+    padding: 16px 14px;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .table-responsive {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    display: block;
+    margin-top: 4px;
+    border-radius: 10px;
+  }
+  .admin-table {
+    min-width: 680px;
+  }
+  .admin-modal-overlay {
+    padding: 8px;
+  }
+  .admin-modal-box {
+    max-height: 96vh;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 100%;
+  }
+  .admin-modal-header {
+    padding: 12px 14px;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+  }
+  .admin-modal-body {
+    padding: 14px 12px;
+  }
+  .poster-studio-layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .poster-preview-col {
+    padding: 12px 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  #poster-canvas {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+  }
+  .poster-controls-col {
+    max-height: none;
+    overflow-y: visible;
+  }
+  .master-data-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .scout-controls-card {
+    padding: 14px 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .platforms-pills-row {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-header {
+    padding: 10px 12px;
+  }
+  .page-title-box h1 {
+    font-size: 1.1rem;
+  }
+  .page-title-box p {
+    display: none;
+  }
+  .header-autoload-pill {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+  .admin-profile-pill {
+    padding: 4px 8px;
+  }
+  .admin-profile-pill .profile-info {
+    display: none;
+  }
+  .btn-header-action {
+    padding: 6px 10px;
+    font-size: 0.76rem;
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .btn-header-action i {
+    font-size: 0.8rem;
+  }
+  .admin-body {
+    padding: 10px 8px;
+  }
+  .panel-body {
+    padding: 12px 10px;
+  }
+  .form-section-card {
+    padding: 14px 12px;
+  }
+  .form-input, .form-select, .form-textarea {
+    font-size: 16px; /* Prevents auto-zoom in mobile safari/chrome */
+  }
+  .platforms-pills-row {
+    gap: 5px;
+  }
+  .platform-filter-pill {
+    font-size: 0.75rem;
+    padding: 5px 8px;
+  }
+  .dropzone-content {
+    padding: 18px 10px;
   }
 }
 

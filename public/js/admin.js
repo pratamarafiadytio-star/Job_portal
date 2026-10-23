@@ -3,6 +3,37 @@
 // ==============================================================
 
 let sbClient = null;
+let currentSupabaseUrl = '';
+let currentSupabaseKey = '';
+
+// SAFE STORAGE HELPER (Prevents Tracking Prevention exceptions in Edge/Safari/Brave & iframe)
+const _adminMemoryStore = { session: {}, local: {} };
+function safeSessionGet(key) {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      return window.sessionStorage.getItem(key);
+    }
+  } catch (e) {}
+  return _adminMemoryStore.session[key] || null;
+}
+function safeSessionSet(key, value) {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem(key, value);
+      return;
+    }
+  } catch (e) {}
+  _adminMemoryStore.session[key] = String(value);
+}
+function safeSessionRemove(key) {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.removeItem(key);
+      return;
+    }
+  } catch (e) {}
+  delete _adminMemoryStore.session[key];
+}
 
 const DEFAULT_SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co";
 const DEFAULT_SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
@@ -193,32 +224,48 @@ window.alert = function(msg) {
 };
 
 async function initSupabaseClient() {
-  // 1. Immediately initialize with client-side default Supabase credentials so it works on GitHub Pages, workdev, and static previews
+  const clientOptions = {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    }
+  };
+
+  // 1. Singleton initialization with default Supabase credentials
   if (window.supabase && typeof window.supabase.createClient === 'function') {
-    try {
-      sbClient = window.supabase.createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY);
-    } catch (e) {
-      console.warn('Initial Supabase createClient error in admin:', e);
+    if (!sbClient) {
+      try {
+        sbClient = window.supabase.createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY, clientOptions);
+        currentSupabaseUrl = DEFAULT_SUPABASE_URL;
+        currentSupabaseKey = DEFAULT_SUPABASE_KEY;
+      } catch (e) {
+        console.warn('Initial Supabase createClient error in admin:', e);
+      }
     }
   }
 
-  // 2. Attempt fetching runtime /api/config from backend (if running on Node or Cloudflare Functions)
+  // 2. Fetch runtime /api/config from backend only if credentials differ
   try {
     const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
     if (ok && data && data.supabaseUrl && data.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function') {
-      try {
-        sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey);
-      } catch (e) {
-        console.warn('Supabase createClient override error in admin:', e);
+      if (data.supabaseUrl !== currentSupabaseUrl || data.supabaseKey !== currentSupabaseKey) {
+        try {
+          sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey, clientOptions);
+          currentSupabaseUrl = data.supabaseUrl;
+          currentSupabaseKey = data.supabaseKey;
+        } catch (e) {
+          console.warn('Supabase createClient override error in admin:', e);
+        }
       }
     }
   } catch (e) {
-    console.warn('Init Supabase config error in admin:', e);
+    // offline/static preview
   }
 }
 
 function getAdminToken() {
-  return sessionStorage.getItem('kerja_admin_token') || '';
+  return safeSessionGet('kerja_admin_token') || '';
 }
 
 // ==============================================================
@@ -358,7 +405,7 @@ function setupAuth() {
     });
   }
 
-  const storedToken = sessionStorage.getItem('kerja_admin_token');
+  const storedToken = safeSessionGet('kerja_admin_token');
   if (storedToken) {
     if (storedToken.startsWith('cf_token_')) {
       unlockDashboard();
@@ -374,7 +421,7 @@ function setupAuth() {
         if (ok && data && data.success && data.valid) {
           unlockDashboard();
         } else if (data && data.valid === false) {
-          sessionStorage.removeItem('kerja_admin_token');
+          safeSessionRemove('kerja_admin_token');
           showLoginScreen();
         } else {
           // If server is offline or returned 404, retain dashboard access if token was previously issued
@@ -407,12 +454,12 @@ function setupAuth() {
         });
 
         if (ok && data && data.success && data.token) {
-          sessionStorage.setItem('kerja_admin_token', data.token);
+          safeSessionSet('kerja_admin_token', data.token);
           unlockDashboard();
         } else if (!ok && (status === 404 || status === 0 || !data)) {
           // Static hosting (GitHub Pages) fallback when backend API is not present
           if (password === DEFAULT_ADMIN_PASSWORD) {
-            sessionStorage.setItem('kerja_admin_token', 'cf_token_gh_admin_' + Date.now());
+            safeSessionSet('kerja_admin_token', 'cf_token_gh_admin_' + Date.now());
             unlockDashboard();
           } else {
             if (errorAlert) {
@@ -427,7 +474,7 @@ function setupAuth() {
           }
         } else {
           if (password === DEFAULT_ADMIN_PASSWORD) {
-            sessionStorage.setItem('kerja_admin_token', 'cf_token_gh_admin_' + Date.now());
+            safeSessionSet('kerja_admin_token', 'cf_token_gh_admin_' + Date.now());
             unlockDashboard();
           } else if (errorAlert) {
             errorText.textContent = data?.message || 'Kata sandi admin salah! Akses ditolak.';
@@ -436,7 +483,7 @@ function setupAuth() {
         }
       } catch (err) {
         if (password === DEFAULT_ADMIN_PASSWORD) {
-          sessionStorage.setItem('kerja_admin_token', 'cf_token_gh_admin_' + Date.now());
+          safeSessionSet('kerja_admin_token', 'cf_token_gh_admin_' + Date.now());
           unlockDashboard();
         } else if (errorAlert) {
           errorText.textContent = 'Gagal menghubungi server otentikasi. Pastikan backend server aktif.';
@@ -451,7 +498,7 @@ function setupAuth() {
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
-      const token = sessionStorage.getItem('kerja_admin_token');
+      const token = safeSessionGet('kerja_admin_token');
       if (token) {
         try {
           await safeFetchJson(getApiEndpoint('/api/admin/logout'), {
@@ -464,7 +511,7 @@ function setupAuth() {
           });
         } catch (e) {}
       }
-      sessionStorage.removeItem('kerja_admin_token');
+      safeSessionRemove('kerja_admin_token');
       showLoginScreen();
     });
   }
@@ -1217,28 +1264,28 @@ function generateCompanyBannerDataUrl(job) {
     <g transform="translate(40, 36)">
       <rect width="170" height="30" rx="15" fill="rgba(255,255,255,0.12)" stroke="${palette.border}" stroke-width="1"/>
       <circle cx="16" cy="15" r="4.5" fill="#10b981"/>
-      <text x="30" y="19" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#ffffff" letter-spacing="1">REKRUTMEN RESMI</text>
+      <text x="30" y="19" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="11" font-weight="700" fill="#ffffff" letter-spacing="1">REKRUTMEN RESMI</text>
     </g>
     <g transform="translate(560, 36)">
       <rect width="200" height="30" rx="15" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
-      <text x="100" y="19" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="${palette.textAccent}">${displayCat}</text>
+      <text x="100" y="19" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="11" font-weight="700" fill="${palette.textAccent}">${displayCat}</text>
     </g>
     <g transform="translate(400, 160)" text-anchor="middle">
       <circle cx="0" cy="0" r="42" fill="url(#badgeGrad)" stroke="${palette.accent}" stroke-width="2.5" filter="url(#shadow)"/>
-      <text x="0" y="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="32" font-weight="800" fill="#ffffff">${initial}</text>
+      <text x="0" y="12" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="32" font-weight="800" fill="#ffffff">${initial}</text>
     </g>
-    <text x="400" y="248" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="${compFontSize}" font-weight="800" fill="#ffffff" filter="url(#shadow)">
+    <text x="400" y="248" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="${compFontSize}" font-weight="800" fill="#ffffff" filter="url(#shadow)">
       ${displayComp}
     </text>
-    <text x="400" y="286" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="${palette.textAccent}">
+    <text x="400" y="286" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="15" font-weight="600" fill="${palette.textAccent}">
       ${displayTitle.length > 55 ? displayTitle.substring(0, 52) + '...' : displayTitle}
     </text>
     <line x1="40" y1="350" x2="760" y2="350" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
     <g transform="translate(40, 376)">
-      <text x="0" y="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="rgba(255,255,255,0.7)">
+      <text x="0" y="12" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="12" font-weight="600" fill="rgba(255,255,255,0.7)">
         🛡️ TERVERIFIKASI KERJAHUB PORTAL
       </text>
-      <text x="720" y="12" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#34d399">
+      <text x="720" y="12" text-anchor="end" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="12" font-weight="600" fill="#34d399">
         ✓ 100% BEBAS BIAYA SELEKSI
       </text>
     </g>
@@ -1246,6 +1293,13 @@ function generateCompanyBannerDataUrl(job) {
 
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 }
+
+window.handleAdminPosterError = function(imgEl, jobId) {
+  if (!imgEl) return;
+  imgEl.onerror = null;
+  const job = (adminJobs || []).find(j => String(j.id) === String(jobId));
+  imgEl.src = generateCompanyBannerDataUrl(job || { company_name: 'KerjaHub', title: 'Lowongan Kerja' });
+};
 
 function getEffectiveJobPoster(job) {
   if (!job) return '';
@@ -1282,7 +1336,6 @@ function renderAdminJobsTable() {
 
   tbody.innerHTML = validJobs.map(job => {
     const posterSrc = getEffectiveJobPoster(job);
-    const fallbackPoster = generateCompanyBannerDataUrl(job);
 
     const contacts = extractJobContacts(job);
     const isLocked = job.status === 'expired' || job.status === 'closed';
@@ -1315,7 +1368,7 @@ function renderAdminJobsTable() {
       <tr>
         <td>
           <div class="job-cell">
-            <img src="${posterSrc}" alt="Poster" class="job-cell-poster" onerror="this.onerror=null; this.src='${fallbackPoster}';">
+            <img src="${posterSrc}" alt="Poster" class="job-cell-poster" onerror="window.handleAdminPosterError && window.handleAdminPosterError(this, ${job.id});">
             <div class="job-cell-info">
               <a href="${job.website_url ? escapeHtml(job.website_url) : `./?job=${job.id}`}" target="_blank" rel="noopener noreferrer" class="job-cell-title" title="${job.website_url ? 'Buka Postingan Asli di Web' : 'Lihat di Web Publik'}">${escapeHtml(job.title)} ${job.website_url ? '<i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.75rem; margin-left:4px; color:#0284c7;"></i>' : ''}</a>
               <span class="job-cell-company">${escapeHtml(job.company_name)}</span>
@@ -1354,7 +1407,7 @@ async function loadAdminJobs(forceRefresh = false) {
   // Check sessionStorage cache for instant display
   if (!forceRefresh) {
     try {
-      const cached = sessionStorage.getItem('kerja_admin_jobs_cache');
+      const cached = safeSessionGet('kerja_admin_jobs_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -1403,7 +1456,7 @@ async function loadAdminJobs(forceRefresh = false) {
     if (jobs) {
       adminJobs = jobs.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
       try {
-        sessionStorage.setItem('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
+        safeSessionSet('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
       } catch (e) {}
     } else if (!adminJobs) {
       adminJobs = [];
@@ -1463,7 +1516,7 @@ window.toggleJobLock = async function(jobId, newStatus) {
 
   if (updated) {
     try {
-      sessionStorage.setItem('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
+      safeSessionSet('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
     } catch (e) {}
     const msg = newStatus === 'expired'
       ? `Lowongan "${job.title}" telah dikunci (Expired & pendaftaran ditutup).`
@@ -1521,7 +1574,7 @@ window.deleteJob = async function(jobId, title) {
 
   if (deleted) {
     try {
-      sessionStorage.setItem('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
+      safeSessionSet('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
     } catch (e) {}
     showAdminToast('Lowongan Dihapus', `Lowongan "${title}" berhasil dihapus dari database.`, 'success');
   } else {
@@ -1838,88 +1891,85 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
   // 2. Fetch real live portal jobs from /api/live-jobs
   let newArrivalsCount = 0;
   try {
-    const res = await fetch(`/api/live-jobs?keyword=${encodeURIComponent(keyword || 'lowongan')}&platform=${encodeURIComponent(activePlatform || 'all')}`);
-    if (res.ok) {
-      const json = await res.json();
-      if (json && json.success && Array.isArray(json.data)) {
-        json.data.forEach(lj => {
-          const exists = OFFICIAL_VACANCIES_DB.some(o => 
-            (o.official_url && lj.official_url && o.official_url === lj.official_url) ||
-            (o.title.toLowerCase() === lj.title.toLowerCase() && o.company_name.toLowerCase() === lj.company_name.toLowerCase())
-          );
-          if (!exists) {
-            newArrivalsCount++;
+    const { ok, data: json } = await safeFetchJson(getApiEndpoint(`/api/live-jobs?keyword=${encodeURIComponent(keyword || 'lowongan')}&platform=${encodeURIComponent(activePlatform || 'all')}`));
+    if (ok && json && json.success && Array.isArray(json.data)) {
+      json.data.forEach(lj => {
+        const exists = OFFICIAL_VACANCIES_DB.some(o => 
+          (o.official_url && lj.official_url && o.official_url === lj.official_url) ||
+          (o.title.toLowerCase() === lj.title.toLowerCase() && o.company_name.toLowerCase() === lj.company_name.toLowerCase())
+        );
+        if (!exists) {
+          newArrivalsCount++;
 
-            const plat = lj.platform || 'web';
-            const compClean = (lj.company_name || 'Perusahaan').replace(/[^a-zA-Z0-9]/g, '');
-            let defaultTheme = 'modern';
-            let defaultHashtag = '#LokerWebAsli #InfoLowongan';
+          const plat = lj.platform || 'web';
+          const compClean = (lj.company_name || 'Perusahaan').replace(/[^a-zA-Z0-9]/g, '');
+          let defaultTheme = 'modern';
+          let defaultHashtag = '#LokerWebAsli #InfoLowongan';
 
-            if (plat === 'linkedin') {
-              defaultTheme = 'linkedin';
-              defaultHashtag = `#LokerLinkedIn #InfoKarir #HiringNow #${compClean}`;
-            } else if (plat === 'instagram') {
-              defaultTheme = 'instagram';
-              defaultHashtag = `#LokerInstagram #InfoLoker2026 #KarirIG #${compClean}`;
-            } else if (plat === 'facebook') {
-              defaultTheme = 'facebook';
-              defaultHashtag = `#LokerFacebook #InfoLowonganKerja #${compClean}`;
-            } else if (plat === 'twitter') {
-              defaultTheme = 'twitter';
-              defaultHashtag = `#LokerTwitter #InfoLoker #${compClean}`;
-            } else if (plat === 'bumn') {
-              defaultTheme = 'bumn';
-              defaultHashtag = `#LokerBUMN #RekrutmenBUMN #BUMNUntukIndonesia #${compClean}`;
-            } else if ((lj.title || '').toLowerCase().includes('operator') || (lj.title || '').toLowerCase().includes('teknisi')) {
-              defaultTheme = 'factory';
-              defaultHashtag = `#LokerPabrik #OperatorProduksi #${compClean}`;
-            }
-
-            OFFICIAL_VACANCIES_DB.push({
-              id: lj.id || ('live_web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
-              title: lj.title,
-              company_name: lj.company_name,
-              brand_logo_text: (lj.company_name || 'CO').slice(0, 3).toUpperCase(),
-              brand_banner: './uploads/indolakto_indomilk_banner.jpg',
-              sector: 'manufaktur',
-              sector_label: lj.source_website || 'Website Berita & Karir',
-              category: lj.category || 'Operasional',
-              role_department: lj.role_department || lj.title,
-              job_type: lj.job_type || 'Full Time',
-              location: lj.location || 'Indonesia',
-              education_level: 'all',
-              education_label: 'Semua Tingkat',
-              experience_level: 'Semua Pengalaman',
-              salary_display: lj.salary_display || 'Kompetitif',
-              deadline: 'Aktif Real-Time',
-              pubDate: lj.pubDate || new Date().toISOString(),
-              pubTimestamp: lj.pubTimestamp || Date.now(),
-              timeAgo: lj.timeAgo || 'Baru saja',
-              isFresh: lj.isFresh !== undefined ? lj.isFresh : true,
-              platform: plat,
-              platform_label: lj.platform_label || 'Website Resmi Terverifikasi',
-              platform_icon: lj.platform_icon || 'fa-solid fa-globe',
-              platform_class: lj.platform_class || 'web',
-              official_url: lj.official_url || lj.website_url || lj.url,
-              contact_type: 'link',
-              contact_value: JSON.stringify({ whatsapp: lj.contact_whatsapp || '', email: lj.contact_email || '', website: lj.official_url || lj.website_url || lj.url }),
-              anti_fraud_notice: lj.anti_fraud_notice,
-              description: lj.description,
-              requirements: Array.isArray(lj.requirements) && lj.requirements.length > 0 ? lj.requirements : ['Kualifikasi tercantum pada postingan web resmi', 'Pendidikan relevan', 'Disiplin dan bertanggung jawab'],
-              responsibilities: Array.isArray(lj.responsibilities) && lj.responsibilities.length > 0 ? lj.responsibilities : ['Menjalankan tugas sesuai arahan operasional'],
-              benefits: Array.isArray(lj.benefits) && lj.benefits.length > 0 ? lj.benefits : ['Gaji pokok sesuai standar UMK / korporasi', 'BPJS Ketenagakerjaan & Kesehatan'],
-              theme: defaultTheme,
-              mascot: (lj.title || '').toLowerCase().includes('operator') ? 'factory' : 'corporate',
-              verified_badge: lj.platform_label || 'Web Terverifikasi',
-              apply_info: `Klik "Buka Postingan Asli" untuk membuka link sumber ${lj.platform_label || 'Web'}.`,
-              hashtag: defaultHashtag
-            });
+          if (plat === 'linkedin') {
+            defaultTheme = 'linkedin';
+            defaultHashtag = `#LokerLinkedIn #InfoKarir #HiringNow #${compClean}`;
+          } else if (plat === 'instagram') {
+            defaultTheme = 'instagram';
+            defaultHashtag = `#LokerInstagram #InfoLoker2026 #KarirIG #${compClean}`;
+          } else if (plat === 'facebook') {
+            defaultTheme = 'facebook';
+            defaultHashtag = `#LokerFacebook #InfoLowonganKerja #${compClean}`;
+          } else if (plat === 'twitter') {
+            defaultTheme = 'twitter';
+            defaultHashtag = `#LokerTwitter #InfoLoker #${compClean}`;
+          } else if (plat === 'bumn') {
+            defaultTheme = 'bumn';
+            defaultHashtag = `#LokerBUMN #RekrutmenBUMN #BUMNUntukIndonesia #${compClean}`;
+          } else if ((lj.title || '').toLowerCase().includes('operator') || (lj.title || '').toLowerCase().includes('teknisi')) {
+            defaultTheme = 'factory';
+            defaultHashtag = `#LokerPabrik #OperatorProduksi #${compClean}`;
           }
-        });
-      }
+
+          OFFICIAL_VACANCIES_DB.push({
+            id: lj.id || ('live_web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
+            title: lj.title,
+            company_name: lj.company_name,
+            brand_logo_text: (lj.company_name || 'CO').slice(0, 3).toUpperCase(),
+            brand_banner: './uploads/indolakto_indomilk_banner.jpg',
+            sector: 'manufaktur',
+            sector_label: lj.source_website || 'Website Berita & Karir',
+            category: lj.category || 'Operasional',
+            role_department: lj.role_department || lj.title,
+            job_type: lj.job_type || 'Full Time',
+            location: lj.location || 'Indonesia',
+            education_level: 'all',
+            education_label: 'Semua Tingkat',
+            experience_level: 'Semua Pengalaman',
+            salary_display: lj.salary_display || 'Kompetitif',
+            deadline: 'Aktif Real-Time',
+            pubDate: lj.pubDate || new Date().toISOString(),
+            pubTimestamp: lj.pubTimestamp || Date.now(),
+            timeAgo: lj.timeAgo || 'Baru saja',
+            isFresh: lj.isFresh !== undefined ? lj.isFresh : true,
+            platform: plat,
+            platform_label: lj.platform_label || 'Website Resmi Terverifikasi',
+            platform_icon: lj.platform_icon || 'fa-solid fa-globe',
+            platform_class: lj.platform_class || 'web',
+            official_url: lj.official_url || lj.website_url || lj.url,
+            contact_type: 'link',
+            contact_value: JSON.stringify({ whatsapp: lj.contact_whatsapp || '', email: lj.contact_email || '', website: lj.official_url || lj.website_url || lj.url }),
+            anti_fraud_notice: lj.anti_fraud_notice,
+            description: lj.description,
+            requirements: Array.isArray(lj.requirements) && lj.requirements.length > 0 ? lj.requirements : ['Kualifikasi tercantum pada postingan web resmi', 'Pendidikan relevan', 'Disiplin dan bertanggung jawab'],
+            responsibilities: Array.isArray(lj.responsibilities) && lj.responsibilities.length > 0 ? lj.responsibilities : ['Menjalankan tugas sesuai arahan operasional'],
+            benefits: Array.isArray(lj.benefits) && lj.benefits.length > 0 ? lj.benefits : ['Gaji pokok sesuai standar UMK / korporasi', 'BPJS Ketenagakerjaan & Kesehatan'],
+            theme: defaultTheme,
+            mascot: (lj.title || '').toLowerCase().includes('operator') ? 'factory' : 'corporate',
+            verified_badge: lj.platform_label || 'Web Terverifikasi',
+            apply_info: `Klik "Buka Postingan Asli" untuk membuka link sumber ${lj.platform_label || 'Web'}.`,
+            hashtag: defaultHashtag
+          });
+        }
+      });
     }
   } catch (e) {
-    console.warn('Error fetching live jobs for official section:', e);
+    // Offline or static preview fallback
   }
 
   // 3. Sort strictly by newest pubTimestamp descending (Freshest jobs always at top!)
@@ -2616,7 +2666,7 @@ window.generateAndPublishOfficialJob = async function(index) {
     }
 
     if (saved) {
-      sessionStorage.removeItem('kerja_public_jobs_cache');
+      safeSessionRemove('kerja_public_jobs_cache');
       await loadAdminJobs();
       loadDashboardData();
       renderOfficialJobsGrid();
@@ -2733,7 +2783,7 @@ window.bulkPublishAllOfficialJobs = async function() {
     }
   }
 
-  sessionStorage.removeItem('kerja_public_jobs_cache');
+  safeSessionRemove('kerja_public_jobs_cache');
   await loadAdminJobs();
   loadDashboardData();
   renderOfficialJobsGrid();
@@ -3644,7 +3694,7 @@ window.savePosterChangesToJob = async function() {
           benefits: benList
         };
         try {
-          sessionStorage.setItem('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
+          safeSessionSet('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
         } catch (e) {}
         renderAdminJobsTable();
       }
@@ -4028,7 +4078,7 @@ function setMasterData(data) {
       locations: Array.isArray(raw.locations) ? raw.locations : (currentMasterData.locations || [])
     };
     try {
-      sessionStorage.setItem('kerja_admin_master_data', JSON.stringify(currentMasterData));
+      safeSessionSet('kerja_admin_master_data', JSON.stringify(currentMasterData));
     } catch (e) {}
   }
 }
@@ -4036,7 +4086,7 @@ function setMasterData(data) {
 async function loadMasterData() {
   // 1. Instant display from sessionStorage cache if available
   try {
-    const cached = sessionStorage.getItem('kerja_admin_master_data');
+    const cached = safeSessionGet('kerja_admin_master_data');
     if (cached) {
       const parsed = JSON.parse(cached);
       if (parsed && Array.isArray(parsed.categories) && parsed.categories.length > 0) {

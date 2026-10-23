@@ -69,9 +69,22 @@ document.addEventListener('DOMContentLoaded', () => {
   loadAllJobs();
 });
 
+// Safe storage helper
+function safeLocalGet(key) {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) return window.localStorage.getItem(key);
+  } catch (e) {}
+  return null;
+}
+function safeLocalSet(key, value) {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) window.localStorage.setItem(key, value);
+  } catch (e) {}
+}
+
 // Theme handling
 function initTheme() {
-  const savedTheme = localStorage.getItem('kerjahub_theme') || 'light';
+  const savedTheme = safeLocalGet('kerjahub_theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
   updateThemeIcon(savedTheme);
 
@@ -81,7 +94,7 @@ function initTheme() {
       const current = document.documentElement.getAttribute('data-theme') || 'light';
       const next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('kerjahub_theme', next);
+      safeLocalSet('kerjahub_theme', next);
       updateThemeIcon(next);
     });
   }
@@ -146,7 +159,9 @@ async function loadAllJobs() {
   let sb = null;
   if (window.supabase && typeof window.supabase.createClient === 'function') {
     try {
-      sb = window.supabase.createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY);
+      sb = window.supabase.createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+      });
     } catch (e) {
       console.warn('Initial Supabase client error in cek-cv:', e);
     }
