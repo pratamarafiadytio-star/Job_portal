@@ -1888,7 +1888,7 @@ app.use((req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`===============================================`);
   console.log(`🚀 KerjaHub Job Portal (Supabase & Secure Admin)`);
   console.log(`🌐 Website Publik : http://localhost:${PORT}`);

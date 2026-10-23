@@ -52,6 +52,11 @@ function getApiEndpoint(endpoint) {
 }
 
 async function safeFetchJson(url, options = {}) {
+  if (typeof window !== 'undefined' && window.location) {
+    if (window.location.protocol === 'file:' || window.location.hostname.includes('github.io')) {
+      return { ok: false, status: 0, data: null, error: new Error('Static/offline environment') };
+    }
+  }
   try {
     const res = await fetch(url, options);
     let data = null;
@@ -2960,7 +2965,7 @@ window.openPosterStudioFromExistingId = function(jobId) {
     requirements: parseJsonList(job.requirements),
     benefits: parseJsonList(job.benefits),
     deadline: job.deadline || '',
-    official_url: contacts.website || window.location.origin + '/?job=' + job.id,
+    official_url: contacts.website || './?job=' + job.id,
     apply_info: contacts.website ? `Kirim CV/Lamaran melalui website resmi ${job.company_name}` : `Kirim lamaran melalui portal resmi KerjaHub`,
     theme: job.category === 'Operasional' || job.title.toLowerCase().includes('operator') ? 'factory' : 'modern',
     mascot: job.title.toLowerCase().includes('operator') || job.title.toLowerCase().includes('teknisi') ? 'factory' : 'corporate'

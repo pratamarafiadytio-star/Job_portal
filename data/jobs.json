@@ -49,7 +49,7 @@
     "responsibilities": [],
     "benefits": [],
     "contact_type": "email",
-    "contact_value": "{\"whatsapp\":\"\",\"email\":\"\",\"website\":\"http://localhost:5000/?job=40\"}",
+    "contact_value": "{\"whatsapp\":\"\",\"email\":\"\",\"website\":\"./?job=40\"}",
     "deadline": "123",
     "status": "active",
     "is_featured": false,
@@ -59,7 +59,7 @@
     "source_label": "Portal Rekrutmen Resmi Pertamina PDC",
     "whatsapp": "",
     "email": "",
-    "website_url": "http://localhost:5000/?job=40",
+    "website_url": "./?job=40",
     "updated_at": "2026-10-23T09:06:06.243Z"
   },
   {

@@ -123,6 +123,11 @@ function getApiEndpoint(endpoint) {
 }
 
 async function safeFetchJson(url, options = {}) {
+  if (typeof window !== 'undefined' && window.location) {
+    if (window.location.protocol === 'file:' || window.location.hostname.includes('github.io')) {
+      return { ok: false, status: 0, data: null, error: new Error('Static/offline environment') };
+    }
+  }
   try {
     const res = await fetch(url, options);
     let data = null;
