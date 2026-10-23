@@ -263,11 +263,17 @@ window.filterByPlatform = function(plat) {
 let isLoadingPublicJobs = false;
 
 async function initSupabaseClient() {
+  const memoryStore = {};
   const clientOptions = {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
-      detectSessionInUrl: false
+      detectSessionInUrl: false,
+      storage: {
+        getItem: (k) => memoryStore[k] || null,
+        setItem: (k, v) => { memoryStore[k] = String(v); },
+        removeItem: (k) => { delete memoryStore[k]; }
+      }
     }
   };
 
@@ -1453,6 +1459,7 @@ function isManualJobFlyer(job) {
   if (!p) return false;
   if (p.includes('unsplash.com')) return false;
   if (p.includes('placeholder')) return false;
+  if (p.includes('sample_')) return false;
   if (p.includes('corporate_worker_mascot') || p.includes('factory_operator_mascot')) {
     return false;
   }
@@ -2691,6 +2698,9 @@ async function handleCvFileUpload(file) {
 
     if (ext === 'pdf') {
       if (window.pdfjsLib) {
+        if (window.pdfjsLib.GlobalWorkerOptions && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.min.js';
+        }
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         let fullText = '';

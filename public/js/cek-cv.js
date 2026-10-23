@@ -155,17 +155,28 @@ window.openCvOrderWhatsApp = function() {
 };
 
 // Load Jobs and Settings directly from Supabase with API fallback
+let cekCvSbClient = null;
+const cekCvMemoryStore = {};
 async function loadAllJobs() {
-  let sb = null;
-  if (window.supabase && typeof window.supabase.createClient === 'function') {
+  if (window.supabase && typeof window.supabase.createClient === 'function' && !cekCvSbClient) {
     try {
-      sb = window.supabase.createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY, {
-        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+      cekCvSbClient = window.supabase.createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          storage: {
+            getItem: (k) => cekCvMemoryStore[k] || null,
+            setItem: (k, v) => { cekCvMemoryStore[k] = String(v); },
+            removeItem: (k) => { delete cekCvMemoryStore[k]; }
+          }
+        }
       });
     } catch (e) {
       console.warn('Initial Supabase client error in cek-cv:', e);
     }
   }
+  const sb = cekCvSbClient;
 
   // 1. Direct Supabase Query (works instantly on GitHub Pages, workdev, and local)
   if (sb) {
@@ -299,6 +310,9 @@ async function handleCvFileUpload(file) {
     const ext = file.name.split('.').pop().toLowerCase();
 
     if (ext === 'pdf' && window.pdfjsLib) {
+      if (window.pdfjsLib.GlobalWorkerOptions && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.min.js';
+      }
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       let fullText = '';

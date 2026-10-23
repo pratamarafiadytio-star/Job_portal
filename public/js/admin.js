@@ -224,11 +224,17 @@ window.alert = function(msg) {
 };
 
 async function initSupabaseClient() {
+  const memoryStore = {};
   const clientOptions = {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
-      detectSessionInUrl: false
+      detectSessionInUrl: false,
+      storage: {
+        getItem: (k) => memoryStore[k] || null,
+        setItem: (k, v) => { memoryStore[k] = String(v); },
+        removeItem: (k) => { delete memoryStore[k]; }
+      }
     }
   };
 
@@ -1209,6 +1215,7 @@ function isManualJobFlyer(job) {
   if (!p) return false;
   if (p.includes('unsplash.com')) return false;
   if (p.includes('placeholder')) return false;
+  if (p.includes('sample_')) return false;
   if (p.includes('corporate_worker_mascot') || p.includes('factory_operator_mascot')) {
     return false;
   }

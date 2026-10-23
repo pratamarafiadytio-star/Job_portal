@@ -499,7 +499,7 @@
     "location": "Jakarta Pusat / Bandung (Hybrid)",
     "salary_display": "Rp 14.000.000 - Rp 22.000.000 / bln",
     "experience_level": "1-3 Tahun",
-    "poster_image": "./uploads/sample_fullstack.jpg",
+    "poster_image": "./uploads/corporate_worker_mascot.jpg",
     "description": "PT Telkom Indonesia (Persero) Tbk membuka rekrutmen talenta muda digital untuk memperkuat ekosistem digital nasional, arsitektur microservices, dan transformasi cloud enterprise.",
     "requirements": [
       "Pendidikan minimal D3 / S1 Teknik Informatika, Ilmu Komputer, atau Sistem Informasi",
@@ -538,7 +538,7 @@
     "location": "Cikarang / Karawang, Jawa Barat",
     "salary_display": "Rp 5.500.000 - Rp 7.200.000 / bln",
     "experience_level": "Fresh Graduate",
-    "poster_image": "./uploads/sample_uiux.jpg",
+    "poster_image": "./uploads/corporate_worker_mascot.jpg",
     "description": "PT Astra Honda Motor (AHM), pelopor industri sepeda motor di Indonesia, membuka rekrutmen Operator Produksi untuk penempatan fasilitas perakitan manufaktur engine dan unit kendaraan dengan standar mutu internasional.",
     "requirements": [
       "Pendidikan minimal SMA / SMK sederajat (Teknik Mesin, Otomotif, Listrik, atau IPA diutamakan)",
@@ -577,7 +577,7 @@
     "location": "Jakarta Selatan (SCBD)",
     "salary_display": "Rp 18.000.000 - Rp 28.000.000 / bln",
     "experience_level": "3-5 Tahun",
-    "poster_image": "/uploads/sample_fullstack.jpg",
+    "poster_image": "./uploads/corporate_worker_mascot.jpg",
     "description": "Kami mengundang Full Stack Developer berbakat untuk membangun arsitektur sistem enterprise yang cepat, terukur, dan aman. Mengembangkan REST API modern dan antarmuka responsif.",
     "requirements": [
       "Pengalaman kerja minimal 3 tahun menggunakan Node.js dan React / Next.js",
@@ -616,7 +616,7 @@
     "location": "Jakarta / Remote",
     "salary_display": "Rp 15.000.000 - Rp 25.000.000 / bln",
     "experience_level": "Senior (5+ Tahun)",
-    "poster_image": "/uploads/sample_uiux.jpg",
+    "poster_image": "./uploads/corporate_worker_mascot.jpg",
     "description": "Synergy Tech sedang mencari Senior UI/UX Designer untuk memimpin strategi desain produk digital generasi berikutnya. Anda akan merancang antarmuka elegan, prototipe interaktif, dan berkolaborasi erat dengan tim engineering.",
     "requirements": [
       "Pengalaman minimal 5 tahun di bidang UI/UX Design untuk platform web & mobile",
@@ -773,7 +773,7 @@
     "location": "Jakarta Utara / Cibitung / Marunda Hub",
     "salary_display": "Rp 7.000.000 - Rp 10.500.000 / bln",
     "experience_level": "1-3 Tahun",
-    "poster_image": "./uploads/sample_marketing.jpg",
+    "poster_image": "./uploads/corporate_worker_mascot.jpg",
     "description": "Shopee Express (SPX Logistics) mencari Coordinator Operasional Pergudangan untuk memimpin alur logistik inbound/outbound e-commerce tercepat dan terpercaya di Indonesia.",
     "requirements": [
       "Pendidikan minimal D3 / S1 semua jurusan (Manajemen Logistik / Teknik Industri diutamakan)",
@@ -811,7 +811,7 @@
     "location": "Tangerang / Bekasi, Jawa Barat",
     "salary_display": "Rp 5.200.000 - Rp 6.800.000 / bln",
     "experience_level": "Fresh Graduate",
-    "poster_image": "./uploads/sample_marketing.jpg",
+    "poster_image": "./uploads/indolakto_indomilk_banner.jpg",
     "description": "PT Indofood CBP Sukses Makmur Tbk mengundang kandidat teliti untuk memastikan mutu produksi mie instan dan bumbu pangan sesuai standar BPOM & Halal.",
     "requirements": [
       "Pendidikan minimal SMK Kimia Industri, Analis Kimia, atau D3 Teknologi Pangan / Farmasi",
@@ -849,7 +849,7 @@
     "location": "Bandung, Jawa Barat",
     "salary_display": "Rp 9.000.000 - Rp 14.000.000 / bln",
     "experience_level": "1-3 Tahun",
-    "poster_image": "/uploads/sample_marketing.jpg",
+    "poster_image": "./uploads/corporate_worker_mascot.jpg",
     "description": "Creative Sparks mencari Digital Marketing Specialist yang kreatif dan analitis untuk memimpin kampanye multi-channel, paid ads (Meta & TikTok), serta konten viral.",
     "requirements": [
       "Pengalaman minimal 2 tahun dalam digital marketing dan social media ads",
