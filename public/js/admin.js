@@ -274,6 +274,49 @@ function getAdminToken() {
   return safeSessionGet('kerja_admin_token') || '';
 }
 
+// Safely sanitize job payloads sent directly to Supabase PostgREST table
+function prepareJobPayloadForSupabase(jobObj) {
+  if (!jobObj || typeof jobObj !== 'object') return {};
+  const allowed = [
+    'title', 'company_name', 'category', 'job_type', 'location',
+    'salary_display', 'experience_level', 'poster_image', 'description',
+    'requirements', 'responsibilities', 'benefits', 'contact_type',
+    'contact_value', 'deadline', 'status', 'is_featured', 'views_count',
+    'updated_at'
+  ];
+  const clean = {};
+  for (const k of allowed) {
+    if (jobObj[k] !== undefined) {
+      clean[k] = jobObj[k];
+    }
+  }
+
+  // Ensure contact_value contains website/contact details if passed separately
+  if (!clean.contact_value && (jobObj.whatsapp || jobObj.email || jobObj.website || jobObj.website_url)) {
+    clean.contact_value = JSON.stringify({
+      whatsapp: jobObj.whatsapp || '',
+      email: jobObj.email || '',
+      website: jobObj.website_url || jobObj.website || ''
+    });
+  }
+
+  // Ensure JSONB list columns are valid native arrays (not JSON strings or raw text)
+  ['requirements', 'responsibilities', 'benefits'].forEach(prop => {
+    if (typeof clean[prop] === 'string') {
+      try {
+        const parsed = JSON.parse(clean[prop]);
+        clean[prop] = Array.isArray(parsed) ? parsed : [clean[prop]];
+      } catch (e) {
+        clean[prop] = clean[prop].split('\n').map(s => s.trim()).filter(Boolean);
+      }
+    } else if (!Array.isArray(clean[prop]) && clean[prop] !== undefined) {
+      clean[prop] = [];
+    }
+  });
+
+  return clean;
+}
+
 // ==============================================================
 // GOOGLE DORKING QUERY GENERATOR (Client-Side Real-Time Engine)
 // ==============================================================
@@ -1078,7 +1121,7 @@ function setupJobFormSubmit() {
     // Fallback: ONLY execute client-side direct insert if backend was offline or failed
     if (!saved && sbClient) {
       try {
-        const { error } = await sbClient.from('jobs').insert([cleanPayload]);
+        const { error } = await sbClient.from('jobs').insert([prepareJobPayloadForSupabase(cleanPayload)]);
         if (!error) {
           saved = true;
         } else {
@@ -1726,7 +1769,7 @@ function setupEditFormSubmit() {
     // 2. Fallback to direct Supabase update if backend is offline
     if (!updated && sbClient) {
       try {
-        await sbClient.from('jobs').update(updatePayload).eq('id', Number(jobId));
+        await sbClient.from('jobs').update(prepareJobPayloadForSupabase(updatePayload)).eq('id', Number(jobId));
         updated = true;
       } catch (err) {
         console.warn('Supabase update exception:', err);
@@ -2664,7 +2707,7 @@ window.generateAndPublishOfficialJob = async function(index) {
     // Fallback: direct Supabase insert
     if (!saved && sbClient) {
       try {
-        const { error } = await sbClient.from('jobs').insert([payload]);
+        const { error } = await sbClient.from('jobs').insert([prepareJobPayloadForSupabase(payload)]);
         if (!error) saved = true;
         else if (!errorMsg) errorMsg = error.message;
       } catch (e) {
@@ -2782,7 +2825,7 @@ window.bulkPublishAllOfficialJobs = async function() {
       };
 
       if (sbClient) {
-        const { error } = await sbClient.from('jobs').insert([payload]);
+        const { error } = await sbClient.from('jobs').insert([prepareJobPayloadForSupabase(payload)]);
         if (!error) countSuccess++;
       }
     } catch (e) {
@@ -3650,24 +3693,41 @@ window.savePosterChangesToJob = async function() {
     if (currentPosterJobData && currentPosterJobData.id) {
       // 1. UPDATE EXISTING JOB IN DATABASE (Supabase Cloud + Local API)
       const jobId = Number(currentPosterJobData.id);
+
+      // Contact value formatting (merges website with existing whatsapp & email)
+      let contacts = {};
+      try {
+        contacts = typeof currentPosterJobData.contact_value === 'string'
+          ? JSON.parse(currentPosterJobData.contact_value)
+          : (currentPosterJobData.contact_value || {});
+      } catch (e) {
+        contacts = {};
+      }
+      if (updatedQr) {
+        contacts.website = updatedQr;
+      }
+      const contactValStr = JSON.stringify(contacts);
+
       const updatePayload = {
         title: updatedTitle || currentPosterJobData.title,
         company_name: updatedComp || currentPosterJobData.company_name,
         deadline: updatedDead,
-        responsibilities: JSON.stringify(respList),
-        requirements: JSON.stringify(reqList),
-        benefits: JSON.stringify(benList),
+        responsibilities: respList,
+        requirements: reqList,
+        benefits: benList,
         poster_image: posterDataUrl,
-        website_url: updatedQr || currentPosterJobData.official_url,
+        contact_value: contactValStr,
         updated_at: new Date().toISOString()
       };
+
+      const supabaseUpdatePayload = prepareJobPayloadForSupabase(updatePayload);
 
       let saved = false;
       // Try direct Supabase
       if (sbClient) {
         try {
           const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000));
-          const updPromise = sbClient.from('jobs').update(updatePayload).eq('id', jobId);
+          const updPromise = sbClient.from('jobs').update(supabaseUpdatePayload).eq('id', jobId);
           const { error } = await Promise.race([updPromise, timeoutPromise]);
           if (!error) saved = true;
           else console.warn('Supabase update warning:', error);
@@ -3679,13 +3739,18 @@ window.savePosterChangesToJob = async function() {
       // Sync to backend Express API if running
       try {
         const token = getAdminToken();
+        const apiPayload = {
+          ...updatePayload,
+          website: updatedQr || (contacts && contacts.website) || '',
+          website_url: updatedQr || (contacts && contacts.website) || ''
+        };
         const res = await safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}`), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
-          body: JSON.stringify(updatePayload)
+          body: JSON.stringify(apiPayload)
         });
         if (res.ok) saved = true;
       } catch (e) {}
