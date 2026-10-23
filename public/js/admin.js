@@ -3597,137 +3597,14 @@ function generateFlyerPosterDataUrl(jobData) {
 // -------------------------------------------------------------
 // 1-KLIK GENERATE POSTER & TERBITKAN KE PORTAL (GAS!)
 // -------------------------------------------------------------
-window.generateAndPublishOfficialJob = async function(index) {
-  const job = currentOfficialFilteredJobs[index];
-  if (!job) return;
-
-  const btn = document.getElementById(`btn-gas-${index}`);
-  const origBtnHtml = btn ? btn.innerHTML : '';
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengenerate Poster & Terbit...';
-  }
-
-  try {
-    // 1. Auto-generate the high-res canvas poster flyer
-    const posterDataUrl = generateFlyerPosterDataUrl(job);
-
-    // 2. Prepare contacts JSON with strict anti-hoax verification
-    let emailVal = '';
-    let waVal = '';
-    let websiteVal = job.official_url || '';
-    if (job.contact_value) {
-      try {
-        const parsed = typeof job.contact_value === 'string' ? JSON.parse(job.contact_value) : job.contact_value;
-        emailVal = parsed.email || '';
-        waVal = parsed.whatsapp || '';
-        if (parsed.website) websiteVal = parsed.website;
-      } catch (e) {}
-    }
-
-    const contactsJson = JSON.stringify({
-      url: websiteVal,
-      website: websiteVal,
-      email: emailVal,
-      whatsapp: waVal,
-      source_platform: job.platform || 'official',
-      source_label: job.platform_label || 'Resmi BUMN & Korporasi',
-      is_verified_anti_hoax: true,
-      verified_screening_status: 'passed'
-    });
-
-    const dMeta = getDeadlineMeta(job.deadline, 30);
-    if (dMeta.isExpired) {
-      alert(`⚠️ Lowongan "${job.title}" (${job.company_name}) telah melewati batas pengumpulan berkas dan tidak dapat diterbitkan sebagai lowongan aktif.`);
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = origBtnHtml;
-      }
-      return;
-    }
-
-    const payload = {
-      title: job.title,
-      company_name: job.company_name,
-      category: job.category || 'Operasional',
-      job_type: job.job_type || 'Full Time',
-      location: job.location,
-      salary_display: job.salary_display || 'Kompetitif',
-      experience_level: job.experience_level || 'Fresh Graduate',
-      poster_image: posterDataUrl || './uploads/corporate_worker_mascot.jpg',
-      description: job.description,
-      requirements: Array.isArray(job.requirements) ? job.requirements : [],
-      responsibilities: Array.isArray(job.responsibilities) ? job.responsibilities : [],
-      benefits: Array.isArray(job.benefits) ? job.benefits : [],
-      whatsapp: waVal || '',
-      email: emailVal || '',
-      website_url: websiteVal || '',
-      contact_type: 'link',
-      contact_value: contactsJson,
-      deadline: dMeta.isoDate || toIsoDate(new Date(Date.now() + 30 * 86400000)),
-      status: 'active',
-      is_featured: true,
-      views_count: 0
-    };
-
-    let saved = false;
-    let errorMsg = '';
-
-    // Backend POST /api/jobs
-    try {
-      const token = getAdminToken();
-      const formData = new FormData();
-      for (const [k, v] of Object.entries(payload)) {
-        formData.set(k, Array.isArray(v) ? JSON.stringify(v) : v);
-      }
-      const res = await fetch(getApiEndpoint('/api/jobs'), {
-        method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-        body: formData
-      });
-      if (res.ok) {
-        const json = await res.json().catch(() => ({}));
-        if (json.success !== false) saved = true;
-      } else {
-        const errJson = await res.json().catch(() => ({}));
-        errorMsg = errJson.message || '';
-      }
-    } catch (e) {
-      console.warn('Backend unavailable, falling back to direct cloud client:', e);
-    }
-
-    // Fallback: direct Supabase insert
-    if (!saved && sbClient) {
-      try {
-        const { error } = await sbClient.from('jobs').insert([prepareJobPayloadForSupabase(payload)]);
-        if (!error) saved = true;
-        else if (!errorMsg) errorMsg = error.message;
-      } catch (e) {
-        if (!errorMsg) errorMsg = e.message;
-      }
-    }
-
-    if (saved) {
-      safeSessionRemove('kerja_public_jobs_cache');
-      await loadAdminJobs();
-      loadDashboardData();
-      renderOfficialJobsGrid();
-
-      alert(`⚡ GAS BERHASIL!\n\nLowongan: ${job.title}\nPerusahaan: ${job.company_name}\n\nPoster Flyer Resmi telah otomatis di-generate dan lowongan kini LANGSUNG AKTIF di portal KerjaHub!`);
-    } else {
-      alert('Gagal menerbitkan: ' + (errorMsg || 'Periksa status koneksi Supabase.'));
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = origBtnHtml;
-      }
-    }
-  } catch (err) {
-    alert('Terjadi kesalahan saat mengenerate poster: ' + err.message);
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = origBtnHtml;
-    }
-  }
+// -------------------------------------------------------------
+// 1-KLIK GENERATE POSTER & TERBITKAN KE PORTAL (FLOW STUDIO & MULTI-SLIDE)
+// -------------------------------------------------------------
+window.generateAndPublishOfficialJob = function(index) {
+  // Masuk terlebih dahulu ke Studio Gambar Poster agar admin bisa melihat flyer,
+  // memilih template (termasuk Chocomory / Upload Kosong), menambah slide flyer ke-2 & ke-3 (bisa ngeslide otomatis di user),
+  // lalu klik "Terbitkan ke Portal Sekarang (Gas!)"
+  openPosterStudioFromOfficialIndex(index, true);
 };
 
 // -------------------------------------------------------------
@@ -3922,10 +3799,260 @@ function preloadMascot(type) {
 preloadMascot('factory');
 preloadMascot('corporate');
 
-window.openPosterStudioFromOfficialIndex = function(index) {
+// -------------------------------------------------------------
+// POSTER STUDIO STATE: MULTI-SLIDE FLYERS & TEMPLATES
+// -------------------------------------------------------------
+let currentFlyerSlides = [];
+let activeFlyerSlideIndex = 0;
+let loadedCustomTemplateImg = null;
+let customTemplateDataUrl = null;
+let selectedFlyerTemplate = 'chocomory';
+
+function initStoredCustomTemplate() {
+  try {
+    const saved = localStorage.getItem('kerja_custom_flyer_template');
+    if (saved) {
+      customTemplateDataUrl = saved;
+      const img = new Image();
+      img.onload = () => {
+        loadedCustomTemplateImg = img;
+        const badgeRow = document.getElementById('custom-template-badge-row');
+        if (badgeRow) badgeRow.style.display = 'flex';
+        const nameEl = document.getElementById('custom-template-file-name');
+        if (nameEl) nameEl.textContent = 'Template Tersimpan (Kustom)';
+      };
+      img.src = saved;
+    }
+  } catch (e) {}
+}
+
+window.handleCustomTemplateUpload = function(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const dataUrl = e.target.result;
+    customTemplateDataUrl = dataUrl;
+    try {
+      localStorage.setItem('kerja_custom_flyer_template', dataUrl);
+    } catch (err) {
+      console.warn('Could not cache custom template to localStorage (storage full):', err);
+    }
+
+    const img = new Image();
+    img.onload = function() {
+      loadedCustomTemplateImg = img;
+      const badgeRow = document.getElementById('custom-template-badge-row');
+      if (badgeRow) badgeRow.style.display = 'flex';
+      const nameEl = document.getElementById('custom-template-file-name');
+      if (nameEl) nameEl.textContent = file.name || 'template_kosong.png';
+
+      window.onFlyerTemplateChanged('custom');
+      showAdminToast('Template Kosong Dimuat!', 'Template kustom Anda telah aktif. Informasi teks lowongan & karakter orang akan otomatis digambar di atas template ini!', 'success');
+    };
+    img.src = dataUrl;
+  };
+  reader.readAsDataURL(file);
+};
+
+window.removeCustomTemplate = function() {
+  loadedCustomTemplateImg = null;
+  customTemplateDataUrl = null;
+  try {
+    localStorage.removeItem('kerja_custom_flyer_template');
+  } catch (e) {}
+
+  const badgeRow = document.getElementById('custom-template-badge-row');
+  if (badgeRow) badgeRow.style.display = 'none';
+
+  const fileInput = document.getElementById('flyer-custom-template-input');
+  if (fileInput) fileInput.value = '';
+
+  window.onFlyerTemplateChanged('chocomory');
+  showAdminToast('Template Dihapus', 'Kembali ke Template Megafon Chocomory.', 'info');
+};
+
+window.onFlyerTemplateChanged = function(tpl) {
+  selectedFlyerTemplate = tpl;
+  document.querySelectorAll('input[name="flyer_template"]').forEach(r => {
+    r.checked = (r.value === tpl);
+    r.closest('.poster-theme-pill')?.classList.toggle('active', r.checked);
+  });
+
+  const uploadBox = document.getElementById('custom-template-upload-box');
+  if (uploadBox) {
+    if (tpl === 'custom') {
+      uploadBox.style.borderColor = '#4f46e5';
+      uploadBox.style.background = '#f5f3ff';
+      if (!loadedCustomTemplateImg) {
+        const fileInp = document.getElementById('flyer-custom-template-input');
+        if (fileInp) fileInp.click();
+      }
+    } else {
+      uploadBox.style.borderColor = '#cbd5e1';
+      uploadBox.style.background = '#ffffff';
+    }
+  }
+
+  renderPosterCanvas();
+};
+
+// -------------------------------------------------------------
+// MULTI-SLIDE FLYER MANAGER FUNCTIONS
+// -------------------------------------------------------------
+function initFlyerSlidesForStudio(jobData) {
+  currentFlyerSlides = [];
+  activeFlyerSlideIndex = 0;
+
+  let existingSlides = [];
+  if (jobData) {
+    if (Array.isArray(jobData.flyer_images) && jobData.flyer_images.length > 0) {
+      existingSlides = [...jobData.flyer_images];
+    } else if (typeof jobData.flyer_images === 'string') {
+      try {
+        const parsed = JSON.parse(jobData.flyer_images);
+        if (Array.isArray(parsed) && parsed.length > 0) existingSlides = parsed;
+      } catch (e) {}
+    }
+
+    if (existingSlides.length === 0 && jobData.contact_value) {
+      try {
+        const cParsed = typeof jobData.contact_value === 'string' ? JSON.parse(jobData.contact_value) : jobData.contact_value;
+        if (cParsed && Array.isArray(cParsed.flyer_images) && cParsed.flyer_images.length > 0) {
+          existingSlides = [...cParsed.flyer_images];
+        }
+      } catch (e) {}
+    }
+
+    if (existingSlides.length === 0 && jobData.poster_image && !jobData.poster_image.includes('mascot')) {
+      existingSlides.push(jobData.poster_image);
+    }
+  }
+
+  currentFlyerSlides = existingSlides;
+  renderFlyerSlidesStrip();
+}
+
+function renderFlyerSlidesStrip() {
+  const strip = document.getElementById('flyer-slides-strip');
+  const badge = document.getElementById('flyer-slides-badge');
+  if (!strip) return;
+
+  const count = currentFlyerSlides.length;
+  if (badge) {
+    if (count <= 1) {
+      badge.innerHTML = `<i class="fa-regular fa-image"></i> ${count || 1} Flyer`;
+      badge.style.background = '#f1f5f9';
+      badge.style.color = '#475569';
+    } else {
+      badge.innerHTML = `<i class="fa-solid fa-layer-group"></i> ${count} Slide (Auto Slider di User)`;
+      badge.style.background = '#dcfce7';
+      badge.style.color = '#15803d';
+    }
+  }
+
+  let html = '';
+  if (currentFlyerSlides.length === 0) {
+    html = `
+      <div style="font-size: 0.72rem; color: #94a3b8; font-style: italic; padding: 6px 10px;">
+        Canvas aktif saat ini adalah Slide #1. Klik "+ Slide Baru" untuk menambahkan slide berikutnya.
+      </div>
+    `;
+  } else {
+    currentFlyerSlides.forEach((imgSrc, idx) => {
+      const isActive = idx === activeFlyerSlideIndex;
+      html += `
+        <div class="flyer-slide-thumb ${isActive ? 'active' : ''}" onclick="selectFlyerSlide(${idx})" title="Slide ${idx + 1}">
+          <img src="${imgSrc}" alt="Slide ${idx + 1}">
+          <span class="slide-num-badge">#${idx + 1}</span>
+          ${currentFlyerSlides.length > 1 ? `
+            <button type="button" class="slide-delete-btn" onclick="deleteFlyerSlide(${idx}, event)" title="Hapus slide ini">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          ` : ''}
+        </div>
+      `;
+    });
+  }
+
+  strip.innerHTML = html;
+}
+
+window.selectFlyerSlide = function(idx) {
+  if (idx < 0 || idx >= currentFlyerSlides.length) return;
+  activeFlyerSlideIndex = idx;
+  renderFlyerSlidesStrip();
+};
+
+window.addCurrentCanvasAsNewSlide = function() {
+  const canvas = document.getElementById('poster-canvas');
+  if (!canvas) return;
+
+  const dataUrl = canvas.toDataURL('image/png');
+
+  if (currentFlyerSlides.length === 0) {
+    currentFlyerSlides.push(dataUrl);
+  }
+
+  currentFlyerSlides.push(dataUrl);
+  activeFlyerSlideIndex = currentFlyerSlides.length - 1;
+  renderFlyerSlidesStrip();
+
+  showAdminToast('Slide Baru Ditambahkan!', `Total saat ini: ${currentFlyerSlides.length} gambar flyer. Pengunjung portal lowongan akan menikmati slider otomatis yang bergulir halus!`, 'success');
+};
+
+window.handleExtraFlyerUpload = function(event) {
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+
+  const canvas = document.getElementById('poster-canvas');
+  if (currentFlyerSlides.length === 0 && canvas) {
+    currentFlyerSlides.push(canvas.toDataURL('image/png'));
+  }
+
+  const readers = Array.from(files).map(file => {
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
+  });
+
+  Promise.all(readers).then(dataUrls => {
+    dataUrls.forEach(url => currentFlyerSlides.push(url));
+    activeFlyerSlideIndex = currentFlyerSlides.length - 1;
+    renderFlyerSlidesStrip();
+    showAdminToast('Flyer Ditambahkan!', `${dataUrls.length} gambar flyer baru berhasil ditambahkan ke daftar slide!`, 'success');
+  });
+
+  event.target.value = '';
+};
+
+window.deleteFlyerSlide = function(idx, event) {
+  if (event) event.stopPropagation();
+  if (currentFlyerSlides.length <= 1) {
+    alert('Minimal harus ada 1 flyer untuk lowongan ini.');
+    return;
+  }
+  currentFlyerSlides.splice(idx, 1);
+  if (activeFlyerSlideIndex >= currentFlyerSlides.length) {
+    activeFlyerSlideIndex = currentFlyerSlides.length - 1;
+  }
+  renderFlyerSlidesStrip();
+};
+
+// -------------------------------------------------------------
+// OPEN POSTER STUDIO MODAL
+// -------------------------------------------------------------
+window.openPosterStudioFromOfficialIndex = function(index, isPublishIntent = false) {
   const job = currentOfficialFilteredJobs[index];
   if (!job) return;
-  openPosterStudio(job);
+  openPosterStudio({
+    ...job,
+    origin: 'scout',
+    _isPublishIntent: isPublishIntent
+  }, isPublishIntent);
 };
 
 window.openPosterStudioFromExistingId = function(jobId) {
@@ -3948,22 +4075,36 @@ window.openPosterStudioFromExistingId = function(jobId) {
     origin: 'table',
     title: job.title,
     company_name: job.company_name,
+    category: job.category,
+    job_type: job.job_type,
+    location: job.location,
+    salary_display: job.salary_display,
+    experience_level: job.experience_level,
+    description: job.description,
     responsibilities: parseJsonList(job.responsibilities),
     requirements: parseJsonList(job.requirements),
     benefits: parseJsonList(job.benefits),
     deadline: job.deadline || '',
     official_url: contacts.website || './?job=' + job.id,
     apply_info: contacts.website ? `Kirim CV/Lamaran melalui website resmi ${job.company_name}` : `Kirim lamaran melalui portal resmi KerjaHub`,
-    theme: job.category === 'Operasional' || job.title.toLowerCase().includes('operator') ? 'factory' : 'modern',
-    mascot: job.title.toLowerCase().includes('operator') || job.title.toLowerCase().includes('teknisi') ? 'factory' : 'corporate'
-  });
+    theme: job.category === 'Operasional' || (job.title && job.title.toLowerCase().includes('operator')) ? 'factory' : 'modern',
+    mascot: (job.title && (job.title.toLowerCase().includes('operator') || job.title.toLowerCase().includes('teknisi'))) ? 'factory' : 'corporate',
+    poster_image: job.poster_image,
+    flyer_images: job.flyer_images || (contacts && contacts.flyer_images ? contacts.flyer_images : null)
+  }, false);
 };
 
-function openPosterStudio(jobData) {
-  currentPosterJobData = { ...jobData };
+function openPosterStudio(jobData, isPublishIntent = false) {
+  currentPosterJobData = { ...jobData, _isPublishIntent: !!isPublishIntent };
 
   const modal = document.getElementById('poster-studio-modal');
   if (!modal) return;
+
+  // Initialize stored custom template if any
+  initStoredCustomTemplate();
+
+  // Initialize flyer slides
+  initFlyerSlidesForStudio(jobData);
 
   // Fill in form inputs
   const compInp = document.getElementById('poster-input-company');
@@ -3999,7 +4140,6 @@ function openPosterStudio(jobData) {
   const reqList = parseList(jobData.requirements);
   const benList = parseList(jobData.benefits);
 
-  // Directly set the dynamic lists without hardcoded defaults!
   window.setDynamicListValues('poster-resp-items', respList, 'responsibilities', 'poster-resp-counter');
   window.setDynamicListValues('poster-req-items', reqList, 'requirements', 'poster-req-counter');
   window.setDynamicListValues('poster-ben-items', benList, 'benefits', 'poster-ben-counter');
@@ -4010,6 +4150,13 @@ function openPosterStudio(jobData) {
   if (legacyResp) legacyResp.value = respList.join('\n');
   const legacyBen = document.getElementById('poster-input-benefits');
   if (legacyBen) legacyBen.value = benList.join('\n');
+
+  // Set selected template
+  selectedFlyerTemplate = 'chocomory';
+  document.querySelectorAll('input[name="flyer_template"]').forEach(r => {
+    r.checked = (r.value === selectedFlyerTemplate);
+    r.closest('.poster-theme-pill')?.classList.toggle('active', r.checked);
+  });
 
   // Set selected theme & mascot pills
   const theme = jobData.theme || 'factory';
@@ -4025,10 +4172,15 @@ function openPosterStudio(jobData) {
     r.closest('.poster-theme-pill')?.classList.toggle('active', r.checked);
   });
 
+  // Direct publish button visibility/highlight
+  const btnDirect = document.getElementById('btn-studio-publish-direct');
+  if (btnDirect) {
+    btnDirect.style.display = 'inline-flex';
+  }
+
   modal.classList.add('active');
   modal.style.display = 'flex';
 
-  // Trigger initial draw
   setTimeout(() => {
     renderPosterCanvas();
   }, 50);
@@ -4042,6 +4194,206 @@ window.closePosterStudioModal = function() {
     modal.style.display = 'none';
   }
 };
+
+// -------------------------------------------------------------
+// VECTOR MEGAPHONE CHARACTER ILLUSTRATION (EXACT REFERENCE STYLE)
+// -------------------------------------------------------------
+function drawMegaphoneMascotIllustration(ctx, x, y, w, h) {
+  ctx.save();
+  ctx.translate(x, y);
+  const scale = Math.min(w / 400, h / 500);
+  ctx.scale(scale, scale);
+
+  // Concentric Soundwaves on left of megaphone
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(80, 240, 45, Math.PI * 0.7, Math.PI * 1.3);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(80, 240, 75, Math.PI * 0.72, Math.PI * 1.28);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(80, 240, 105, Math.PI * 0.75, Math.PI * 1.25);
+  ctx.stroke();
+
+  // MEGAPHONE BODY
+  ctx.fillStyle = '#f97316';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 4.5;
+  ctx.beginPath();
+  ctx.moveTo(210, 215);
+  ctx.lineTo(100, 175);
+  ctx.lineTo(100, 305);
+  ctx.lineTo(210, 265);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Megaphone Wide Bell Rim (White)
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(100, 240, 16, 65, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Inner Bell Oval (Dark)
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.ellipse(100, 240, 9, 45, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Megaphone Rear Base / Speaker Cap
+  ctx.fillStyle = '#1e3a8a';
+  ctx.beginPath();
+  ctx.ellipse(210, 240, 12, 26, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Megaphone Handle
+  ctx.fillStyle = '#1e293b';
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(175, 255, 18, 55, 6);
+  } else {
+    ctx.rect(175, 255, 18, 55);
+  }
+  ctx.fill();
+  ctx.stroke();
+
+  // Hand Gripping Handle (Peach)
+  ctx.fillStyle = '#fed7aa';
+  ctx.beginPath();
+  ctx.ellipse(184, 285, 14, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // ARM & SLEEVE (Orange blazer sleeve)
+  ctx.fillStyle = '#ea580c';
+  ctx.beginPath();
+  ctx.moveTo(290, 330);
+  ctx.lineTo(184, 285);
+  ctx.lineTo(195, 315);
+  ctx.lineTo(270, 380);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // White Cuff at Wrist
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(202, 298, 8, 14, Math.PI * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // BACK HAIR (Long Dark Navy)
+  ctx.fillStyle = '#1e293b';
+  ctx.beginPath();
+  ctx.moveTo(290, 160);
+  ctx.quadraticCurveTo(390, 200, 380, 420);
+  ctx.quadraticCurveTo(340, 440, 310, 380);
+  ctx.quadraticCurveTo(280, 240, 290, 160);
+  ctx.fill();
+
+  // BODY & BLAZER (Orange Jacket)
+  ctx.fillStyle = '#ea580c';
+  ctx.beginPath();
+  ctx.moveTo(265, 330);
+  ctx.lineTo(320, 320);
+  ctx.lineTo(390, 480);
+  ctx.lineTo(250, 480);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // White Shirt Collar
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.moveTo(275, 310);
+  ctx.lineTo(300, 350);
+  ctx.lineTo(320, 310);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Orange Lapels
+  ctx.fillStyle = '#c2410c';
+  ctx.beginPath();
+  ctx.moveTo(270, 315);
+  ctx.lineTo(290, 360);
+  ctx.lineTo(280, 400);
+  ctx.lineTo(260, 350);
+  ctx.closePath();
+  ctx.fill();
+
+  // NECK
+  ctx.fillStyle = '#fed7aa';
+  ctx.beginPath();
+  ctx.rect(280, 280, 25, 35);
+  ctx.fill();
+
+  // HEAD / FACE PROFILE
+  ctx.fillStyle = '#fed7aa';
+  ctx.beginPath();
+  ctx.moveTo(310, 170);
+  ctx.quadraticCurveTo(350, 190, 345, 270);
+  ctx.quadraticCurveTo(330, 300, 280, 295);
+  ctx.lineTo(260, 260);
+  ctx.lineTo(255, 235);
+  ctx.quadraticCurveTo(258, 200, 310, 170);
+  ctx.fill();
+
+  // EAR
+  ctx.fillStyle = '#fed7aa';
+  ctx.beginPath();
+  ctx.arc(325, 245, 12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // HAIR (Dark Navy Front Bangs & Top)
+  ctx.fillStyle = '#1e293b';
+  ctx.beginPath();
+  ctx.moveTo(300, 160);
+  ctx.quadraticCurveTo(360, 150, 365, 210);
+  ctx.quadraticCurveTo(340, 215, 330, 205);
+  ctx.quadraticCurveTo(305, 195, 275, 220);
+  ctx.quadraticCurveTo(270, 175, 300, 160);
+  ctx.fill();
+
+  // EYE (Happy shouting closed arc: ^)
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(285, 228, 9, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+
+  // EYEBROW
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(285, 220, 10, Math.PI * 1.2, Math.PI * 1.8);
+  ctx.stroke();
+
+  // CHEEK BLUSH
+  ctx.fillStyle = 'rgba(251, 113, 133, 0.45)';
+  ctx.beginPath();
+  ctx.ellipse(295, 245, 10, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // MOUTH (Open Shouting towards Megaphone)
+  ctx.fillStyle = '#be123c';
+  ctx.beginPath();
+  ctx.moveTo(258, 252);
+  ctx.quadraticCurveTo(270, 258, 272, 268);
+  ctx.quadraticCurveTo(260, 272, 256, 262);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore();
+}
 
 // -------------------------------------------------------------
 // RENDER POSTER CANVAS (HIGH RESOLUTION 1080 x 1350)
@@ -4059,478 +4411,575 @@ function renderPosterCanvas() {
 
   const company = (document.getElementById('poster-input-company')?.value || '').trim();
   const title = (document.getElementById('poster-input-title')?.value || '').trim().toUpperCase();
-  const responsibilities = window.getDynamicListValues('poster-resp-items');
-  const requirements = window.getDynamicListValues('poster-req-items');
-  const benefits = window.getDynamicListValues('poster-ben-items');
+  const responsibilities = window.getDynamicListValues ? window.getDynamicListValues('poster-resp-items') : [];
+  const requirements = window.getDynamicListValues ? window.getDynamicListValues('poster-req-items') : [];
+  const benefits = window.getDynamicListValues ? window.getDynamicListValues('poster-ben-items') : [];
   const deadline = (document.getElementById('poster-input-deadline')?.value || '').trim();
   const applyInfo = (document.getElementById('poster-input-apply-info')?.value || '').trim();
   const qrUrl = (document.getElementById('poster-input-qr-url')?.value || window.location.href).trim();
-  const hashtag = (document.getElementById('poster-input-hashtag')?.value || '@KerjaHubOfficial #LowonganKerja').trim();
+  const hashtag = (document.getElementById('poster-input-hashtag')?.value || '@Lokersmasmkjabodetabek #Lowongankerja2026').trim();
 
   const selectedTheme = document.querySelector('input[name="poster_theme"]:checked')?.value || 'factory';
   const selectedMascot = document.querySelector('input[name="poster_mascot"]:checked')?.value || 'factory';
+  const hasMascot = selectedMascot !== 'none';
+  const drawMascotOnCustom = document.getElementById('custom-tpl-draw-mascot') ? document.getElementById('custom-tpl-draw-mascot').checked : true;
 
-  // Palette definitions
-  let p = {
-    bg: '#ffffff',
-    outerBorder: '#1e40af',
-    primary: '#1e3a8a',
-    accentOrange: '#f97316',
-    textDark: '#0f172a',
-    badgeBg: '#1e3a8a',
-    badgeBorder: '#3b82f6',
-    badgeText: '#ffffff',
-    applyBoxBorder: '#f97316',
-    applyBoxBg: '#ffffff',
-    footerBg: '#0f172a'
-  };
+  // ---------------------------------------------------------
+  // MODE 1: CHOCOMORY MEGAFON STYLE (EXACT SCREENSHOT REFERENCE)
+  // ---------------------------------------------------------
+  if (selectedFlyerTemplate === 'chocomory') {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
 
-  if (selectedTheme === 'linkedin') {
-    p = {
-      bg: '#ffffff',
-      outerBorder: '#0a66c2',
-      primary: '#0a66c2',
-      accentOrange: '#0077b5',
-      textDark: '#0f172a',
-      badgeBg: '#0a66c2',
-      badgeBorder: '#38bdf8',
-      badgeText: '#ffffff',
-      applyBoxBorder: '#0077b5',
-      applyBoxBg: '#ffffff',
-      footerBg: '#0f172a'
-    };
-  } else if (selectedTheme === 'instagram') {
-    p = {
-      bg: '#ffffff',
-      outerBorder: '#e1306c',
-      primary: '#c13584',
-      accentOrange: '#e1306c',
-      textDark: '#0f172a',
-      badgeBg: '#833ab4',
-      badgeBorder: '#e1306c',
-      badgeText: '#ffffff',
-      applyBoxBorder: '#e1306c',
-      applyBoxBg: '#ffffff',
-      footerBg: '#1e1b4b'
-    };
-  } else if (selectedTheme === 'facebook') {
-    p = {
-      bg: '#ffffff',
-      outerBorder: '#1877f2',
-      primary: '#1877f2',
-      accentOrange: '#0866ff',
-      textDark: '#0f172a',
-      badgeBg: '#1877f2',
-      badgeBorder: '#60a5fa',
-      badgeText: '#ffffff',
-      applyBoxBorder: '#1877f2',
-      applyBoxBg: '#ffffff',
-      footerBg: '#0f172a'
-    };
-  } else if (selectedTheme === 'twitter') {
-    p = {
-      bg: '#ffffff',
-      outerBorder: '#0f172a',
-      primary: '#0f172a',
-      accentOrange: '#38bdf8',
-      textDark: '#0f172a',
-      badgeBg: '#0f172a',
-      badgeBorder: '#38bdf8',
-      badgeText: '#ffffff',
-      applyBoxBorder: '#38bdf8',
-      applyBoxBg: '#ffffff',
-      footerBg: '#0f172a'
-    };
-  } else if (selectedTheme === 'bumn') {
-    p = {
-      bg: '#ffffff',
-      outerBorder: '#0f172a',
-      primary: '#0f172a',
-      accentOrange: '#10b981',
-      textDark: '#0f172a',
-      badgeBg: '#0f172a',
-      badgeBorder: '#10b981',
-      badgeText: '#ffffff',
-      applyBoxBorder: '#10b981',
-      applyBoxBg: '#ffffff',
-      footerBg: '#0f172a'
-    };
-  } else if (selectedTheme === 'modern') {
-    p = {
-      bg: '#ffffff',
-      outerBorder: '#4f46e5',
-      primary: '#4f46e5',
-      accentOrange: '#06b6d4',
-      textDark: '#0f172a',
-      badgeBg: '#4f46e5',
-      badgeBorder: '#818cf8',
-      badgeText: '#ffffff',
-      applyBoxBorder: '#4f46e5',
-      applyBoxBg: '#ffffff',
-      footerBg: '#1e1b4b'
-    };
-  }
+    ctx.strokeStyle = '#0052cc';
+    ctx.lineWidth = 14;
+    roundRect(ctx, 22, 22, width - 44, height - 44, 28, false, true);
 
-  // 1. Clear & Background
-  ctx.fillStyle = p.bg;
-  ctx.fillRect(0, 0, width, height);
+    // Bold Header: LOWONGAN PEKERJAAN with thick underline
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#000000';
+    ctx.font = '900 48px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('LOWONGAN PEKERJAAN', width / 2, 110);
 
-  // 2. Thick Outer Border with Rounded Corners
-  ctx.strokeStyle = p.outerBorder;
-  ctx.lineWidth = 18;
-  roundRect(ctx, 16, 16, width - 32, height - 32, 28, false, true);
+    ctx.fillStyle = '#000000';
+    const underW = 760;
+    ctx.fillRect((width - underW) / 2, 126, underW, 5.5);
 
-  // Subtle interior architectural line art
-  ctx.save();
-  ctx.strokeStyle = 'rgba(203, 213, 225, 0.35)';
-  ctx.lineWidth = 1.5;
-  for (let y = 140; y < 760; y += 40) {
-    ctx.beginPath();
-    ctx.moveTo(60, y);
-    ctx.lineTo(width - 60, y);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // 3. Header Section (Centered)
-  ctx.textAlign = 'center';
-  ctx.fillStyle = p.textDark;
-  ctx.font = '800 38px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText('LOWONGAN PEKERJAAN', width / 2, 88);
-
-  // Dynamic Company Name Auto-Scale
-  const companyUpper = company.toUpperCase();
-  let compFontSize = 46;
-  ctx.font = `800 ${compFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-  while (ctx.measureText(companyUpper).width > 920 && compFontSize > 22) {
-    compFontSize -= 2;
-    ctx.font = `800 ${compFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-  }
-  ctx.fillStyle = p.primary;
-  ctx.fillText(companyUpper, width / 2, 146);
-
-  // 4. Position Banner Pill (Intelligent Auto-Scale & Word Wrapping)
-  const hasMascot = (selectedMascot !== 'none');
-  const badgeX = 60;
-  const badgeY = 192;
-  const badgeW = hasMascot ? 540 : (width - 120);
-  const maxContentW = badgeW - 48; // 24px padding inside pill
-
-  const titleUpper = title.trim();
-  const words = titleUpper.split(/\s+/).filter(Boolean);
-
-  let titleFontSize = 28;
-  let titleLines = [titleUpper];
-
-  // A. Check if fits on 1 line (test from 30px down to 22px)
-  let fitsOneLine = false;
-  for (let s = 30; s >= 22; s -= 2) {
-    ctx.font = `800 ${s}px "Plus Jakarta Sans", Arial, sans-serif`;
-    if (ctx.measureText(titleUpper).width <= maxContentW) {
-      titleFontSize = s;
-      titleLines = [titleUpper];
-      fitsOneLine = true;
-      break;
-    }
-  }
-
-  // B. If title doesn't fit on 1 line, find best balanced 2-line split
-  if (!fitsOneLine) {
-    let foundSplit = false;
-    for (let s = 26; s >= 18; s -= 2) {
-      ctx.font = `800 ${s}px "Plus Jakarta Sans", Arial, sans-serif`;
-
-      let bestSplit = null;
-      let minDiff = Infinity;
-      for (let i = 1; i < words.length; i++) {
-        const l1 = words.slice(0, i).join(' ');
-        const l2 = words.slice(i).join(' ');
-        const w1 = ctx.measureText(l1).width;
-        const w2 = ctx.measureText(l2).width;
-
-        if (w1 <= maxContentW && w2 <= maxContentW) {
-          const diff = Math.abs(w1 - w2);
-          if (diff < minDiff) {
-            minDiff = diff;
-            bestSplit = [l1, l2];
-          }
-        }
-      }
-
-      if (bestSplit) {
-        titleFontSize = s;
-        titleLines = bestSplit;
-        foundSplit = true;
-        break;
-      }
-    }
-
-    // C. If still doesn't fit in 2 lines, use 3 lines wrap with truncation safeguard
-    if (!foundSplit) {
-      titleFontSize = 18;
-      ctx.font = `800 ${titleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-      titleLines = [];
-      let curLine = '';
-      for (const w of words) {
-        const test = curLine ? curLine + ' ' + w : w;
-        if (ctx.measureText(test).width <= maxContentW) {
-          curLine = test;
-        } else {
-          if (curLine) titleLines.push(curLine);
-          curLine = w;
-        }
-      }
-      if (curLine) titleLines.push(curLine);
-      if (titleLines.length > 3) {
-        titleLines = titleLines.slice(0, 3);
-        while (ctx.measureText(titleLines[2] + '...').width > maxContentW && titleLines[2].length > 5) {
-          titleLines[2] = titleLines[2].slice(0, -1);
-        }
-        titleLines[2] = titleLines[2] + '...';
-      }
-    }
-  }
-
-  // Calculate dynamic badge height based on lines
-  const lineHeight = Math.round(titleFontSize * 1.3);
-  const badgeH = Math.max(68, (titleLines.length * lineHeight) + 26);
-
-  // Draw Badge Box
-  ctx.save();
-  ctx.fillStyle = p.badgeBg;
-  roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 16, true, false);
-
-  ctx.strokeStyle = p.badgeBorder;
-  ctx.lineWidth = 3.5;
-  roundRect(ctx, badgeX + 2, badgeY + 2, badgeW - 4, badgeH - 4, 14, false, true);
-
-  // Strict clipping: guarantee nothing ever bleeds outside the pill
-  roundRect(ctx, badgeX + 4, badgeY + 4, badgeW - 8, badgeH - 8, 12, false, false);
-  ctx.clip();
-
-  // Render centered text inside pill
-  ctx.fillStyle = p.badgeText;
-  ctx.textAlign = 'center';
-  ctx.font = `800 ${titleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-
-  const totalTextBlockH = (titleLines.length - 1) * lineHeight;
-  const startY = badgeY + (badgeH / 2) - (totalTextBlockH / 2) + (titleFontSize * 0.35);
-  titleLines.forEach((l, idx) => {
-    ctx.fillText(l, badgeX + (badgeW / 2), startY + (idx * lineHeight));
-  });
-  ctx.restore();
-
-  // 5. Dynamic Sections: Tanggung Jawab, Kualifikasi, Benefit & Fasilitas
-  const activeSections = [];
-  if (responsibilities && responsibilities.length > 0) {
-    activeSections.push({
-      title: 'Tanggung Jawab',
-      icon: '📌',
-      items: responsibilities,
-      headerColor: p.primary
-    });
-  }
-  if (requirements && requirements.length > 0) {
-    activeSections.push({
-      title: 'Kualifikasi',
-      icon: '🎓',
-      items: requirements,
-      headerColor: p.textDark
-    });
-  }
-  if (benefits && benefits.length > 0) {
-    activeSections.push({
-      title: 'Benefit & Fasilitas',
-      icon: '🎁',
-      items: benefits,
-      headerColor: p.accentOrange
-    });
-  }
-
-  let currentY = badgeY + badgeH + 34;
-  const maxReqW = hasMascot ? 490 : (width - 160);
-  const appBoxY = 790;
-  const maxY = appBoxY - 18;
-
-  if (activeSections.length === 0) {
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = 'italic 600 20px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText('• Kualifikasi, tanggung jawab, dan benefit akan tampil sesuai input formulir.', 60, currentY + 30);
-  } else {
-    // Dynamic sizing depending on number of sections
-    const numSections = activeSections.length;
-    let headerFontSize = 26;
-    let itemFontSize = 20;
-    let itemLineHeight = 27;
-    let maxItemsPerSec = 4;
-
-    if (numSections === 1) {
-      headerFontSize = 28;
-      itemFontSize = 22;
-      itemLineHeight = 30;
-      maxItemsPerSec = 5;
-    } else if (numSections === 2) {
-      headerFontSize = 24;
-      itemFontSize = 19;
-      itemLineHeight = 26;
-      maxItemsPerSec = 3;
+    // Company Name
+    ctx.font = '900 42px "Plus Jakarta Sans", Arial, sans-serif';
+    let compText = company || 'PT PERUSAHAAN TERVERIFIKASI';
+    if (ctx.measureText(compText).width > 920) {
+      let words = compText.split(' ');
+      let line1 = words.slice(0, Math.ceil(words.length / 2)).join(' ');
+      let line2 = words.slice(Math.ceil(words.length / 2)).join(' ');
+      ctx.fillText(line1, width / 2, 178);
+      ctx.fillText(line2, width / 2, 224);
     } else {
-      headerFontSize = 22;
-      itemFontSize = 17;
-      itemLineHeight = 23;
-      maxItemsPerSec = 2;
+      ctx.fillText(compText, width / 2, 186);
     }
 
-    activeSections.forEach((sec) => {
-      if (currentY + 45 > maxY) return;
+    // Role Pill Badge (Solid Blue Chevron/Pill on Left)
+    const badgeY = 246;
+    ctx.font = '900 28px "Plus Jakarta Sans", Arial, sans-serif';
+    const displayTitle = title || 'OPERATOR PRODUKSI';
+    const titleW = ctx.measureText(displayTitle).width;
+    const badgeW = Math.max(340, Math.min(560, titleW + 70));
+    const badgeH = 54;
+    const badgeX = 52;
 
-      // Draw Section Header
+    ctx.fillStyle = '#0052cc';
+    ctx.beginPath();
+    ctx.moveTo(badgeX, badgeY);
+    ctx.lineTo(badgeX + badgeW - 22, badgeY);
+    ctx.lineTo(badgeX + badgeW, badgeY + badgeH / 2);
+    ctx.lineTo(badgeX + badgeW - 22, badgeY + badgeH);
+    ctx.lineTo(badgeX, badgeY + badgeH);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(displayTitle, badgeX + 24, badgeY + 38);
+
+    // Megaphone Character Illustration (Top Right)
+    if (hasMascot) {
+      if (selectedMascot === 'corporate' && loadedMascotCache['corporate']) {
+        drawMascotOnCanvas(ctx, loadedMascotCache['corporate'], 640, 200, 390, 500);
+      } else {
+        drawMegaphoneMascotIllustration(ctx, 640, 180, 390, 500);
+      }
+    }
+
+    // Qualifications ("Kualifikasi") Bullet List
+    const kualY = 345;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#000000';
+    ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('Kualifikasi', 54, kualY);
+
+    const activeList = (requirements && requirements.length > 0)
+      ? requirements
+      : (responsibilities && responsibilities.length > 0 ? responsibilities : [
+          'Pendidikan minimal SMA/SMK sederajat',
+          'Freshgraduate dipersilahkan apply',
+          'Teliti, disiplin dan bertanggung jawab terhadap pekerjaan',
+          'Bersedia bekerja shifting',
+          'Memahami K3 dan 5R',
+          'Bersedia ditempatkan sesuai operasional perusahaan'
+        ]);
+
+    let curItemY = kualY + 44;
+    const maxKualW = hasMascot ? 560 : 960;
+    const itemFontSize = activeList.length > 5 ? 20 : 22;
+    const itemLineH = activeList.length > 5 ? 32 : 36;
+
+    ctx.font = `600 ${itemFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+    ctx.fillStyle = '#1e293b';
+
+    activeList.slice(0, 6).forEach((item) => {
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(66, curItemY - 7, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#1e293b';
+      const words = String(item).split(' ');
+      let line = '';
+      for (let n = 0; n < words.length; n++) {
+        const test = line + words[n] + ' ';
+        if (ctx.measureText(test).width > maxKualW && n > 0) {
+          ctx.fillText(line.trim(), 82, curItemY);
+          line = words[n] + ' ';
+          curItemY += itemLineH;
+        } else {
+          line = test;
+        }
+      }
+      if (line.trim()) {
+        ctx.fillText(line.trim(), 82, curItemY);
+        curItemY += itemLineH + 6;
+      }
+    });
+
+    // Bottom-Left Application Card (White box with Blue 3D Shadow Box)
+    const appBoxX = 52;
+    const appBoxY = 740;
+    const appBoxW = 590;
+    const appBoxH = 210;
+
+    // Solid blue 3D offset shadow underneath
+    ctx.fillStyle = '#0052cc';
+    roundRect(ctx, appBoxX + 9, appBoxY + 9, appBoxW, appBoxH, 18, true, false);
+
+    // Main white box on top
+    ctx.fillStyle = '#ffffff';
+    roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 18, true, false);
+
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3.5;
+    roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 18, false, true);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#000000';
+    ctx.font = '700 21px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('Kirim CV/Lamaran melalui Scan QR Code atau link', appBoxX + 22, appBoxY + 44);
+
+    const cleanEmail = (applyInfo.includes('@') ? applyInfo.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] : null) || 'recruitment@chocomory.com';
+    ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('atau melalui email : ', appBoxX + 22, appBoxY + 82);
+
+    ctx.fillStyle = '#0052cc';
+    ctx.font = '800 20px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText(cleanEmail, appBoxX + 22 + ctx.measureText('atau melalui email : ').width, appBoxY + 82);
+
+    ctx.fillStyle = '#000000';
+    ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
+    const shortPos = (title || 'Operator Produksi').substring(0, 18);
+    ctx.fillText(`Subject email: Lamaran_${shortPos}_Nama`, appBoxX + 22, appBoxY + 128);
+
+    ctx.fillStyle = '#475569';
+    ctx.font = '600 18px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText(`(Contoh: Lamaran_${shortPos}_Dimas)`, appBoxX + 22, appBoxY + 168);
+
+    // Bottom-Right QR Code Box
+    const qrSize = 225;
+    const qrBoxX = 695;
+    const qrBoxY = 725;
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#000000';
+    ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
+    const displayShortUrl = qrUrl.length > 30 ? (qrUrl.replace(/^https?:\/\//, '').substring(0, 26) + '...') : qrUrl;
+    ctx.fillText(displayShortUrl, qrBoxX + qrSize / 2, qrBoxY - 14);
+
+    drawScannableQrCode(ctx, qrUrl, qrBoxX, qrBoxY, qrSize);
+
+    ctx.font = '900 26px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillStyle = '#000000';
+    ctx.fillText('SCAN DISINI', qrBoxX + qrSize / 2, qrBoxY + qrSize + 42);
+    ctx.fillRect(qrBoxX + 24, qrBoxY + qrSize + 50, qrSize - 48, 3.5);
+
+    // Bottom Footer: TikTok/IG handle left, Anti-fraud warning right
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#000000';
+    ctx.font = '900 24px "Plus Jakarta Sans", Arial, sans-serif';
+
+    ctx.beginPath();
+    ctx.arc(68, 1262, 16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 18px Arial';
+    ctx.fillText('d', 63, 1268);
+
+    ctx.fillStyle = '#000000';
+    ctx.font = '800 23px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('@Lokersmasmkjabodetabek', 94, 1256);
+
+    ctx.font = '800 23px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('#Lowongankerja2026', 94, 1288);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#000000';
+    ctx.font = '800 23px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('⚠️ Hati-hati penipuan', width - 54, 1256);
+
+    ctx.fillStyle = '#334155';
+    ctx.font = '600 19px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('Recrutmen ini tidak dipungut biaya apapun', width - 54, 1288);
+  }
+
+  // ---------------------------------------------------------
+  // MODE 2: CUSTOM BLANK TEMPLATE (UPLOADED BACKGROUND DESAIN SENDIRI)
+  // ---------------------------------------------------------
+  else if (selectedFlyerTemplate === 'custom') {
+    if (loadedCustomTemplateImg) {
+      ctx.drawImage(loadedCustomTemplateImg, 0, 0, width, height);
+
+      if (drawMascotOnCustom && hasMascot) {
+        if (selectedMascot === 'corporate' && loadedMascotCache['corporate']) {
+          drawMascotOnCanvas(ctx, loadedMascotCache['corporate'], 640, 200, 390, 500);
+        } else {
+          drawMegaphoneMascotIllustration(ctx, 640, 180, 390, 500);
+        }
+      }
+
+      // Role Pill Badge
+      const badgeY = 246;
+      ctx.font = '900 28px "Plus Jakarta Sans", Arial, sans-serif';
+      const displayTitle = title || 'OPERATOR PRODUKSI';
+      const titleW = ctx.measureText(displayTitle).width;
+      const badgeW = Math.max(340, Math.min(560, titleW + 70));
+      const badgeH = 54;
+      const badgeX = 52;
+
+      ctx.fillStyle = '#0052cc';
+      ctx.beginPath();
+      ctx.moveTo(badgeX, badgeY);
+      ctx.lineTo(badgeX + badgeW - 22, badgeY);
+      ctx.lineTo(badgeX + badgeW, badgeY + badgeH / 2);
+      ctx.lineTo(badgeX + badgeW - 22, badgeY + badgeH);
+      ctx.lineTo(badgeX, badgeY + badgeH);
+      ctx.closePath();
+      ctx.fill();
+
       ctx.textAlign = 'left';
-      ctx.fillStyle = sec.headerColor;
-      ctx.font = `800 ${headerFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-      ctx.fillText(`${sec.icon} ${sec.title}`, 60, currentY);
-      currentY += Math.round(headerFontSize * 1.35);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(displayTitle, badgeX + 24, badgeY + 38);
 
-      // Draw Items
-      const itemsToDraw = sec.items.slice(0, maxItemsPerSec);
-      itemsToDraw.forEach((itemText) => {
-        if (currentY + itemLineHeight > maxY) return;
+      // Qualifications Bullet List
+      const kualY = 345;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#000000';
+      ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('Kualifikasi', 54, kualY);
 
-        // Bullet dot
-        ctx.fillStyle = sec.headerColor || p.primary;
+      const activeList = (requirements && requirements.length > 0)
+        ? requirements
+        : (responsibilities && responsibilities.length > 0 ? responsibilities : [
+            'Pendidikan minimal SMA/SMK sederajat',
+            'Freshgraduate dipersilahkan apply',
+            'Teliti, disiplin dan bertanggung jawab terhadap pekerjaan',
+            'Bersedia bekerja shifting',
+            'Memahami K3 dan 5R'
+          ]);
+
+      let curItemY = kualY + 44;
+      ctx.font = '600 22px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillStyle = '#1e293b';
+
+      activeList.slice(0, 5).forEach((item) => {
+        ctx.fillStyle = '#000000';
         ctx.beginPath();
-        ctx.arc(68, currentY - (itemFontSize * 0.35), 4, 0, Math.PI * 2);
+        ctx.arc(66, curItemY - 7, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Wrapped item text
-        ctx.font = `600 ${itemFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-        ctx.fillStyle = '#334155';
-
-        const words = String(itemText).trim().split(/\s+/);
-        let line = '';
-        let lineY = currentY;
-
-        for (let n = 0; n < words.length; n++) {
-          const testLine = line + words[n] + ' ';
-          const metrics = ctx.measureText(testLine);
-          if (metrics.width > (maxReqW - 35) && n > 0) {
-            ctx.fillText(line.trim(), 84, lineY);
-            line = words[n] + ' ';
-            lineY += itemLineHeight;
-            if (lineY + itemLineHeight > maxY) break;
-          } else {
-            line = testLine;
-          }
-        }
-        if (line.trim() && lineY <= maxY) {
-          ctx.fillText(line.trim(), 84, lineY);
-          currentY = lineY + Math.round(itemFontSize * 1.5);
-        } else {
-          currentY = lineY;
-        }
+        ctx.fillStyle = '#1e293b';
+        ctx.fillText(String(item).substring(0, 48), 82, curItemY);
+        curItemY += 38;
       });
 
-      currentY += 12; // Small gap between sections
-    });
-  }
+      // Bottom-Left Application Box (White Card with 3D Shadow)
+      const appBoxX = 52;
+      const appBoxY = 740;
+      const appBoxW = 590;
+      const appBoxH = 210;
 
-  // 6. Draw Mascot Illustration (Right Column)
-  if (hasMascot) {
-    const mascotImg = loadedMascotCache[selectedMascot];
-    if (mascotImg && mascotImg.complete && mascotImg.naturalWidth > 0) {
-      drawMascotOnCanvas(ctx, mascotImg, 620, 210, 400, 540);
+      ctx.fillStyle = '#0052cc';
+      roundRect(ctx, appBoxX + 9, appBoxY + 9, appBoxW, appBoxH, 18, true, false);
+
+      ctx.fillStyle = '#ffffff';
+      roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 18, true, false);
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3.5;
+      roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 18, false, true);
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#000000';
+      ctx.font = '700 21px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('Kirim CV/Lamaran melalui Scan QR Code atau link', appBoxX + 22, appBoxY + 44);
+
+      ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('atau melalui website / email resmi terverifikasi', appBoxX + 22, appBoxY + 82);
+
+      const shortPos = (title || 'Operator Produksi').substring(0, 18);
+      ctx.fillStyle = '#000000';
+      ctx.fillText(`Subject: Lamaran_${shortPos}_Nama`, appBoxX + 22, appBoxY + 128);
+
+      ctx.fillStyle = '#475569';
+      ctx.font = '600 18px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText(`(Contoh: Lamaran_${shortPos}_Dimas)`, appBoxX + 22, appBoxY + 168);
+
+      // QR Code
+      const qrSize = 225;
+      const qrBoxX = 695;
+      const qrBoxY = 725;
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#000000';
+      ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
+      const displayShortUrl = qrUrl.length > 30 ? (qrUrl.replace(/^https?:\/\//, '').substring(0, 26) + '...') : qrUrl;
+      ctx.fillText(displayShortUrl, qrBoxX + qrSize / 2, qrBoxY - 14);
+
+      drawScannableQrCode(ctx, qrUrl, qrBoxX, qrBoxY, qrSize);
+
+      ctx.font = '900 26px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillStyle = '#000000';
+      ctx.fillText('SCAN DISINI', qrBoxX + qrSize / 2, qrBoxY + qrSize + 42);
+      ctx.fillRect(qrBoxX + 24, qrBoxY + qrSize + 50, qrSize - 48, 3.5);
+
+      // Anti-fraud on Right
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#000000';
+      ctx.font = '800 23px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('⚠️ Hati-hati penipuan', width - 54, 1256);
+
+      ctx.fillStyle = '#334155';
+      ctx.font = '600 19px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('Recrutmen ini tidak dipungut biaya apapun', width - 54, 1288);
     } else {
-      const tempImg = new Image();
-      tempImg.crossOrigin = 'anonymous';
-      tempImg.src = MASCOT_IMAGES[selectedMascot];
-      tempImg.onload = () => {
-        loadedMascotCache[selectedMascot] = tempImg;
-        renderPosterCanvas();
-      };
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.strokeStyle = '#6366f1';
+      ctx.lineWidth = 6;
+      ctx.setLineDash([16, 12]);
+      roundRect(ctx, 40, 40, width - 80, height - 80, 24, false, true);
+      ctx.setLineDash([]);
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#4f46e5';
+      ctx.font = '900 48px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('UPLOAD TEMPLATE KOSONG ANDA', width / 2, 540);
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '600 26px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('Klik tombol "Pilih File" pada panel kanan untuk mengupload gambar background.', width / 2, 600);
+      ctx.fillText('Teks lowongan & karakter orang akan otomatis digambar di atas template kosong Anda!', width / 2, 645);
     }
   }
 
-  // 7. Application Box (Left-aligned bottom)
-  const appBoxX = 60;
-  const appBoxW = 630;
-  const appBoxH = 195;
+  // ---------------------------------------------------------
+  // MODE 3: THEMED STYLES (MODERN, FACTORY, BUMN)
+  // ---------------------------------------------------------
+  else {
+    let p = {
+      bg: '#ffffff',
+      outerBorder: '#1e40af',
+      primary: '#1e3a8a',
+      accentOrange: '#f97316',
+      textDark: '#0f172a',
+      badgeBg: '#1e3a8a',
+      badgeBorder: '#3b82f6',
+      badgeText: '#ffffff',
+      applyBoxBorder: '#f97316',
+      applyBoxBg: '#ffffff',
+      footerBg: '#0f172a'
+    };
 
-  ctx.fillStyle = p.applyBoxBg;
-  roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 22, true, false);
+    if (selectedTheme === 'linkedin') {
+      p = {
+        bg: '#ffffff',
+        outerBorder: '#0a66c2',
+        primary: '#0a66c2',
+        accentOrange: '#0077b5',
+        textDark: '#0f172a',
+        badgeBg: '#0a66c2',
+        badgeBorder: '#38bdf8',
+        badgeText: '#ffffff',
+        applyBoxBorder: '#0077b5',
+        applyBoxBg: '#ffffff',
+        footerBg: '#0f172a'
+      };
+    } else if (selectedTheme === 'instagram' || selectedFlyerTemplate === 'modern') {
+      p = {
+        bg: '#ffffff',
+        outerBorder: '#e1306c',
+        primary: '#c13584',
+        accentOrange: '#fd1d1d',
+        textDark: '#0f172a',
+        badgeBg: '#c13584',
+        badgeBorder: '#f56040',
+        badgeText: '#ffffff',
+        applyBoxBorder: '#e1306c',
+        applyBoxBg: '#ffffff',
+        footerBg: '#0f172a'
+      };
+    } else if (selectedTheme === 'bumn' || selectedFlyerTemplate === 'bumn') {
+      p = {
+        bg: '#ffffff',
+        outerBorder: '#059669',
+        primary: '#0f172a',
+        accentOrange: '#10b981',
+        textDark: '#0f172a',
+        badgeBg: '#0f172a',
+        badgeBorder: '#10b981',
+        badgeText: '#ffffff',
+        applyBoxBorder: '#10b981',
+        applyBoxBg: '#ffffff',
+        footerBg: '#0f172a'
+      };
+    }
 
-  ctx.strokeStyle = p.applyBoxBorder;
-  ctx.lineWidth = 5;
-  roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 22, false, true);
+    ctx.fillStyle = p.bg;
+    ctx.fillRect(0, 0, width, height);
 
-  // Application texts inside box
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#0f172a';
-  ctx.font = '800 26px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText('Kirim CV/Lamaran melalui website', appBoxX + 26, appBoxY + 50);
+    ctx.strokeStyle = p.outerBorder;
+    ctx.lineWidth = 14;
+    roundRect(ctx, 22, 22, width - 44, height - 44, 28, false, true);
 
-  ctx.fillStyle = p.primary;
-  ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
-  let shortComp = company || 'Perusahaan Terverifikasi';
-  while (ctx.measureText(shortComp).width > appBoxW - 60 && shortComp.length > 10) {
-    shortComp = shortComp.slice(0, -1);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = p.primary;
+    ctx.font = '900 46px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('LOWONGAN PEKERJAAN', width / 2, 105);
+
+    ctx.fillStyle = p.primary;
+    ctx.fillRect((width - 700) / 2, 120, 700, 5);
+
+    ctx.fillStyle = p.textDark;
+    ctx.font = '900 38px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText(company || 'PERUSAHAAN TERVERIFIKASI', width / 2, 175);
+
+    const badgeX = 52;
+    const badgeY = 220;
+    const badgeW = hasMascot ? 550 : 976;
+    const badgeH = 64;
+
+    ctx.fillStyle = p.badgeBg;
+    roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 16, true, false);
+    ctx.strokeStyle = p.badgeBorder;
+    ctx.lineWidth = 3;
+    roundRect(ctx, badgeX + 2, badgeY + 2, badgeW - 4, badgeH - 4, 14, false, true);
+
+    ctx.fillStyle = p.badgeText;
+    ctx.textAlign = 'center';
+    ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText(title || 'POSISI LOWONGAN', badgeX + (badgeW / 2), badgeY + 42);
+
+    if (hasMascot) {
+      if (selectedMascot === 'corporate' && loadedMascotCache['corporate']) {
+        drawMascotOnCanvas(ctx, loadedMascotCache['corporate'], 630, 200, 390, 530);
+      } else {
+        drawMegaphoneMascotIllustration(ctx, 640, 180, 390, 500);
+      }
+    }
+
+    const activeSections = [];
+    if (responsibilities && responsibilities.length > 0) activeSections.push({ title: 'Tanggung Jawab', items: responsibilities });
+    if (requirements && requirements.length > 0) activeSections.push({ title: 'Kualifikasi', items: requirements });
+    if (benefits && benefits.length > 0) activeSections.push({ title: 'Benefit', items: benefits });
+
+    let curY = badgeY + badgeH + 34;
+    if (activeSections.length === 0) {
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'italic 600 22px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('• Kualifikasi & tanggung jawab tertera sesuai data resmi.', 60, curY + 30);
+    } else {
+      activeSections.forEach(sec => {
+        if (curY > 720) return;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = p.primary;
+        ctx.font = '800 24px "Plus Jakarta Sans", Arial, sans-serif';
+        ctx.fillText(`📌 ${sec.title}`, 60, curY);
+        curY += 32;
+
+        sec.items.slice(0, 3).forEach(it => {
+          if (curY > 720) return;
+          ctx.fillStyle = p.primary;
+          ctx.beginPath();
+          ctx.arc(68, curY - 7, 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#334155';
+          ctx.font = '600 20px "Plus Jakarta Sans", Arial, sans-serif';
+          ctx.fillText(String(it).substring(0, 44), 84, curY);
+          curY += 32;
+        });
+        curY += 10;
+      });
+    }
+
+    const appBoxX = 52;
+    const appBoxY = 760;
+    const appBoxW = 600;
+    const appBoxH = 190;
+
+    ctx.fillStyle = p.applyBoxBg;
+    roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 20, true, false);
+    ctx.strokeStyle = p.applyBoxBorder;
+    ctx.lineWidth = 4;
+    roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 20, false, true);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '800 24px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('Kirim CV/Lamaran melalui website', appBoxX + 24, appBoxY + 48);
+
+    ctx.fillStyle = p.primary;
+    ctx.font = '800 26px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText((company || 'Perusahaan Terverifikasi').substring(0, 30), appBoxX + 24, appBoxY + 92);
+
+    ctx.fillStyle = p.accentOrange;
+    ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText(deadline ? `Deadline ${deadline}` : 'Pendaftaran Terbuka', appBoxX + 24, appBoxY + 148);
+
+    const qrSize = 200;
+    const qrBoxX = 715;
+    const qrBoxY = 750;
+    drawScannableQrCode(ctx, qrUrl, qrBoxX, qrBoxY, qrSize);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '800 23px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('SCAN DISINI', qrBoxX + qrSize / 2, qrBoxY + qrSize + 36);
+
+    const footX = 48;
+    const footY = 1228;
+    const footW = width - 96;
+    const footH = 74;
+
+    ctx.fillStyle = p.footerBg;
+    roundRect(ctx, footX, footY, footW, footH, 18, true, false);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = '800 24px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('⚠️ Waspada penipuan. Rekrutmen ini tidak dipungut biaya apapun.', width / 2, footY + 46);
   }
-  if (shortComp !== (company || 'Perusahaan Terverifikasi')) shortComp += '...';
-  ctx.fillText(shortComp, appBoxX + 26, appBoxY + 96);
 
-  ctx.fillStyle = p.accentOrange;
-  ctx.font = '800 32px "Plus Jakarta Sans", Arial, sans-serif';
-  const deadlineLabel = deadline ? `Deadline ${deadline}.` : 'Pendaftaran Terbuka';
-  ctx.fillText(deadlineLabel, appBoxX + 26, appBoxY + 154);
-
-  // 8. QR Code Generation & Drawing (Right-aligned next to apply box)
-  const qrBoxX = 735;
-  const qrBoxY = 770;
-  const qrSize = 195;
-
-  drawScannableQrCode(ctx, qrUrl, qrBoxX, qrBoxY, qrSize);
-
-  // QR Label below
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#0f172a';
-  ctx.font = '800 23px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText('SCAN DISINI', qrBoxX + qrSize / 2, qrBoxY + qrSize + 38);
-
-  // 9. Brand Watermark & Hashtags
-  ctx.textAlign = 'left';
-  ctx.fillStyle = p.primary;
-  ctx.font = '800 34px "Plus Jakarta Sans", Arial, sans-serif';
-  let brandComp = company;
-  while (ctx.measureText(brandComp).width > 640 && brandComp.length > 10) {
-    brandComp = brandComp.slice(0, -1);
-  }
-  if (brandComp !== company) brandComp += '...';
-  ctx.fillText(brandComp, 60, 1075);
-
-  ctx.fillStyle = '#64748b';
-  ctx.font = '700 21px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText('Portal Lowongan Kerja Resmi KerjaHub Indonesia', 60, 1110);
-
-  ctx.fillStyle = p.primary;
-  let cleanHashtag = hashtag;
-  while (ctx.measureText(cleanHashtag).width > 640 && cleanHashtag.length > 10) {
-    cleanHashtag = cleanHashtag.slice(0, -1);
-  }
-  ctx.fillText(cleanHashtag, 60, 1148);
-
-  // 10. Anti-Penipuan Warning Footer Banner (Prominent at bottom!)
-  const footX = 50;
-  const footY = 1224;
-  const footW = width - 100;
-  const footH = 76;
-
-  ctx.fillStyle = p.footerBg;
-  roundRect(ctx, footX, footY, footW, footH, 20, true, false);
-
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#fbbf24';
-  ctx.font = '800 25px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText('⚠️ Waspada penipuan. Rekrutmen ini tidak dipungut biaya apapun.', width / 2, footY + 47);
+  // Synchronize current canvas to current active slide thumbnail
+  try {
+    const currentDataUrl = canvas.toDataURL('image/png');
+    if (currentFlyerSlides.length === 0) {
+      currentFlyerSlides.push(currentDataUrl);
+      renderFlyerSlidesStrip();
+    } else if (activeFlyerSlideIndex < currentFlyerSlides.length) {
+      currentFlyerSlides[activeFlyerSlideIndex] = currentDataUrl;
+      const thumbImg = document.querySelectorAll('.flyer-slide-thumb img')[activeFlyerSlideIndex];
+      if (thumbImg) thumbImg.src = currentDataUrl;
+    }
+  } catch (e) {}
 }
 
 // Helper: draw mascot with clean rounded card frame
@@ -4560,19 +5009,13 @@ function drawScannableQrCode(ctx, url, x, y, size) {
 
     const qrCanvas = holder.querySelector('canvas');
     if (qrCanvas) {
-      // Draw outer bracket marks
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = 4;
       const bLen = 22;
-      // Top-Left
       ctx.beginPath(); ctx.moveTo(x - 8, y + bLen); ctx.lineTo(x - 8, y - 8); ctx.lineTo(x + bLen, y - 8); ctx.stroke();
-      // Top-Right
       ctx.beginPath(); ctx.moveTo(x + size + 8 - bLen, y - 8); ctx.lineTo(x + size + 8, y - 8); ctx.lineTo(x + size + 8, y + bLen); ctx.stroke();
-      // Bottom-Left
       ctx.beginPath(); ctx.moveTo(x - 8, y + size + 8 - bLen); ctx.lineTo(x - 8, y + size + 8); ctx.lineTo(x + bLen, y + size + 8); ctx.stroke();
-      // Bottom-Right
       ctx.beginPath(); ctx.moveTo(x + size + 8 - bLen, y + size + 8); ctx.lineTo(x + size + 8, y + size + 8); ctx.lineTo(x + size + 8, y + size + 8 - bLen); ctx.stroke();
-
       ctx.drawImage(qrCanvas, x, y, size, size);
     }
   }
@@ -4601,7 +5044,7 @@ function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
 }
 
 // -------------------------------------------------------------
-// DOWNLOAD POSTER AS PNG
+// DOWNLOAD & COPY POSTER
 // -------------------------------------------------------------
 function downloadPosterAsPng() {
   const canvas = document.getElementById('poster-canvas');
@@ -4645,9 +5088,196 @@ function copyPosterToClipboard() {
   });
 }
 
-// ==============================================================
+// -------------------------------------------------------------
+// TERBITKAN LOWONGAN LANGSUNG DARI STUDIO DENGAN SEMUA SLIDE FLYER
+// -------------------------------------------------------------
+window.publishJobFromStudio = async function() {
+  const canvas = document.getElementById('poster-canvas');
+  if (!canvas) return;
+
+  const btn = document.getElementById('btn-publish-all-slides');
+  const btnDirect = document.getElementById('btn-studio-publish-direct');
+  const origHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menerbitkan ke Portal...';
+  }
+  if (btnDirect) {
+    btnDirect.disabled = true;
+    btnDirect.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Terbit...';
+  }
+
+  try {
+    const currentCanvasDataUrl = canvas.toDataURL('image/png');
+
+    if (currentFlyerSlides.length === 0) {
+      currentFlyerSlides = [currentCanvasDataUrl];
+    } else {
+      currentFlyerSlides[activeFlyerSlideIndex] = currentCanvasDataUrl;
+    }
+
+    const compInp = document.getElementById('poster-input-company');
+    const titleInp = document.getElementById('poster-input-title');
+    const deadInp = document.getElementById('poster-input-deadline');
+    const applyInp = document.getElementById('poster-input-apply-info');
+    const qrInp = document.getElementById('poster-input-qr-url');
+
+    const updatedComp = (compInp ? compInp.value.trim() : '') || currentPosterJobData.company_name || 'Perusahaan';
+    const updatedTitle = (titleInp ? titleInp.value.trim() : '') || currentPosterJobData.title || 'Lowongan Kerja';
+    const updatedDead = (deadInp ? deadInp.value.trim() : '') || currentPosterJobData.deadline || '';
+    const updatedQr = (qrInp ? qrInp.value.trim() : '') || currentPosterJobData.official_url || '';
+
+    const respList = window.getDynamicListValues ? window.getDynamicListValues('poster-resp-items') : [];
+    const reqList = window.getDynamicListValues ? window.getDynamicListValues('poster-req-items') : [];
+    const benList = window.getDynamicListValues ? window.getDynamicListValues('poster-ben-items') : [];
+
+    let contacts = {};
+    if (currentPosterJobData && currentPosterJobData.contact_value) {
+      try {
+        contacts = typeof currentPosterJobData.contact_value === 'string'
+          ? JSON.parse(currentPosterJobData.contact_value)
+          : currentPosterJobData.contact_value;
+      } catch (e) {
+        contacts = {};
+      }
+    }
+    contacts.website = updatedQr || contacts.website || '';
+    contacts.source_platform = currentPosterJobData.platform || 'official';
+    contacts.source_label = currentPosterJobData.platform_label || 'Resmi BUMN & Korporasi';
+    contacts.is_verified_anti_hoax = true;
+    contacts.verified_screening_status = 'passed';
+    contacts.flyer_images = currentFlyerSlides;
+
+    const contactsJson = JSON.stringify(contacts);
+    const dMeta = getDeadlineMeta(updatedDead, 30);
+
+    const payload = {
+      title: updatedTitle,
+      company_name: updatedComp,
+      category: currentPosterJobData.category || 'Operasional',
+      job_type: currentPosterJobData.job_type || 'Full Time',
+      location: currentPosterJobData.location || 'Indonesia',
+      salary_display: currentPosterJobData.salary_display || 'Kompetitif',
+      experience_level: currentPosterJobData.experience_level || 'Fresh Graduate',
+      poster_image: currentFlyerSlides[0] || currentCanvasDataUrl,
+      flyer_images: currentFlyerSlides,
+      description: currentPosterJobData.description || `Lowongan kerja resmi ${updatedTitle} di ${updatedComp}.`,
+      requirements: reqList.length > 0 ? reqList : (Array.isArray(currentPosterJobData.requirements) ? currentPosterJobData.requirements : []),
+      responsibilities: respList.length > 0 ? respList : (Array.isArray(currentPosterJobData.responsibilities) ? currentPosterJobData.responsibilities : []),
+      benefits: benList.length > 0 ? benList : (Array.isArray(currentPosterJobData.benefits) ? currentPosterJobData.benefits : []),
+      whatsapp: contacts.whatsapp || '',
+      email: contacts.email || '',
+      website_url: contacts.website || '',
+      contact_type: 'link',
+      contact_value: contactsJson,
+      deadline: dMeta.isoDate || toIsoDate(new Date(Date.now() + 30 * 86400000)),
+      status: 'active',
+      is_featured: true,
+      views_count: currentPosterJobData.views_count || 0
+    };
+
+    let saved = false;
+    let errorMsg = '';
+
+    if (currentPosterJobData && currentPosterJobData.id) {
+      const jobId = Number(currentPosterJobData.id);
+      payload.updated_at = new Date().toISOString();
+      const sbPayload = prepareJobPayloadForSupabase(payload);
+
+      if (sbClient) {
+        try {
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+          const updPromise = sbClient.from('jobs').update(sbPayload).eq('id', jobId);
+          const { error } = await Promise.race([updPromise, timeoutPromise]);
+          if (!error) saved = true;
+          else console.warn('Supabase update warning:', error);
+        } catch (e) {
+          console.warn('Supabase update error:', e);
+        }
+      }
+
+      try {
+        const token = getAdminToken();
+        const res = await safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}`), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) saved = true;
+      } catch (e) {}
+
+      const idx = adminJobs.findIndex(j => Number(j.id) === jobId);
+      if (idx >= 0) {
+        adminJobs[idx] = { ...adminJobs[idx], ...payload };
+        try { safeSessionSet('kerja_admin_jobs_cache', JSON.stringify(adminJobs)); } catch (e) {}
+        renderAdminJobsTable();
+      }
+    } else {
+      try {
+        const token = getAdminToken();
+        const formData = new FormData();
+        for (const [k, v] of Object.entries(payload)) {
+          formData.set(k, Array.isArray(v) ? JSON.stringify(v) : v);
+        }
+        const res = await fetch(getApiEndpoint('/api/jobs'), {
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          body: formData
+        });
+        if (res.ok) {
+          const json = await res.json().catch(() => ({}));
+          if (json.success !== false) saved = true;
+        } else {
+          const errJson = await res.json().catch(() => ({}));
+          errorMsg = errJson.message || '';
+        }
+      } catch (e) {
+        console.warn('Backend unavailable, inserting via Supabase:', e);
+      }
+
+      if (!saved && sbClient) {
+        try {
+          const { error } = await sbClient.from('jobs').insert([prepareJobPayloadForSupabase(payload)]);
+          if (!error) saved = true;
+          else if (!errorMsg) errorMsg = error.message;
+        } catch (e) {
+          if (!errorMsg) errorMsg = e.message;
+        }
+      }
+    }
+
+    if (saved) {
+      safeSessionRemove('kerja_public_jobs_cache');
+      await loadAdminJobs();
+      loadDashboardData();
+      renderOfficialJobsGrid();
+
+      showAdminToast('⚡ GAS BERHASIL!', `Lowongan "${updatedTitle}" (${updatedComp}) telah TERBIT di portal dengan ${currentFlyerSlides.length} gambar flyer (Slider Otomatis aktif)!`, 'success');
+      closePosterStudioModal();
+    } else {
+      alert('Gagal menerbitkan lowongan: ' + (errorMsg || 'Periksa status koneksi database/server.'));
+    }
+  } catch (err) {
+    console.error('publishJobFromStudio error:', err);
+    alert('Terjadi kesalahan saat menerbitkan: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    }
+    if (btnDirect) {
+      btnDirect.disabled = false;
+      btnDirect.innerHTML = '<i class="fa-solid fa-bolt"></i> Terbitkan';
+    }
+  }
+};
+
+// -------------------------------------------------------------
 // SAVE POSTER CHANGES (TO DATABASE OR TO UPLOAD FORM)
-// ==============================================================
+// -------------------------------------------------------------
 window.savePosterChangesToJob = async function() {
   const canvas = document.getElementById('poster-canvas');
   if (!canvas) return;
@@ -4661,6 +5291,13 @@ window.savePosterChangesToJob = async function() {
 
   try {
     const posterDataUrl = canvas.toDataURL('image/png');
+
+    if (currentFlyerSlides.length === 0) {
+      currentFlyerSlides = [posterDataUrl];
+    } else {
+      currentFlyerSlides[activeFlyerSlideIndex] = posterDataUrl;
+    }
+
     const compInp = document.getElementById('poster-input-company');
     const titleInp = document.getElementById('poster-input-title');
     const deadInp = document.getElementById('poster-input-deadline');
@@ -4679,14 +5316,11 @@ window.savePosterChangesToJob = async function() {
     const reqList = window.getDynamicListValues ? window.getDynamicListValues('poster-req-items') : [];
     const benList = window.getDynamicListValues ? window.getDynamicListValues('poster-ben-items') : [];
 
-    // Always update currentSelectedFileBase64 so if user saves/submits later, it has the poster
     currentSelectedFileBase64 = posterDataUrl;
 
     if (currentPosterJobData && currentPosterJobData.id) {
-      // 1. UPDATE EXISTING JOB IN DATABASE (Supabase Cloud + Local API)
       const jobId = Number(currentPosterJobData.id);
 
-      // Contact value formatting (merges website with existing whatsapp & email)
       let contacts = {};
       try {
         contacts = typeof currentPosterJobData.contact_value === 'string'
@@ -4698,6 +5332,7 @@ window.savePosterChangesToJob = async function() {
       if (updatedQr) {
         contacts.website = updatedQr;
       }
+      contacts.flyer_images = currentFlyerSlides;
       const contactValStr = JSON.stringify(contacts);
 
       const updatePayload = {
@@ -4708,6 +5343,7 @@ window.savePosterChangesToJob = async function() {
         requirements: reqList,
         benefits: benList,
         poster_image: posterDataUrl,
+        flyer_images: currentFlyerSlides,
         contact_value: contactValStr,
         updated_at: new Date().toISOString()
       };
@@ -4715,7 +5351,6 @@ window.savePosterChangesToJob = async function() {
       const supabaseUpdatePayload = prepareJobPayloadForSupabase(updatePayload);
 
       let saved = false;
-      // Try direct Supabase
       if (sbClient) {
         try {
           const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000));
@@ -4728,7 +5363,6 @@ window.savePosterChangesToJob = async function() {
         }
       }
 
-      // Sync to backend Express API if running
       try {
         const token = getAdminToken();
         const apiPayload = {
@@ -4747,7 +5381,6 @@ window.savePosterChangesToJob = async function() {
         if (res.ok) saved = true;
       } catch (e) {}
 
-      // Update in-memory job
       const idx = adminJobs.findIndex(j => Number(j.id) === jobId);
       if (idx >= 0) {
         adminJobs[idx] = {
@@ -4763,10 +5396,9 @@ window.savePosterChangesToJob = async function() {
         renderAdminJobsTable();
       }
 
-      showAdminToast('Berhasil Disimpan!', `Perubahan lowongan "${updatedTitle || 'Lowongan'}" & poster visual resmi berhasil diperbarui di Supabase Cloud.`, 'success');
+      showAdminToast('Berhasil Disimpan!', `Perubahan lowongan "${updatedTitle || 'Lowongan'}" (${currentFlyerSlides.length} slide) berhasil diperbarui di Supabase Cloud.`, 'success');
       closePosterStudioModal();
     } else {
-      // 2. SYNCHRONIZE BACK TO UPLOAD FORM
       const uploadForm = document.getElementById('form-upload-job');
       if (uploadForm) {
         if (updatedTitle) {
@@ -4786,14 +5418,12 @@ window.savePosterChangesToJob = async function() {
           if (wInp) wInp.value = updatedQr;
         }
 
-        // Sync dynamic lists to upload form
         if (window.setDynamicListValues) {
           window.setDynamicListValues('upload-resp-items', respList, 'responsibilities', 'upload-resp-counter');
           window.setDynamicListValues('upload-req-items', reqList, 'requirements', 'upload-req-counter');
           window.setDynamicListValues('upload-ben-items', benList, 'benefits', 'upload-ben-counter');
         }
 
-        // Set dropzone preview
         const dropzonePlaceholder = document.getElementById('dropzone-placeholder') || document.getElementById('dropzone-prompt');
         const previewWrapper = document.getElementById('poster-preview-wrapper') || document.getElementById('poster-preview');
         const previewImg = document.getElementById('poster-img-preview') || document.getElementById('poster-preview-img');
@@ -4802,12 +5432,11 @@ window.savePosterChangesToJob = async function() {
         if (previewWrapper) previewWrapper.style.display = 'block';
         if (dropzonePlaceholder) dropzonePlaceholder.style.display = 'none';
 
-        // Navigate to Upload tab
         const uploadNav = document.querySelector('li[data-tab="upload"]') || document.querySelector('a[href="#upload"]') || document.querySelector('a[href="#upload-job"]');
         if (uploadNav) uploadNav.click();
       }
 
-      showAdminToast('Tersimpan ke Formulir!', 'Seluruh teks yang Anda edit & gambar poster terbaru telah disinkronkan ke formulir upload siap dipublikasikan.', 'success');
+      showAdminToast('Tersimpan ke Formulir!', 'Seluruh teks yang Anda edit & gambar poster terbaru telah disinkronkan ke formulir upload.', 'success');
       closePosterStudioModal();
     }
   } catch (err) {
@@ -5105,6 +5734,7 @@ function setupOfficialVacancyGenerator() {
   if (btnUsePoster) btnUsePoster.addEventListener('click', usePosterForJob);
 
   // Render initial grid from live system & database (zero hardcode)
+  if (typeof initStoredCustomTemplate === 'function') initStoredCustomTemplate();
   populateOfficialVacanciesFromSystem('admin');
   startAdminAutoloadEngine();
 }

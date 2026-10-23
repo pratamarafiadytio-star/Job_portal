@@ -1239,6 +1239,9 @@
           </p>
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
+          <button type="button" class="btn btn-sm btn-primary" id="btn-studio-publish-direct" onclick="publishJobFromStudio()" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 800; border-radius: 10px; padding: 8px 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35); color: #fff; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-bolt"></i> Terbitkan ke Portal
+          </button>
           <button type="button" class="btn btn-sm btn-primary" onclick="savePosterChangesToJob()" style="background: linear-gradient(135deg, #4f46e5, #6366f1); border: none; font-weight: 800; border-radius: 10px; padding: 8px 16px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
             <i class="fa-solid fa-floppy-disk"></i> Simpan
           </button>
@@ -1258,14 +1261,43 @@
               <i class="fa-solid fa-expand"></i> Resolusi Ultra-HD: 1080 x 1350 px (Format Instagram 4:5 / WA Status)
             </div>
 
+            <!-- MULTI-SLIDE FLYER STRIP -->
+            <div class="poster-slides-box" style="margin-top: 12px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 10px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-size: 0.8rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                  <i class="fa-solid fa-images" style="color: #4f46e5;"></i> Slide Flyer: <span id="flyer-slides-badge" style="background: #e0e7ff; color: #4338ca; padding: 2px 7px; border-radius: 12px; font-size: 0.72rem; font-weight: 800;">1 Gambar</span>
+                </span>
+                <div style="display: flex; gap: 4px;">
+                  <button type="button" class="btn btn-outline btn-xs" onclick="addCurrentCanvasAsNewSlide()" title="Tambah slide baru" style="font-size: 0.7rem; padding: 3px 8px; border-radius: 6px;">
+                    <i class="fa-solid fa-plus"></i> + Slide Baru
+                  </button>
+                  <button type="button" class="btn btn-outline btn-xs" onclick="document.getElementById('flyer-extra-upload-input').click()" title="Upload gambar flyer ke-2 atau ke-3" style="font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; color: #059669; border-color: #a7f3d0;">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload
+                  </button>
+                  <input type="file" id="flyer-extra-upload-input" accept="image/*" multiple style="display: none;" onchange="handleExtraFlyerUpload(event)">
+                </div>
+              </div>
+              <div id="flyer-slides-strip" style="display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px; min-height: 60px; align-items: center;">
+                <!-- Dynamically rendered slide thumbnails -->
+              </div>
+              <div style="font-size: 0.7rem; color: #64748b; margin-top: 6px; text-align: center;">
+                * Tambahkan 2 atau lebih flyer untuk mengaktifkan <strong>Slider Otomatis</strong> di portal pengunjung.
+              </div>
+            </div>
+
             <!-- ACTION BUTTONS -->
             <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;">
+              <!-- Tombol Terbitkan Semua Slide ke Portal (Gas!) -->
+              <button type="button" class="btn btn-primary" id="btn-publish-all-slides" onclick="publishJobFromStudio()" style="padding: 13px; font-weight: 800; font-size: 0.95rem; background: linear-gradient(135deg, #059669, #10b981); border: none; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4); color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+                <i class="fa-solid fa-bolt"></i> Terbitkan ke Portal Sekarang (Gas!) 🚀
+              </button>
+
               <!-- Tombol Simpan Perubahan ke Lowongan (Featured & Glowing) -->
-              <button type="button" class="btn btn-primary" id="btn-save-poster-changes" onclick="savePosterChangesToJob()" style="padding: 13px; font-weight: 800; font-size: 0.95rem; background: linear-gradient(135deg, #4f46e5, #6366f1); border: none; box-shadow: 0 4px 16px rgba(79, 70, 229, 0.4); color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+              <button type="button" class="btn btn-primary" id="btn-save-poster-changes" onclick="savePosterChangesToJob()" style="padding: 12px; font-weight: 800; font-size: 0.92rem; background: linear-gradient(135deg, #4f46e5, #6366f1); border: none; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35); color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
                 <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan ke Lowongan 💾
               </button>
 
-              <button type="button" class="btn btn-primary" id="btn-download-poster-png" style="padding: 12px; font-weight: 800; font-size: 0.92rem; background: linear-gradient(135deg, #059669, #10b981); border: none; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <button type="button" class="btn btn-primary" id="btn-download-poster-png" style="padding: 11px; font-weight: 800; font-size: 0.9rem; background: #334155; border: none; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
                 <i class="fa-solid fa-download"></i> Download Gambar Poster (PNG)
               </button>
 
@@ -1274,7 +1306,7 @@
                   <i class="fa-regular fa-copy"></i> Salin Gambar
                 </button>
                 <button type="button" class="btn btn-outline btn-sm" id="btn-use-poster-for-job" style="flex: 1; font-size: 0.8rem; color: #4f46e5; border-color: #c7d2fe; border-radius: 10px;">
-                  <i class="fa-solid fa-cloud-arrow-up"></i> Jadikan Poster Loker
+                  <i class="fa-solid fa-cloud-arrow-up"></i> Jadikan Poster Form
                 </button>
               </div>
             </div>
@@ -1282,6 +1314,73 @@
 
           <!-- RIGHT: CONTROLS & AUTO-EXTRACTED DATA -->
           <div class="poster-controls-col">
+            
+            <!-- TEMPLATE DESAIN FLYER SELECTOR -->
+            <div class="poster-control-card" style="border-left: 4px solid #4f46e5; background: #faf5ff;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <label class="form-label" style="margin-bottom: 0; font-weight: 800; color: #0f172a;"><i class="fa-solid fa-layer-group" style="color: #7c3aed;"></i> Pilih Template Desain Flyer:</label>
+                <span style="font-size: 0.72rem; color: #7c3aed; font-weight: 700;">Format Otomatis</span>
+              </div>
+              <div class="poster-theme-options" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <label class="poster-theme-pill active" id="tpl-pill-chocomory">
+                  <input type="radio" name="flyer_template" value="chocomory" checked style="display: none;" onchange="onFlyerTemplateChanged('chocomory')">
+                  <i class="fa-solid fa-bullhorn" style="color: #f97316;"></i>
+                  <span>Style Megafon Chocomory (Contoh)</span>
+                </label>
+                <label class="poster-theme-pill" id="tpl-pill-modern">
+                  <input type="radio" name="flyer_template" value="modern" style="display: none;" onchange="onFlyerTemplateChanged('modern')">
+                  <i class="fa-brands fa-instagram" style="color: #e1306c;"></i>
+                  <span>Instagram Modern Feed</span>
+                </label>
+                <label class="poster-theme-pill" id="tpl-pill-factory">
+                  <input type="radio" name="flyer_template" value="factory" style="display: none;" onchange="onFlyerTemplateChanged('factory')">
+                  <i class="fa-solid fa-industry" style="color: #1e40af;"></i>
+                  <span>Manufaktur & Pabrik</span>
+                </label>
+                <label class="poster-theme-pill" id="tpl-pill-bumn">
+                  <input type="radio" name="flyer_template" value="bumn" style="display: none;" onchange="onFlyerTemplateChanged('bumn')">
+                  <i class="fa-solid fa-landmark" style="color: #059669;"></i>
+                  <span>BUMN & Korporat Elegan</span>
+                </label>
+                <label class="poster-theme-pill" id="tpl-pill-custom">
+                  <input type="radio" name="flyer_template" value="custom" style="display: none;" onchange="onFlyerTemplateChanged('custom')">
+                  <i class="fa-solid fa-file-arrow-up" style="color: #6366f1;"></i>
+                  <span>Template Kosong Kustom (Upload)</span>
+                </label>
+              </div>
+
+              <!-- UPLOAD TEMPLATE KOSONG (BACKGROUND DESAIN SENDIRI) -->
+              <div id="custom-template-upload-box" style="margin-top: 10px; padding: 12px; background: #ffffff; border: 1.5px dashed #cbd5e1; border-radius: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <div>
+                    <div style="font-size: 0.78rem; font-weight: 700; color: #1e293b;">
+                      <i class="fa-solid fa-cloud-arrow-up" style="color: #4f46e5;"></i> Upload Template Kosong (Desain Anda):
+                    </div>
+                    <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">
+                      Upload gambar frame / background kosong. Teks lowongan & karakter orang akan otomatis digambar di atasnya!
+                    </div>
+                  </div>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('flyer-custom-template-input').click()" style="font-size: 0.76rem; white-space: nowrap; border-color: #c7d2fe; color: #4338ca;">
+                    <i class="fa-solid fa-folder-open"></i> Pilih File
+                  </button>
+                  <input type="file" id="flyer-custom-template-input" accept="image/*" style="display: none;" onchange="handleCustomTemplateUpload(event)">
+                </div>
+
+                <div id="custom-template-badge-row" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; align-items: center; justify-content: space-between;">
+                  <span style="font-size: 0.74rem; color: #059669; font-weight: 700; display: flex; align-items: center; gap: 5px;">
+                    <i class="fa-solid fa-circle-check"></i> Template aktif: <span id="custom-template-file-name">template_kosong.png</span>
+                  </span>
+                  <button type="button" class="btn-table" onclick="removeCustomTemplate()" title="Hapus Template" style="color: #ef4444; font-size: 0.75rem;"><i class="fa-solid fa-trash"></i> Hapus</button>
+                </div>
+
+                <div style="margin-top: 8px;">
+                  <label style="font-size: 0.76rem; color: #334155; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="custom-tpl-draw-mascot" checked onchange="renderPosterCanvas()">
+                    <span>Sertakan Gambar Karakter Orang / Maskot Megafon pada Template Kosong</span>
+                  </label>
+                </div>
+              </div>
+            </div>
             
             <!-- THEME SELECTOR -->
             <div class="poster-control-card">

@@ -2600,6 +2600,76 @@ body {
   display: inline-block;
 }
 
+/* Multi-Flyer Slide Manager Strip */
+.poster-slides-box {
+  transition: all 0.2s ease;
+}
+
+.flyer-slide-thumb {
+  position: relative;
+  width: 52px;
+  height: 65px;
+  border-radius: 8px;
+  border: 2px solid #cbd5e1;
+  overflow: hidden;
+  cursor: pointer;
+  background: #f1f5f9;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.flyer-slide-thumb:hover {
+  border-color: #6366f1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.2);
+}
+
+.flyer-slide-thumb.active {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.35);
+  transform: scale(1.04);
+}
+
+.flyer-slide-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.flyer-slide-thumb .slide-num-badge {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.flyer-slide-thumb .slide-delete-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.55rem;
+  border: none;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.flyer-slide-thumb:hover .slide-delete-btn {
+  display: flex;
+}
+
 /* ==============================================================
    AUTOLOAD REAL-TIME ENGINE & FRESH JOBS STYLES
    ============================================================== */

@@ -1013,6 +1013,9 @@ function setupModalDismiss(modalId) {
   modal.addEventListener('click', (e) => {
     if (e.target === modal || e.target.closest('.modal-close-btn') || e.target.classList.contains('lightbox-close-btn')) {
       modal.classList.remove('active');
+      if (modalId === 'job-detail-modal') {
+        stopJobFlyerCarousel();
+      }
     }
   });
 }
@@ -1855,6 +1858,181 @@ function openLightbox(imgSrc, title) {
   }
 }
 
+// ==============================================================
+// MULTI-FLYER AUTO-SLIDING CAROUSEL ENGINE
+// ==============================================================
+let activeJobFlyerSlide = 0;
+let jobFlyerCarouselTimer = null;
+let currentJobFlyerImages = [];
+let currentJobCarouselJobId = null;
+let isJobCarouselPaused = false;
+
+function getJobFlyerImages(job) {
+  const images = [];
+  if (!job) return images;
+
+  // 1. Direct flyer_images array or JSON string
+  if (Array.isArray(job.flyer_images) && job.flyer_images.length > 0) {
+    job.flyer_images.forEach(img => {
+      if (img && typeof img === 'string' && img.trim()) images.push(img.trim());
+    });
+  } else if (typeof job.flyer_images === 'string' && job.flyer_images.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(job.flyer_images);
+      if (Array.isArray(parsed)) {
+        parsed.forEach(img => {
+          if (img && typeof img === 'string' && img.trim()) images.push(img.trim());
+        });
+      }
+    } catch (e) {}
+  }
+
+  // 2. Check contact_value JSON
+  if (images.length === 0 && job.contact_value) {
+    try {
+      const cv = typeof job.contact_value === 'string' ? JSON.parse(job.contact_value) : job.contact_value;
+      if (cv && Array.isArray(cv.flyer_images) && cv.flyer_images.length > 0) {
+        cv.flyer_images.forEach(img => {
+          if (img && typeof img === 'string' && img.trim()) images.push(img.trim());
+        });
+      }
+    } catch (e) {}
+  }
+
+  // 3. Check poster_image
+  if (images.length === 0 && job.poster_image) {
+    const p = String(job.poster_image).trim();
+    if (p.startsWith('[') && p.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(p);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(img => {
+            if (img && typeof img === 'string' && img.trim()) images.push(img.trim());
+          });
+        }
+      } catch (e) {}
+    } else if (p) {
+      images.push(p);
+    }
+  }
+
+  // 4. Fallback if still empty
+  if (images.length === 0) {
+    images.push(getEffectiveJobPoster(job));
+  }
+
+  return images.filter(Boolean);
+}
+
+function initJobFlyerCarousel(jobId, images) {
+  stopJobFlyerCarousel();
+  currentJobCarouselJobId = jobId;
+  currentJobFlyerImages = images;
+  activeJobFlyerSlide = 0;
+  isJobCarouselPaused = false;
+
+  if (!images || images.length <= 1) return;
+
+  // Auto-slide every 3.5 seconds
+  jobFlyerCarouselTimer = setInterval(() => {
+    if (!isJobCarouselPaused) {
+      nextJobSlide(jobId, true);
+    }
+  }, 3500);
+}
+
+function stopJobFlyerCarousel() {
+  if (jobFlyerCarouselTimer) {
+    clearInterval(jobFlyerCarouselTimer);
+    jobFlyerCarouselTimer = null;
+  }
+}
+
+window.pauseJobFlyerCarousels = function(jobId) {
+  isJobCarouselPaused = true;
+};
+
+window.resumeJobFlyerCarousels = function(jobId) {
+  isJobCarouselPaused = false;
+};
+
+window.goToJobSlide = function(jobId, index) {
+  if (!currentJobFlyerImages || currentJobFlyerImages.length === 0) return;
+  activeJobFlyerSlide = (index + currentJobFlyerImages.length) % currentJobFlyerImages.length;
+  updateJobCarouselDOM(jobId);
+};
+
+window.nextJobSlide = function(jobId, isAuto = false) {
+  if (!currentJobFlyerImages || currentJobFlyerImages.length === 0) return;
+  activeJobFlyerSlide = (activeJobFlyerSlide + 1) % currentJobFlyerImages.length;
+  updateJobCarouselDOM(jobId);
+};
+
+window.prevJobSlide = function(jobId) {
+  if (!currentJobFlyerImages || currentJobFlyerImages.length === 0) return;
+  activeJobFlyerSlide = (activeJobFlyerSlide - 1 + currentJobFlyerImages.length) % currentJobFlyerImages.length;
+  updateJobCarouselDOM(jobId);
+};
+
+function updateJobCarouselDOM(jobId) {
+  const total = currentJobFlyerImages.length;
+  const currentIdx = activeJobFlyerSlide;
+
+  // 1. Update Hero Carousel Slides
+  const heroContainer = document.getElementById(`hero-carousel-${jobId}`);
+  if (heroContainer) {
+    const slides = heroContainer.querySelectorAll('.carousel-slide');
+    slides.forEach((sl, i) => {
+      sl.classList.toggle('active', i === currentIdx);
+    });
+    const dots = heroContainer.querySelectorAll('.carousel-dot');
+    dots.forEach((dot, i) => {
+      dot.classList.toggle('active', i === currentIdx);
+    });
+    const counter = document.getElementById(`hero-slide-num-${jobId}`);
+    if (counter) counter.textContent = currentIdx + 1;
+  }
+
+  // 2. Update Sidebar Carousel Slides
+  const sideContainer = document.getElementById(`sidebar-carousel-${jobId}`);
+  if (sideContainer) {
+    const sideSlides = sideContainer.querySelectorAll('.side-slide');
+    sideSlides.forEach((sl, i) => {
+      sl.classList.toggle('active', i === currentIdx);
+    });
+    const sideDots = sideContainer.querySelectorAll('.side-dot');
+    sideDots.forEach((dot, i) => {
+      dot.classList.toggle('active', i === currentIdx);
+    });
+    const sideCounter = document.getElementById(`side-slide-num-${jobId}`);
+    if (sideCounter) sideCounter.textContent = currentIdx + 1;
+  }
+}
+
+window.openActiveJobLightbox = function(jobId) {
+  if (!currentJobFlyerImages || currentJobFlyerImages.length === 0) return;
+  const currentSrc = currentJobFlyerImages[activeJobFlyerSlide] || currentJobFlyerImages[0];
+  openLightbox(currentSrc, `Poster Lowongan (Slide ${activeJobFlyerSlide + 1})`);
+};
+
+window.downloadActiveJobSlide = function(jobId) {
+  if (!currentJobFlyerImages || currentJobFlyerImages.length === 0) return;
+  const currentSrc = currentJobFlyerImages[activeJobFlyerSlide] || currentJobFlyerImages[0];
+  const a = document.createElement('a');
+  a.href = currentSrc;
+  a.download = `flyer_loker_slide_${activeJobFlyerSlide + 1}.png`;
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
+window.openLightboxSlide = function(jobId, slideIndex) {
+  if (!currentJobFlyerImages || currentJobFlyerImages.length === 0) return;
+  const currentSrc = currentJobFlyerImages[slideIndex] || currentJobFlyerImages[0];
+  openLightbox(currentSrc, `Poster Lowongan (Slide ${slideIndex + 1})`);
+};
+
 // Open Detail Modal
 function openJobDetail(jobId) {
   const rawJob = rawAllJobs.find(j => Number(j.id) === Number(jobId));
@@ -1877,7 +2055,9 @@ function openJobDetail(jobId) {
     sbClient.from('jobs').update({ views_count: (job.views_count || 0) + 1 }).eq('id', job.id).then();
   }
 
-  const posterSrc = getEffectiveJobPoster(job);
+  const flyerImages = getJobFlyerImages(job);
+  const posterSrc = flyerImages[0] || getEffectiveJobPoster(job);
+  const isMultiFlyer = flyerImages.length > 1;
 
   const contacts = extractJobContacts(job);
   const contactBtnHtml = renderContactButton(job);
@@ -1893,9 +2073,27 @@ function openJobDetail(jobId) {
   const safeCompany = (job.company_name || '').replace(/'/g, "\\'");
 
   content.innerHTML = `
-    <!-- Banner / Poster Highlight -->
-    <div class="modal-hero-banner">
-      <img src="${posterSrc}" alt="${escapeHtml(job.title)}" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
+    <!-- Banner / Poster Highlight (Auto-Sliding Carousel if > 1 flyer) -->
+    <div class="modal-hero-banner ${isMultiFlyer ? 'flyer-carousel-container' : ''}" id="hero-carousel-${job.id}" ${isMultiFlyer ? `onmouseenter="pauseJobFlyerCarousels(${job.id})" onmouseleave="resumeJobFlyerCarousels(${job.id})"` : ''}>
+      ${isMultiFlyer ? `
+        <div class="carousel-track">
+          ${flyerImages.map((src, i) => `
+            <div class="carousel-slide ${i === 0 ? 'active' : ''}" data-index="${i}">
+              <img src="${src}" alt="${escapeHtml(job.title)} - Slide ${i+1}" onclick="openLightboxSlide(${job.id}, ${i})" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
+            </div>
+          `).join('')}
+        </div>
+        <button type="button" class="carousel-nav-btn prev" onclick="event.stopPropagation(); prevJobSlide(${job.id})" aria-label="Slide Sebelumnya"><i class="fa-solid fa-chevron-left"></i></button>
+        <button type="button" class="carousel-nav-btn next" onclick="event.stopPropagation(); nextJobSlide(${job.id})" aria-label="Slide Selanjutnya"><i class="fa-solid fa-chevron-right"></i></button>
+        <div class="carousel-dots-indicator">
+          ${flyerImages.map((_, i) => `<span class="carousel-dot ${i === 0 ? 'active' : ''}" onclick="event.stopPropagation(); goToJobSlide(${job.id}, ${i})"></span>`).join('')}
+        </div>
+        <div class="carousel-counter-badge">
+          <i class="fa-solid fa-images"></i> <span id="hero-slide-num-${job.id}">1</span>/${flyerImages.length} ⚡ Auto-Slide
+        </div>
+      ` : `
+        <img src="${posterSrc}" alt="${escapeHtml(job.title)}" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
+      `}
       <div class="modal-banner-overlay">
         <div class="modal-header-info">
           <h2>${escapeHtml(job.title)}</h2>
@@ -2007,19 +2205,37 @@ function openJobDetail(jobId) {
           <!-- Primary CTA Buttons (WhatsApp / Email / Website Multi-Channel) -->
           ${contactBtnHtml}
 
-          <!-- Poster Showcase -->
-          <div class="poster-showcase-box">
-            <p style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
-              <i class="fa-solid fa-file-image"></i> ${isManualJobFlyer(job) ? 'POSTER REKRUTMEN RESMI' : 'FOTO & LOGO RESMI PERUSAHAAN'}
+          <!-- Poster Showcase (Auto-Sliding Carousel if > 1 flyer) -->
+          <div class="poster-showcase-box ${isMultiFlyer ? 'sidebar-flyer-carousel' : ''}" id="sidebar-carousel-${job.id}">
+            <p style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+              <span><i class="fa-solid fa-images"></i> ${isManualJobFlyer(job) ? 'POSTER REKRUTMEN RESMI' : 'FOTO & FLYER RESMI'}</span>
+              ${isMultiFlyer ? `<span class="badge-slide-count" style="font-size: 0.72rem; color: var(--primary); font-weight: 800;"><span id="side-slide-num-${job.id}">1</span> / ${flyerImages.length}</span>` : ''}
             </p>
-            <img src="${posterSrc}" alt="Foto Lowongan" onclick="openJobPosterById(${job.id})" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
+            ${isMultiFlyer ? `
+              <div class="side-carousel-wrapper" onmouseenter="pauseJobFlyerCarousels(${job.id})" onmouseleave="resumeJobFlyerCarousels(${job.id})">
+                <div class="side-carousel-track">
+                  ${flyerImages.map((src, i) => `
+                    <div class="side-slide ${i === 0 ? 'active' : ''}" data-index="${i}">
+                      <img src="${src}" alt="Poster Slide ${i+1}" onclick="openLightboxSlide(${job.id}, ${i})" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
+                    </div>
+                  `).join('')}
+                </div>
+                <button type="button" class="side-nav-btn prev" onclick="event.stopPropagation(); prevJobSlide(${job.id})"><i class="fa-solid fa-chevron-left"></i></button>
+                <button type="button" class="side-nav-btn next" onclick="event.stopPropagation(); nextJobSlide(${job.id})"><i class="fa-solid fa-chevron-right"></i></button>
+              </div>
+              <div class="side-carousel-dots">
+                ${flyerImages.map((_, i) => `<span class="side-dot ${i === 0 ? 'active' : ''}" onclick="event.stopPropagation(); goToJobSlide(${job.id}, ${i})"></span>`).join('')}
+              </div>
+            ` : `
+              <img src="${posterSrc}" alt="Foto Lowongan" onclick="openJobPosterById(${job.id})" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
+            `}
             <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: center;">
-              <button type="button" class="btn btn-outline btn-sm" onclick="openJobPosterById(${job.id})">
+              <button type="button" class="btn btn-outline btn-sm" onclick="openActiveJobLightbox(${job.id})">
                 <i class="fa-solid fa-expand"></i> Perbesar
               </button>
-              <a href="${posterSrc}" target="_blank" download class="btn btn-outline btn-sm">
+              <button type="button" class="btn btn-outline btn-sm" onclick="downloadActiveJobSlide(${job.id})">
                 <i class="fa-solid fa-download"></i> Unduh Foto
-              </a>
+              </button>
             </div>
           </div>
 
@@ -2100,19 +2316,20 @@ function openJobDetail(jobId) {
                 </div>
               </div>
             ` : ''}
+
           </div>
 
-          <!-- Bagikan Lowongan -->
-          <div class="sidebar-card" style="text-align: center;">
-            <div class="sidebar-card-title" style="margin-bottom: 10px;">
-              <i class="fa-solid fa-share-nodes"></i> Bagikan Info Lowongan
+          <!-- Share Section -->
+          <div class="share-box">
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
+              <i class="fa-solid fa-share-nodes"></i> Bagikan Info Lowongan Ini:
             </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              <button type="button" class="btn btn-sm" style="background: #25d366; color: white; border: none; font-weight: 700;" onclick="shareWhatsApp('${safeTitle}', '${safeCompany}')">
-                <i class="fa-brands fa-whatsapp"></i> Bagikan via WhatsApp
+            <div class="share-btns">
+              <button type="button" class="share-btn share-wa" onclick="shareWhatsApp('${safeTitle}', '${safeCompany}')" title="Bagikan ke WhatsApp">
+                <i class="fa-brands fa-whatsapp"></i> WhatsApp
               </button>
-              <button type="button" class="btn btn-outline btn-sm" onclick="copyJobLink(${job.id})">
-                <i class="fa-solid fa-link"></i> Salin Tautan Lowongan
+              <button type="button" class="share-btn share-copy" onclick="copyJobLink(${job.id})" title="Salin Tautan">
+                <i class="fa-regular fa-copy"></i> Salin Tautan
               </button>
             </div>
           </div>
@@ -2123,7 +2340,13 @@ function openJobDetail(jobId) {
   `;
 
   modal.classList.add('active');
+
+  // Initialize auto-sliding carousel if multiple flyer slides exist
+  if (isMultiFlyer) {
+    initJobFlyerCarousel(job.id, flyerImages);
+  }
 }
+
 
 // Notice for Locked / Expired Jobs
 window.showLockedNotice = function(jobTitle) {
