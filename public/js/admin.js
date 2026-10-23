@@ -38,6 +38,160 @@ async function safeFetchJson(url, options = {}) {
   }
 }
 
+function safeEscapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ==============================================================
+// MODERN TOAST NOTIFICATION ENGINE (POPUP ADMIN)
+// ==============================================================
+window.showAdminToast = function(titleOrMsg, maybeMsg, type = 'success', duration = 3800) {
+  let title = '';
+  let message = '';
+  if (maybeMsg !== undefined && maybeMsg !== null) {
+    title = titleOrMsg;
+    message = maybeMsg;
+  } else {
+    message = titleOrMsg || '';
+    if (type === 'success') title = 'Berhasil';
+    else if (type === 'error') title = 'Perhatian / Gagal';
+    else if (type === 'warning') title = 'Peringatan';
+    else title = 'Informasi';
+  }
+
+  let container = document.getElementById('admin-toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'admin-toast-container';
+    container.className = 'admin-toast-container';
+    document.body.appendChild(container);
+  }
+
+  const icons = {
+    success: '<i class="fa-solid fa-circle-check"></i>',
+    error: '<i class="fa-solid fa-circle-exclamation"></i>',
+    warning: '<i class="fa-solid fa-triangle-exclamation"></i>',
+    info: '<i class="fa-solid fa-circle-info"></i>'
+  };
+
+  const toast = document.createElement('div');
+  toast.className = `admin-toast toast-${type}`;
+  toast.innerHTML = `
+    <div class="toast-icon-wrapper">${icons[type] || icons.info}</div>
+    <div class="toast-content">
+      <div class="toast-title">${safeEscapeHtml(title)}</div>
+      <div class="toast-message">${safeEscapeHtml(message).replace(/\n/g, '<br>')}</div>
+    </div>
+    <button type="button" class="toast-close-btn" aria-label="Tutup">&times;</button>
+    <div class="toast-progress-bar"><div class="toast-progress-fill"></div></div>
+  `;
+
+  container.appendChild(toast);
+
+  // Close handler
+  const closeToast = () => {
+    toast.classList.add('admin-toast-leaving');
+    setTimeout(() => {
+      toast.remove();
+    }, 320);
+  };
+
+  const closeBtn = toast.querySelector('.toast-close-btn');
+  if (closeBtn) closeBtn.onclick = closeToast;
+
+  // Auto dismiss with animated progress
+  const progressFill = toast.querySelector('.toast-progress-fill');
+  if (progressFill && duration > 0) {
+    progressFill.style.transition = `width ${duration}ms linear`;
+    setTimeout(() => {
+      progressFill.style.width = '0%';
+    }, 15);
+  }
+
+  if (duration > 0) {
+    setTimeout(closeToast, duration);
+  }
+};
+
+// ==============================================================
+// MODERN CONFIRM DIALOG ENGINE (PROMISE BASED)
+// ==============================================================
+window.showAdminConfirm = function({ title = 'Konfirmasi', message = 'Lanjutkan tindakan?', confirmText = 'Ya, Lanjutkan', cancelText = 'Batal', type = 'danger' }) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('admin-confirm-modal');
+    if (!modal) {
+      resolve(confirm(`${title}\n\n${message}`));
+      return;
+    }
+
+    const titleEl = document.getElementById('confirm-title');
+    const msgEl = document.getElementById('confirm-message');
+    const btnCancel = document.getElementById('confirm-btn-cancel');
+    const btnProceed = document.getElementById('confirm-btn-proceed');
+    const ringEl = document.getElementById('confirm-icon-ring');
+    const iconEl = document.getElementById('confirm-icon');
+
+    if (titleEl) titleEl.textContent = title;
+    if (msgEl) msgEl.innerHTML = safeEscapeHtml(message).replace(/\n/g, '<br>');
+    if (btnCancel) btnCancel.textContent = cancelText;
+    if (btnProceed) {
+      btnProceed.textContent = confirmText;
+      btnProceed.className = type === 'danger' ? 'btn btn-danger' : 'btn btn-primary';
+    }
+
+    if (ringEl && iconEl) {
+      ringEl.className = `confirm-icon-ring ${type}`;
+      if (type === 'danger') {
+        iconEl.className = 'fa-solid fa-trash-can';
+      } else if (type === 'warning') {
+        iconEl.className = 'fa-solid fa-triangle-exclamation';
+      } else {
+        iconEl.className = 'fa-solid fa-circle-question';
+      }
+    }
+
+    modal.classList.add('active');
+    modal.style.display = 'flex';
+
+    const cleanup = (result) => {
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+      if (btnCancel) btnCancel.onclick = null;
+      if (btnProceed) btnProceed.onclick = null;
+      resolve(result);
+    };
+
+    if (btnCancel) btnCancel.onclick = () => cleanup(false);
+    if (btnProceed) btnProceed.onclick = () => cleanup(true);
+  });
+};
+
+// Smart window.alert routing to showAdminToast so no native popups are shown
+window.alert = function(msg) {
+  const str = String(msg || '');
+  let type = 'info';
+  let title = 'Pemberitahuan';
+
+  if (str.toLowerCase().includes('berhasil') || str.toLowerCase().includes('sukses') || str.toLowerCase().includes('gas selesai')) {
+    type = 'success';
+    title = 'Berhasil!';
+  } else if (str.toLowerCase().includes('gagal') || str.toLowerCase().includes('error') || str.toLowerCase().includes('kesalahan')) {
+    type = 'error';
+    title = 'Perhatian / Kendala';
+  } else if (str.toLowerCase().includes('harap') || str.toLowerCase().includes('wajib') || str.toLowerCase().includes('peringatan') || str.toLowerCase().includes('maksimal')) {
+    type = 'warning';
+    title = 'Peringatan';
+  }
+
+  window.showAdminToast(title, str, type);
+};
+
 async function initSupabaseClient() {
   // 1. Immediately initialize with client-side default Supabase credentials so it works on GitHub Pages, workdev, and static previews
   if (window.supabase && typeof window.supabase.createClient === 'function') {
@@ -1311,12 +1465,16 @@ window.toggleJobLock = async function(jobId, newStatus) {
     try {
       sessionStorage.setItem('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
     } catch (e) {}
+    const msg = newStatus === 'expired'
+      ? `Lowongan "${job.title}" telah dikunci (Expired & pendaftaran ditutup).`
+      : `Lowongan "${job.title}" berhasil diaktifkan kembali.`;
+    showAdminToast(newStatus === 'expired' ? 'Lowongan Dikunci' : 'Lowongan Aktif', msg, 'info');
   } else {
     // Revert optimistic update on failure
     job.status = prevStatus;
     renderAdminJobsTable();
     renderDashboardStats(adminJobs);
-    alert('Gagal mengubah status lowongan ke server.');
+    showAdminToast('Gagal Mengubah Status', 'Gagal mengubah status lowongan ke server.', 'error');
   }
 };
 
@@ -1324,7 +1482,14 @@ window.toggleJobLock = async function(jobId, newStatus) {
 // DELETE JOB (Optimistic UI Update)
 // -------------------------------------------------------------
 window.deleteJob = async function(jobId, title) {
-  if (!confirm(`Apakah Anda yakin ingin menghapus lowongan "${title}"?`)) return;
+  const confirmed = await showAdminConfirm({
+    title: 'Hapus Lowongan',
+    message: `Apakah Anda yakin ingin menghapus lowongan "${title}" secara permanen? Data yang telah dihapus tidak dapat dipulihkan.`,
+    confirmText: 'Ya, Hapus Lowongan',
+    cancelText: 'Batal',
+    type: 'danger'
+  });
+  if (!confirmed) return;
 
   const jobIdx = adminJobs.findIndex(j => Number(j.id) === Number(jobId));
   const removedJob = jobIdx !== -1 ? adminJobs[jobIdx] : null;
@@ -1358,6 +1523,7 @@ window.deleteJob = async function(jobId, title) {
     try {
       sessionStorage.setItem('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
     } catch (e) {}
+    showAdminToast('Lowongan Dihapus', `Lowongan "${title}" berhasil dihapus dari database.`, 'success');
   } else {
     // Revert optimistic deletion on failure
     if (removedJob && jobIdx !== -1) {
@@ -1365,7 +1531,7 @@ window.deleteJob = async function(jobId, title) {
       renderAdminJobsTable();
       renderDashboardStats(adminJobs);
     }
-    alert('Gagal menghapus lowongan dari database.');
+    showAdminToast('Gagal Menghapus', 'Gagal menghapus lowongan dari database.', 'error');
   }
 };
 
@@ -2686,6 +2852,8 @@ window.openPosterStudioFromExistingId = function(jobId) {
   };
 
   openPosterStudio({
+    id: job.id,
+    origin: 'table',
     title: job.title,
     company_name: job.company_name,
     responsibilities: parseJsonList(job.responsibilities),
@@ -3385,6 +3553,160 @@ function copyPosterToClipboard() {
   });
 }
 
+// ==============================================================
+// SAVE POSTER CHANGES (TO DATABASE OR TO UPLOAD FORM)
+// ==============================================================
+window.savePosterChangesToJob = async function() {
+  const canvas = document.getElementById('poster-canvas');
+  if (!canvas) return;
+
+  const btn = document.getElementById('btn-save-poster-changes');
+  const origBtnText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+  }
+
+  try {
+    const posterDataUrl = canvas.toDataURL('image/png');
+    const compInp = document.getElementById('poster-input-company');
+    const titleInp = document.getElementById('poster-input-title');
+    const deadInp = document.getElementById('poster-input-deadline');
+    const applyInp = document.getElementById('poster-input-apply-info');
+    const qrInp = document.getElementById('poster-input-qr-url');
+    const hashInp = document.getElementById('poster-input-hashtag');
+
+    const updatedComp = compInp ? compInp.value.trim() : '';
+    const updatedTitle = titleInp ? titleInp.value.trim() : '';
+    const updatedDead = deadInp ? deadInp.value.trim() : '';
+    const updatedApply = applyInp ? applyInp.value.trim() : '';
+    const updatedQr = qrInp ? qrInp.value.trim() : '';
+    const updatedHash = hashInp ? hashInp.value.trim() : '';
+
+    const respList = window.getDynamicListValues ? window.getDynamicListValues('poster-resp-items') : [];
+    const reqList = window.getDynamicListValues ? window.getDynamicListValues('poster-req-items') : [];
+    const benList = window.getDynamicListValues ? window.getDynamicListValues('poster-ben-items') : [];
+
+    // Always update currentSelectedFileBase64 so if user saves/submits later, it has the poster
+    currentSelectedFileBase64 = posterDataUrl;
+
+    if (currentPosterJobData && currentPosterJobData.id) {
+      // 1. UPDATE EXISTING JOB IN DATABASE (Supabase Cloud + Local API)
+      const jobId = Number(currentPosterJobData.id);
+      const updatePayload = {
+        title: updatedTitle || currentPosterJobData.title,
+        company_name: updatedComp || currentPosterJobData.company_name,
+        deadline: updatedDead,
+        responsibilities: JSON.stringify(respList),
+        requirements: JSON.stringify(reqList),
+        benefits: JSON.stringify(benList),
+        poster_image: posterDataUrl,
+        website_url: updatedQr || currentPosterJobData.official_url,
+        updated_at: new Date().toISOString()
+      };
+
+      let saved = false;
+      // Try direct Supabase
+      if (sbClient) {
+        try {
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000));
+          const updPromise = sbClient.from('jobs').update(updatePayload).eq('id', jobId);
+          const { error } = await Promise.race([updPromise, timeoutPromise]);
+          if (!error) saved = true;
+          else console.warn('Supabase update warning:', error);
+        } catch (e) {
+          console.warn('Supabase poster save error:', e);
+        }
+      }
+
+      // Sync to backend Express API if running
+      try {
+        const token = getAdminToken();
+        const res = await safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}`), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(updatePayload)
+        });
+        if (res.ok) saved = true;
+      } catch (e) {}
+
+      // Update in-memory job
+      const idx = adminJobs.findIndex(j => Number(j.id) === jobId);
+      if (idx >= 0) {
+        adminJobs[idx] = {
+          ...adminJobs[idx],
+          ...updatePayload,
+          responsibilities: respList,
+          requirements: reqList,
+          benefits: benList
+        };
+        try {
+          sessionStorage.setItem('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
+        } catch (e) {}
+        renderAdminJobsTable();
+      }
+
+      showAdminToast('Berhasil Disimpan!', `Perubahan lowongan "${updatedTitle || 'Lowongan'}" & poster visual resmi berhasil diperbarui di Supabase Cloud.`, 'success');
+      closePosterStudioModal();
+    } else {
+      // 2. SYNCHRONIZE BACK TO UPLOAD FORM
+      const uploadForm = document.getElementById('form-upload-job');
+      if (uploadForm) {
+        if (updatedTitle) {
+          const tInp = uploadForm.querySelector('[name="title"]');
+          if (tInp) tInp.value = updatedTitle;
+        }
+        if (updatedComp) {
+          const cInp = uploadForm.querySelector('[name="company_name"]');
+          if (cInp) cInp.value = updatedComp;
+        }
+        if (updatedDead) {
+          const dInp = uploadForm.querySelector('[name="deadline"]');
+          if (dInp) dInp.value = updatedDead;
+        }
+        if (updatedQr) {
+          const wInp = uploadForm.querySelector('[name="website"]');
+          if (wInp) wInp.value = updatedQr;
+        }
+
+        // Sync dynamic lists to upload form
+        if (window.setDynamicListValues) {
+          window.setDynamicListValues('upload-resp-items', respList, 'responsibilities', 'upload-resp-counter');
+          window.setDynamicListValues('upload-req-items', reqList, 'requirements', 'upload-req-counter');
+          window.setDynamicListValues('upload-ben-items', benList, 'benefits', 'upload-ben-counter');
+        }
+
+        // Set dropzone preview
+        const dropzonePlaceholder = document.getElementById('dropzone-placeholder') || document.getElementById('dropzone-prompt');
+        const previewWrapper = document.getElementById('poster-preview-wrapper') || document.getElementById('poster-preview');
+        const previewImg = document.getElementById('poster-img-preview') || document.getElementById('poster-preview-img');
+
+        if (previewImg) previewImg.src = posterDataUrl;
+        if (previewWrapper) previewWrapper.style.display = 'block';
+        if (dropzonePlaceholder) dropzonePlaceholder.style.display = 'none';
+
+        // Navigate to Upload tab
+        const uploadNav = document.querySelector('li[data-tab="upload"]') || document.querySelector('a[href="#upload"]') || document.querySelector('a[href="#upload-job"]');
+        if (uploadNav) uploadNav.click();
+      }
+
+      showAdminToast('Tersimpan ke Formulir!', 'Seluruh teks yang Anda edit & gambar poster terbaru telah disinkronkan ke formulir upload siap dipublikasikan.', 'success');
+      closePosterStudioModal();
+    }
+  } catch (err) {
+    console.error('savePosterChangesToJob error:', err);
+    showAdminToast('Gagal Menyimpan', 'Terjadi kendala saat menyimpan perubahan: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origBtnText;
+    }
+  }
+};
+
 function usePosterForJob() {
   const canvas = document.getElementById('poster-canvas');
   if (!canvas) return;
@@ -3405,7 +3727,7 @@ function usePosterForJob() {
   const uploadNav = document.querySelector('li[data-tab="upload"]') || document.querySelector('a[href="#upload"]') || document.querySelector('a[href="#upload-job"]');
   if (uploadNav) uploadNav.click();
 
-  alert('Poster yang baru di-generate telah disetel sebagai gambar resmi formulir upload!');
+  showAdminToast('Poster Disetel!', 'Poster yang baru di-generate telah disetel sebagai gambar resmi formulir upload.', 'success');
 }
 window.usePosterForJob = usePosterForJob;
 

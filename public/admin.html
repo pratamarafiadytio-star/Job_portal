@@ -1230,16 +1230,21 @@
   <!-- ============================================================== -->
   <div class="admin-modal-overlay" id="poster-studio-modal">
     <div class="admin-modal-box poster-studio-box">
-      <div class="admin-modal-header" style="background: linear-gradient(135deg, rgba(79,70,229,0.06), rgba(16,185,129,0.06));">
+      <div class="admin-modal-header" style="background: linear-gradient(135deg, rgba(79,70,229,0.08), rgba(16,185,129,0.08)); border-bottom: 1px solid rgba(226, 232, 240, 0.9); display: flex; align-items: center; justify-content: space-between; padding: 18px 24px;">
         <div>
-          <h3 style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; color: #1e1b4b; display: flex; align-items: center; gap: 8px;">
+          <h3 style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
             <i class="fa-solid fa-palette" style="color: #4f46e5;"></i> Studio Gambar Poster Lowongan Otomatis
           </h3>
           <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
             Informasi lowongan dari web otomatis dirender ke gambar flyer profesional siap download & diposting ke media sosial!
           </p>
         </div>
-        <button class="btn-table" onclick="closePosterStudioModal()" style="border-radius: 50%;"><i class="fa-solid fa-xmark"></i></button>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button type="button" class="btn btn-sm btn-primary" onclick="savePosterChangesToJob()" style="background: linear-gradient(135deg, #4f46e5, #6366f1); border: none; font-weight: 800; border-radius: 10px; padding: 8px 16px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+            <i class="fa-solid fa-floppy-disk"></i> Simpan
+          </button>
+          <button class="btn-table" onclick="closePosterStudioModal()" style="border-radius: 50%;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
       </div>
 
       <div class="admin-modal-body" style="padding: 20px;">
@@ -1256,15 +1261,20 @@
 
             <!-- ACTION BUTTONS -->
             <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;">
-              <button type="button" class="btn btn-primary" id="btn-download-poster-png" style="padding: 12px; font-weight: 800; font-size: 0.95rem; background: #059669; border-color: #059669;">
+              <!-- Tombol Simpan Perubahan ke Lowongan (Featured & Glowing) -->
+              <button type="button" class="btn btn-primary" id="btn-save-poster-changes" onclick="savePosterChangesToJob()" style="padding: 13px; font-weight: 800; font-size: 0.95rem; background: linear-gradient(135deg, #4f46e5, #6366f1); border: none; box-shadow: 0 4px 16px rgba(79, 70, 229, 0.4); color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+                <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan ke Lowongan 💾
+              </button>
+
+              <button type="button" class="btn btn-primary" id="btn-download-poster-png" style="padding: 12px; font-weight: 800; font-size: 0.92rem; background: linear-gradient(135deg, #059669, #10b981); border: none; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
                 <i class="fa-solid fa-download"></i> Download Gambar Poster (PNG)
               </button>
 
               <div style="display: flex; gap: 8px;">
-                <button type="button" class="btn btn-outline btn-sm" id="btn-copy-poster-clipboard" style="flex: 1; font-size: 0.8rem;">
+                <button type="button" class="btn btn-outline btn-sm" id="btn-copy-poster-clipboard" style="flex: 1; font-size: 0.8rem; border-radius: 10px;">
                   <i class="fa-regular fa-copy"></i> Salin Gambar
                 </button>
-                <button type="button" class="btn btn-outline btn-sm" id="btn-use-poster-for-job" style="flex: 1; font-size: 0.8rem; color: #4f46e5; border-color: #c7d2fe;">
+                <button type="button" class="btn btn-outline btn-sm" id="btn-use-poster-for-job" style="flex: 1; font-size: 0.8rem; color: #4f46e5; border-color: #c7d2fe; border-radius: 10px;">
                   <i class="fa-solid fa-cloud-arrow-up"></i> Jadikan Poster Loker
                 </button>
               </div>
@@ -1441,6 +1451,24 @@
 
   <!-- HIDDEN QR CODE HOLDER -->
   <div id="poster-qrcode-temp" style="display: none;"></div>
+
+  <!-- TOAST NOTIFICATION CONTAINER (POPUP ADMIN) -->
+  <div id="admin-toast-container" class="admin-toast-container" aria-live="polite"></div>
+
+  <!-- MODERN CONFIRM DIALOG MODAL -->
+  <div class="admin-modal-overlay" id="admin-confirm-modal" style="z-index: 999999; display: none;">
+    <div class="admin-modal-box admin-confirm-box">
+      <div class="confirm-icon-ring" id="confirm-icon-ring">
+        <i class="fa-solid fa-triangle-exclamation" id="confirm-icon"></i>
+      </div>
+      <h3 class="confirm-title" id="confirm-title">Konfirmasi Tindakan</h3>
+      <p class="confirm-message" id="confirm-message">Apakah Anda yakin ingin melanjutkan tindakan ini?</p>
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-outline" id="confirm-btn-cancel">Batal</button>
+        <button type="button" class="btn btn-primary" id="confirm-btn-proceed">Ya, Lanjutkan</button>
+      </div>
+    </div>
+  </div>
 
   <script src="./js/admin.js"></script>
 </body>
