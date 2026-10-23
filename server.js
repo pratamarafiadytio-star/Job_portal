@@ -1403,7 +1403,7 @@ function detectJobPlatformMeta(directUrl, rawTitle, sourceName, requestedPlatfor
       sourceWebsite: 'Facebook'
     };
   }
-  if (req === 'twitter') {
+  if (req === 'twitter' || req === 'x') {
     return {
       platform: 'twitter',
       platformLabel: 'X (Twitter) Karir',
@@ -1721,25 +1721,36 @@ async function fetchLivePortalJobs(keyword, location = 'Indonesia', platform = '
     }
   }
 
-  // 4. Merge system database jobs if searching all or matching
-  if (activePlat === 'all' || activePlat === 'corporate' || activePlat === 'web') {
+  // 4. Merge system database jobs if searching all or matching, OR as fallback if results are empty
+  if (results.length === 0 || activePlat === 'all' || activePlat === 'corporate' || activePlat === 'web') {
     try {
       const dbJobs = await (typeof db.getAllJobs === 'function' ? db.getAllJobs() : db.getJobs({ status: 'all' }));
       if (Array.isArray(dbJobs)) {
         const dbMatches = dbJobs.filter(j => {
           if (j.status === 'system_settings') return false;
+          if (results.length === 0) return true; // use active db jobs as fallback
           const text = `${j.title} ${j.company_name} ${j.location} ${j.category}`.toLowerCase();
           return text.includes(cleanKw.toLowerCase());
         });
 
         for (const dj of dbMatches) {
-          results.unshift({
+          let contacts = {};
+          try {
+            contacts = typeof dj.contact_value === 'string' ? JSON.parse(dj.contact_value) : (dj.contact_value || {});
+          } catch (e) {}
+
+          let fallbackPlat = contacts.source_platform || (activePlat !== 'all' ? activePlat : 'web');
+          let fallbackLabel = contacts.source_label || (activePlat === 'twitter' || activePlat === 'x' ? 'X (Twitter) Karir' : (activePlat === 'linkedin' ? 'LinkedIn Karir' : (activePlat === 'instagram' ? 'Instagram Karir' : (activePlat === 'facebook' ? 'Facebook Karir' : (activePlat === 'bumn' ? 'BUMN & Kedinasan' : (activePlat === 'media' ? 'Portal Berita Media' : 'Database Portal Resmi'))))));
+          let fallbackIcon = (activePlat === 'twitter' || activePlat === 'x') ? 'fa-brands fa-x-twitter' : (activePlat === 'linkedin' ? 'fa-brands fa-linkedin' : (activePlat === 'instagram' ? 'fa-brands fa-instagram' : (activePlat === 'facebook' ? 'fa-brands fa-facebook' : (activePlat === 'bumn' ? 'fa-solid fa-landmark' : (activePlat === 'media' ? 'fa-solid fa-newspaper' : 'fa-solid fa-building-circle-check')))));
+          let fallbackClass = activePlat !== 'all' ? activePlat : 'official';
+
+          results.push({
             id: `db_${dj.id}`,
             source: 'database',
-            platform: 'web',
-            platform_label: 'Database Portal Resmi',
-            platform_icon: 'fa-solid fa-building-circle-check',
-            platform_class: 'official',
+            platform: fallbackPlat,
+            platform_label: fallbackLabel,
+            platform_icon: fallbackIcon,
+            platform_class: fallbackClass,
             title: dj.title,
             company_name: dj.company_name,
             company: dj.company_name,
@@ -1802,6 +1813,7 @@ app.get(['/api/live-jobs', '/api/admin/live-jobs'], async (req, res) => {
       location: cleanLoc,
       platform: plat,
       count: jobs.length,
+      jobs: jobs,
       data: jobs
     });
   } catch (err) {

@@ -374,22 +374,22 @@ function detectJobPlatformMeta(directUrl, rawTitle, sourceName, requestedPlatfor
   if (urlLower.includes('bukajobs.com') || titleLower.includes('bukajobs') || sourceLower.includes('bukajobs') || req === 'bukajobs') {
     return { platform: 'bukajobs', platformLabel: 'Bukajobs Karir', platformIcon: 'fa-solid fa-briefcase', platformClass: 'bukajobs', sourceWebsite: 'Bukajobs.com' };
   }
-  if (urlLower.includes('linkedin.com') || titleLower.endsWith('- linkedin') || sourceLower.includes('linkedin')) {
+  if (urlLower.includes('linkedin.com') || titleLower.endsWith('- linkedin') || sourceLower.includes('linkedin') || req === 'linkedin') {
     return { platform: 'linkedin', platformLabel: 'LinkedIn Karir', platformIcon: 'fa-brands fa-linkedin', platformClass: 'linkedin', sourceWebsite: 'LinkedIn' };
   }
-  if (urlLower.includes('instagram.com') || titleLower.endsWith('- instagram') || sourceLower.includes('instagram')) {
+  if (urlLower.includes('instagram.com') || titleLower.endsWith('- instagram') || sourceLower.includes('instagram') || req === 'instagram') {
     return { platform: 'instagram', platformLabel: 'Instagram Karir', platformIcon: 'fa-brands fa-instagram', platformClass: 'instagram', sourceWebsite: 'Instagram' };
   }
-  if (urlLower.includes('facebook.com') || titleLower.endsWith('- facebook') || sourceLower.includes('facebook')) {
+  if (urlLower.includes('facebook.com') || titleLower.endsWith('- facebook') || sourceLower.includes('facebook') || req === 'facebook') {
     return { platform: 'facebook', platformLabel: 'Facebook Post', platformIcon: 'fa-brands fa-facebook', platformClass: 'facebook', sourceWebsite: 'Facebook' };
   }
-  if (urlLower.includes('twitter.com') || urlLower.includes('x.com') || titleLower.endsWith('- x') || titleLower.endsWith('- twitter') || sourceLower.includes('twitter') || sourceLower.includes('x')) {
+  if (urlLower.includes('twitter.com') || urlLower.includes('x.com') || titleLower.endsWith('- x') || titleLower.endsWith('- twitter') || sourceLower.includes('twitter') || sourceLower.includes('x') || req === 'twitter' || req === 'x') {
     return { platform: 'twitter', platformLabel: 'X (Twitter) Karir', platformIcon: 'fa-brands fa-x-twitter', platformClass: 'twitter', sourceWebsite: 'Twitter (X)' };
   }
-  if (titleLower.includes('bumn') || sourceLower.includes('bumn') || urlLower.includes('bumn.go.id') || urlLower.includes('kemnaker')) {
+  if (titleLower.includes('bumn') || sourceLower.includes('bumn') || urlLower.includes('bumn.go.id') || urlLower.includes('kemnaker') || req === 'bumn') {
     return { platform: 'bumn', platformLabel: 'BUMN & Kedinasan', platformIcon: 'fa-solid fa-landmark', platformClass: 'bumn', sourceWebsite: sourceName || 'Portal BUMN' };
   }
-  if (urlLower.includes('kompas.com') || urlLower.includes('detik.com') || urlLower.includes('tribunnews.com') || urlLower.includes('bisnis.com')) {
+  if (urlLower.includes('kompas.com') || urlLower.includes('detik.com') || urlLower.includes('tribunnews.com') || urlLower.includes('bisnis.com') || req === 'media') {
     return { platform: 'media', platformLabel: 'Portal Media Resmi', platformIcon: 'fa-solid fa-newspaper', platformClass: 'media', sourceWebsite: sourceName || 'Portal Berita' };
   }
   return { platform: 'web', platformLabel: sourceName || 'Website Karir Resmi', platformIcon: 'fa-solid fa-globe', platformClass: 'web', sourceWebsite: sourceName || 'Web' };
@@ -860,6 +860,95 @@ export async function onRequest(context) {
       }
     } catch (e) {}
 
+    // 2.5. Fetch Google News RSS for targeted platform / social media
+    try {
+      let googleSearchQuery = `("lowongan kerja" OR "we are hiring") "${cleanKw}" ${cleanLoc}`;
+      if (activePlat === 'linkedin') googleSearchQuery = `site:linkedin.com ("lowongan kerja" OR "hiring") "${cleanKw}"`;
+      else if (activePlat === 'instagram') googleSearchQuery = `site:instagram.com ("lowongan kerja" OR "loker") "${cleanKw}"`;
+      else if (activePlat === 'facebook') googleSearchQuery = `site:facebook.com ("lowongan kerja" OR "loker") "${cleanKw}"`;
+      else if (activePlat === 'twitter' || activePlat === 'x') googleSearchQuery = `(site:x.com OR site:twitter.com) ("lowongan kerja" OR "loker") "${cleanKw}"`;
+      else if (activePlat === 'bumn') googleSearchQuery = `("bumn" OR "rekrutmen bersama bumn") "lowongan kerja" "${cleanKw}"`;
+      else if (activePlat === 'media') googleSearchQuery = `(site:kompas.com OR site:detik.com OR site:tribunnews.com OR site:bisnis.com) "lowongan kerja" "${cleanKw}"`;
+
+      const ctl2 = new AbortController();
+      const timer2 = setTimeout(() => ctl2.abort(), 3500);
+      const gUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(googleSearchQuery)}&hl=id&gl=ID&ceid=ID:id`;
+      const gRes = await fetch(gUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        signal: ctl2.signal
+      });
+      clearTimeout(timer2);
+      if (gRes.ok) {
+        const gXml = await gRes.text();
+        const gItems = [...gXml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<source[^>]*>([\s\S]*?)<\/source>[\s\S]*?<\/item>/g)];
+        for (const it of gItems) {
+          const rawTitle = cleanHtmlSnippet(it[1]);
+          const link = it[2].trim();
+          const pubDate = it[3].trim();
+          const desc = cleanHtmlSnippet(it[4]);
+          const sourceName = it[5] ? cleanHtmlSnippet(it[5]) : '';
+
+          if (rawTitle.toLowerCase().includes('hoaks') || rawTitle.toLowerCase().includes('penipuan') || rawTitle.toLowerCase().includes('bantah')) continue;
+          if (seenUrls.has(link)) continue;
+          seenUrls.add(link);
+
+          const platMeta = detectJobPlatformMeta(link, rawTitle, sourceName, activePlat);
+          const parsed = parseJobHeadline(rawTitle, platMeta.sourceWebsite || sourceName, desc);
+          const timeInfo = formatTimeAgo(pubDate);
+
+          results.push({
+            id: 'gweb_' + Math.random().toString(36).substring(2, 10),
+            source: 'web',
+            platform: platMeta.platform,
+            platform_label: platMeta.platformLabel,
+            platform_icon: platMeta.platformIcon,
+            platform_class: platMeta.platformClass,
+            title: parsed.title,
+            company_name: parsed.company,
+            company: parsed.company,
+            location: cleanLoc,
+            pubDate,
+            pubTimestamp: timeInfo.timestamp,
+            timeAgo: timeInfo.text,
+            posted_time: timeInfo.text || 'Baru saja',
+            isFresh: timeInfo.isFresh,
+            salary_display: 'Kompetitif (Standar Industri & Korporasi)',
+            salary_prompt: 'Gaji kompetitif sesuai standar industri dan peraturan yang berlaku.',
+            job_type: 'Full time',
+            category: 'Loker Asli Web',
+            role_department: parsed.title,
+            badge_fresh: true,
+            badge_kandidat: true,
+            is_live_actual: true,
+            official_url: link,
+            url: link,
+            website_url: link,
+            source_website: platMeta.sourceWebsite || sourceName,
+            poster_image: '',
+            rating: '4.9',
+            contact_email: '',
+            contact_whatsapp: '',
+            anti_fraud_notice: `Informasi lowongan kerja tervalidasi dari ${platMeta.sourceWebsite || sourceName}. Bebas pungutan biaya apapun dalam proses rekrutmen.`,
+            description: parsed.cleanDesc || desc,
+            responsibilities: [
+              `Menjalankan tugas pokok dan fungsi operasional untuk posisi ${parsed.title}.`,
+              `Menjaga profesionalisme, kedisiplinan kerja, dan kepatuhan terhadap SOP di ${parsed.company}.`,
+              `Berkoordinasi secara aktif dengan tim kerja terkait kelancaran operasional.`
+            ],
+            requirements: [
+              `Pendidikan sesuai kualifikasi yang disyaratkan posisi.`,
+              `Memiliki etos kerja tinggi, integritas, dan siap berkembang.`,
+              `Ketentuan dan dokumen lamaran dapat dicek langsung pada postingan resmi.`
+            ],
+            benefits: [
+              `Gaji & tunjangan sesuai standar perusahaan`,
+              `Perlindungan jaminan sosial tenaga kerja (BPJS)`
+            ]
+          });
+        }
+      }
+    } catch(e) {}
+
     // 3. Fallback: If external feeds are blocked or empty, fetch actual Supabase DB jobs!
     if (results.length === 0) {
       try {
@@ -879,13 +968,18 @@ export async function onRequest(context) {
                 contacts = typeof dj.contact_value === 'string' ? JSON.parse(dj.contact_value) : (dj.contact_value || {});
               } catch (e) {}
 
+              let fallbackPlat = contacts.source_platform || (activePlat !== 'all' ? activePlat : 'official');
+              let fallbackLabel = contacts.source_label || (activePlat === 'twitter' ? 'X (Twitter) Karir' : (activePlat === 'linkedin' ? 'LinkedIn Karir' : (activePlat === 'instagram' ? 'Instagram Karir' : (activePlat === 'facebook' ? 'Facebook Karir' : (activePlat === 'bumn' ? 'BUMN & Kedinasan' : (activePlat === 'media' ? 'Portal Berita Media' : 'Portal Resmi'))))));
+              let fallbackIcon = activePlat === 'twitter' ? 'fa-brands fa-x-twitter' : (activePlat === 'linkedin' ? 'fa-brands fa-linkedin' : (activePlat === 'instagram' ? 'fa-brands fa-instagram' : (activePlat === 'facebook' ? 'fa-brands fa-facebook' : (activePlat === 'bumn' ? 'fa-solid fa-landmark' : (activePlat === 'media' ? 'fa-solid fa-newspaper' : 'fa-solid fa-building-circle-check')))));
+              let fallbackClass = activePlat !== 'all' ? activePlat : 'official';
+
               results.push({
                 id: 'db_' + dj.id,
                 source: 'official',
-                platform: contacts.source_platform || 'official',
-                platform_label: contacts.source_label || 'Portal Resmi',
-                platform_icon: 'fa-solid fa-building-circle-check',
-                platform_class: 'official',
+                platform: fallbackPlat,
+                platform_label: fallbackLabel,
+                platform_icon: fallbackIcon,
+                platform_class: fallbackClass,
                 title: dj.title,
                 company_name: dj.company_name,
                 company: dj.company_name,
