@@ -1111,6 +1111,14 @@ export async function onRequest(context) {
           contactObj.raw = contact_value;
         }
       }
+      if (bodyData.cover_image) {
+        contactObj.cover_image = bodyData.cover_image;
+      }
+      if (bodyData.flyer_images) {
+        try {
+          contactObj.flyer_images = typeof bodyData.flyer_images === 'string' ? JSON.parse(bodyData.flyer_images) : bodyData.flyer_images;
+        } catch (e) {}
+      }
       const finalContactVal = JSON.stringify(contactObj);
 
       const parseJsonList = (val) => {
@@ -1133,6 +1141,8 @@ export async function onRequest(context) {
         salary_display: salary_display || 'Kompetitif',
         experience_level: experience_level || 'Semua Tingkat',
         poster_image: poster_image || '',
+        cover_image: bodyData.cover_image || '',
+        flyer_images: contactObj.flyer_images || [],
         description: description.trim(),
         requirements: parseJsonList(requirements),
         responsibilities: parseJsonList(responsibilities),
@@ -1241,9 +1251,10 @@ export async function onRequest(context) {
 
         const allowedColumns = [
           'title', 'company_name', 'category', 'job_type', 'location',
-          'salary_display', 'experience_level', 'poster_image', 'description',
-          'requirements', 'responsibilities', 'benefits', 'contact_type',
-          'contact_value', 'deadline', 'status', 'is_featured', 'views_count'
+          'salary_display', 'experience_level', 'poster_image', 'cover_image',
+          'flyer_images', 'description', 'requirements', 'responsibilities',
+          'benefits', 'contact_type', 'contact_value', 'deadline', 'status',
+          'is_featured', 'views_count'
         ];
 
         const updateData = { updated_at: new Date().toISOString() };

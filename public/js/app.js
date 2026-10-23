@@ -217,6 +217,32 @@ window.cleanJobData = function(job) {
   copy._clean_status = statusVal;
   copy._clean_education = eduVal;
 
+  // Extract cover_image & flyer_images (from database columns or contact_value JSON)
+  let coverImg = copy.cover_image || '';
+  let flyers = Array.isArray(copy.flyer_images) ? [...copy.flyer_images] : [];
+  if (typeof copy.flyer_images === 'string' && copy.flyer_images.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(copy.flyer_images);
+      if (Array.isArray(parsed)) flyers = parsed;
+    } catch (e) {}
+  }
+  if (copy.contact_value) {
+    try {
+      const cv = typeof copy.contact_value === 'string' ? JSON.parse(copy.contact_value) : copy.contact_value;
+      if (cv) {
+        if (!coverImg && cv.cover_image) coverImg = cv.cover_image;
+        if ((!flyers || flyers.length === 0) && Array.isArray(cv.flyer_images)) {
+          flyers = cv.flyer_images;
+        }
+      }
+    } catch (e) {}
+  }
+  if ((!flyers || flyers.length === 0) && copy.poster_image && String(copy.poster_image).trim()) {
+    flyers = [copy.poster_image];
+  }
+  copy.cover_image = coverImg;
+  copy.flyer_images = (flyers || []).filter(Boolean);
+
   return copy;
 };
 
@@ -1580,11 +1606,18 @@ window.handlePublicPosterError = function(imgEl, jobId) {
   imgEl.src = generateCompanyBannerDataUrl(job || { company_name: 'KerjaHub', title: 'Lowongan Kerja' });
 };
 
-function getEffectiveJobPoster(job) {
+function getEffectiveJobCover(job) {
   if (!job) return '';
-  // 1. Manual flyer upload takes highest priority if present
-  if (isManualJobFlyer(job)) {
-    let p = String(job.poster_image).trim();
+  // 1. Explicit cover_image (from column or contact_value)
+  let cover = job.cover_image;
+  if (!cover && job.contact_value) {
+    try {
+      const cv = typeof job.contact_value === 'string' ? JSON.parse(job.contact_value) : job.contact_value;
+      if (cv && cv.cover_image) cover = cv.cover_image;
+    } catch (e) {}
+  }
+  if (cover && typeof cover === 'string' && cover.trim()) {
+    let p = cover.trim();
     if (p.startsWith('/uploads/')) p = '.' + p;
     return p;
   }
@@ -1598,17 +1631,41 @@ function getEffectiveJobPoster(job) {
     if (window._companyImagesCache[job.company_name]) return window._companyImagesCache[job.company_name];
     if (window._companyImagesCache[job.title]) return window._companyImagesCache[job.title];
   }
-  // 3. Dynamic corporate SVG branded banner with Company Name
+  // 3. Fallback to manual flyer if present
+  if (isManualJobFlyer(job)) {
+    let p = String(job.poster_image).trim();
+    if (p.startsWith('/uploads/')) p = '.' + p;
+    return p;
+  }
+  // 4. Dynamic corporate SVG branded banner with Company Name
   return generateCompanyBannerDataUrl(job);
+}
+
+function getEffectiveJobPoster(job) {
+  if (!job) return '';
+  const flyers = typeof getJobFlyerImages === 'function' ? getJobFlyerImages(job) : [];
+  const manualFlyer = flyers.find(src => isManualJobFlyer({ poster_image: src }));
+  if (manualFlyer) {
+    let p = manualFlyer;
+    if (p.startsWith('/uploads/')) p = '.' + p;
+    return p;
+  }
+  return getEffectiveJobCover(job);
 }
 
 function openJobPosterById(jobId) {
   const job = (rawAllJobs || []).find(j => Number(j.id) === Number(jobId)) || (window.rawAllJobs || []).find(j => Number(j.id) === Number(jobId));
   if (!job) return;
-  const posterSrc = getEffectiveJobPoster(job);
-  openLightbox(posterSrc, job.title);
+  const flyerList = typeof getJobFlyerImages === 'function' ? getJobFlyerImages(job).filter(src => isManualJobFlyer({ poster_image: src })) : [];
+  if (flyerList.length > 0) {
+    openLightbox(flyerList[0], `${job.title} - Flyer Rekrutmen (Slide 1/${flyerList.length})`);
+  } else {
+    const coverSrc = getEffectiveJobCover(job);
+    openLightbox(coverSrc, job.title);
+  }
 }
 
+window.getEffectiveJobCover = getEffectiveJobCover;
 window.getEffectiveJobPoster = getEffectiveJobPoster;
 window.generateCompanyBannerDataUrl = generateCompanyBannerDataUrl;
 window.openJobPosterById = openJobPosterById;
@@ -1625,7 +1682,9 @@ function renderJobs(jobs) {
   }
 
   const cardsHtml = jobs.map(job => {
-    const posterSrc = getEffectiveJobPoster(job);
+    const coverSrc = getEffectiveJobCover(job);
+    const flyerList = typeof getJobFlyerImages === 'function' ? getJobFlyerImages(job).filter(src => isManualJobFlyer({ poster_image: src })) : [];
+    const hasFlyers = flyerList.length > 0;
 
     const dObj = parseDateSafe(job.deadline);
     const isPassedDeadline = dObj ? (dObj.getTime() < Date.now()) : false;
@@ -1644,14 +1703,15 @@ function renderJobs(jobs) {
     return `
       <div class="job-card ${isLocked ? 'job-card-locked' : ''}" data-id="${job.id}">
 
-        <!-- Poster Design Preview with Lightbox trigger -->
+        <!-- Foto Sampul Kartu / Poster Preview with Lightbox trigger -->
         <div class="job-poster-preview" onclick="${isLocked ? `showLockedNotice('${safeTitle}')` : `openJobPosterById(${job.id})`}">
-          <img src="${posterSrc}" alt="${escapeHtml(job.title)}" loading="lazy" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
+          <img src="${coverSrc}" alt="${escapeHtml(job.title)}" loading="lazy" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
           ${isLocked ? '<div class="badge-locked-overlay"><i class="fa-solid fa-lock"></i> TELAH DITUTUP (EXPIRED)</div>' : ''}
           ${job.is_featured && !isLocked ? '<div class="badge-featured"><i class="fa-solid fa-star"></i> Unggulan</div>' : ''}
+          ${hasFlyers && !isLocked ? `<div class="badge-card-flyer"><i class="fa-regular fa-image"></i> ${flyerList.length > 1 ? flyerList.length + ' Flyer' : 'Flyer Loker'}</div>` : ''}
           <div class="badge-category">${escapeHtml(job.category)}</div>
           <div class="poster-overlay">
-            <span class="poster-badge-btn"><i class="fa-solid ${isLocked ? 'fa-lock' : 'fa-expand'}"></i> ${isLocked ? 'Lowongan Telah Kedaluwarsa' : 'Buka Poster Penuh'}</span>
+            <span class="poster-badge-btn"><i class="fa-solid ${isLocked ? 'fa-lock' : 'fa-expand'}"></i> ${isLocked ? 'Lowongan Telah Kedaluwarsa' : (hasFlyers ? 'Lihat Flyer Loker (' + flyerList.length + ')' : 'Lihat Sampul Penuh')}</span>
           </div>
         </div>
 
@@ -2056,7 +2116,7 @@ function openJobDetail(jobId) {
   }
 
   const flyerImages = getJobFlyerImages(job);
-  const posterSrc = flyerImages[0] || getEffectiveJobPoster(job);
+  const heroCoverSrc = getEffectiveJobCover(job);
   const isMultiFlyer = flyerImages.length > 1;
 
   const contacts = extractJobContacts(job);
@@ -2073,27 +2133,9 @@ function openJobDetail(jobId) {
   const safeCompany = (job.company_name || '').replace(/'/g, "\\'");
 
   content.innerHTML = `
-    <!-- Banner / Poster Highlight (Auto-Sliding Carousel if > 1 flyer) -->
-    <div class="modal-hero-banner ${isMultiFlyer ? 'flyer-carousel-container' : ''}" id="hero-carousel-${job.id}" ${isMultiFlyer ? `onmouseenter="pauseJobFlyerCarousels(${job.id})" onmouseleave="resumeJobFlyerCarousels(${job.id})"` : ''}>
-      ${isMultiFlyer ? `
-        <div class="carousel-track">
-          ${flyerImages.map((src, i) => `
-            <div class="carousel-slide ${i === 0 ? 'active' : ''}" data-index="${i}">
-              <img src="${src}" alt="${escapeHtml(job.title)} - Slide ${i+1}" onclick="openLightboxSlide(${job.id}, ${i})" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
-            </div>
-          `).join('')}
-        </div>
-        <button type="button" class="carousel-nav-btn prev" onclick="event.stopPropagation(); prevJobSlide(${job.id})" aria-label="Slide Sebelumnya"><i class="fa-solid fa-chevron-left"></i></button>
-        <button type="button" class="carousel-nav-btn next" onclick="event.stopPropagation(); nextJobSlide(${job.id})" aria-label="Slide Selanjutnya"><i class="fa-solid fa-chevron-right"></i></button>
-        <div class="carousel-dots-indicator">
-          ${flyerImages.map((_, i) => `<span class="carousel-dot ${i === 0 ? 'active' : ''}" onclick="event.stopPropagation(); goToJobSlide(${job.id}, ${i})"></span>`).join('')}
-        </div>
-        <div class="carousel-counter-badge">
-          <i class="fa-solid fa-images"></i> <span id="hero-slide-num-${job.id}">1</span>/${flyerImages.length} ⚡ Auto-Slide
-        </div>
-      ` : `
-        <img src="${posterSrc}" alt="${escapeHtml(job.title)}" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
-      `}
+    <!-- Header Banner Sampul Lowongan (16:9 Landscape Corporate Cover) -->
+    <div class="modal-hero-banner" id="hero-banner-${job.id}">
+      <img src="${heroCoverSrc}" alt="${escapeHtml(job.title)}" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
       <div class="modal-banner-overlay">
         <div class="modal-header-info">
           <h2>${escapeHtml(job.title)}</h2>
@@ -2227,7 +2269,7 @@ function openJobDetail(jobId) {
                 ${flyerImages.map((_, i) => `<span class="side-dot ${i === 0 ? 'active' : ''}" onclick="event.stopPropagation(); goToJobSlide(${job.id}, ${i})"></span>`).join('')}
               </div>
             ` : `
-              <img src="${posterSrc}" alt="Foto Lowongan" onclick="openJobPosterById(${job.id})" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
+              <img src="${flyerImages[0] || heroCoverSrc}" alt="Foto Lowongan" onclick="openJobPosterById(${job.id})" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
             `}
             <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: center;">
               <button type="button" class="btn btn-outline btn-sm" onclick="openActiveJobLightbox(${job.id})">

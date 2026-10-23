@@ -491,7 +491,7 @@ app.get('/api/jobs/:id', async (req, res) => {
 // -------------------------------------------------------------
 // ADMIN PROTECTED API: POST /api/jobs (Upload new job)
 // -------------------------------------------------------------
-app.post('/api/jobs', requireAdminAuth, upload.single('poster_image'), async (req, res) => {
+app.post('/api/jobs', requireAdminAuth, upload.any(), async (req, res) => {
   try {
     const {
       title,
@@ -513,7 +513,8 @@ app.post('/api/jobs', requireAdminAuth, upload.single('poster_image'), async (re
       contact_value,
       deadline,
       status,
-      is_featured
+      is_featured,
+      cover_image: bodyCoverImage
     } = req.body;
 
     if (!title || !company_name || !description) {
@@ -523,11 +524,39 @@ app.post('/api/jobs', requireAdminAuth, upload.single('poster_image'), async (re
       });
     }
 
+    const files = req.files || [];
+    const posterFile = files.find(f => f.fieldname === 'poster_image');
+    const coverFile = files.find(f => f.fieldname === 'cover_image' || f.fieldname === 'cover_image_input');
+    const flyerFiles = files.filter(f => f.fieldname === 'poster_images_input' || f.fieldname === 'flyer_images');
+
     let poster_image = '';
-    if (req.file) {
-      poster_image = '/uploads/' + req.file.filename;
+    if (posterFile) {
+      poster_image = '/uploads/' + posterFile.filename;
     } else if (req.body && req.body.poster_image) {
       poster_image = req.body.poster_image;
+    }
+
+    let cover_image = '';
+    if (coverFile) {
+      cover_image = '/uploads/' + coverFile.filename;
+    } else if (bodyCoverImage || (req.body && req.body.cover_image)) {
+      cover_image = bodyCoverImage || req.body.cover_image;
+    }
+
+    let flyer_images = [];
+    if (flyerFiles.length > 0) {
+      flyer_images = flyerFiles.map(f => '/uploads/' + f.filename);
+    } else if (req.body && req.body.flyer_images) {
+      try {
+        flyer_images = typeof req.body.flyer_images === 'string' ? JSON.parse(req.body.flyer_images) : req.body.flyer_images;
+      } catch (e) {}
+    }
+    if (!Array.isArray(flyer_images)) flyer_images = [];
+    if (flyer_images.length === 0 && poster_image) {
+      flyer_images = [poster_image];
+    }
+    if (!poster_image && flyer_images.length > 0) {
+      poster_image = flyer_images[0];
     }
 
     const wa = (whatsapp || '').trim();
@@ -541,13 +570,11 @@ app.post('/api/jobs', requireAdminAuth, upload.single('poster_image'), async (re
     } else if (wa || em || wb) {
       contactParsed = { whatsapp: wa, email: em, website: wb };
     }
-    if (req.body && req.body.flyer_images) {
-      try {
-        const parsedFlyers = typeof req.body.flyer_images === 'string' ? JSON.parse(req.body.flyer_images) : req.body.flyer_images;
-        if (Array.isArray(parsedFlyers) && parsedFlyers.length > 0) {
-          contactParsed.flyer_images = parsedFlyers;
-        }
-      } catch (e) {}
+    if (flyer_images.length > 0) {
+      contactParsed.flyer_images = flyer_images;
+    }
+    if (cover_image) {
+      contactParsed.cover_image = cover_image;
     }
     finalContactVal = JSON.stringify(contactParsed);
 
@@ -560,6 +587,8 @@ app.post('/api/jobs', requireAdminAuth, upload.single('poster_image'), async (re
       salary_display: salary_display || 'Kompetitif',
       experience_level: experience_level || 'Semua Pengalaman',
       poster_image,
+      cover_image,
+      flyer_images,
       description: description.trim(),
       requirements: parseList(requirements),
       responsibilities: parseList(responsibilities),
@@ -590,7 +619,7 @@ app.post('/api/jobs', requireAdminAuth, upload.single('poster_image'), async (re
 // -------------------------------------------------------------
 // ADMIN PROTECTED API: PUT /api/jobs/:id (Update job)
 // -------------------------------------------------------------
-app.put('/api/jobs/:id', requireAdminAuth, upload.single('poster_image'), async (req, res) => {
+app.put('/api/jobs/:id', requireAdminAuth, upload.any(), async (req, res) => {
   try {
     const id = req.params.id;
     const existing = await db.getJobById(id);
@@ -618,22 +647,57 @@ app.put('/api/jobs/:id', requireAdminAuth, upload.single('poster_image'), async 
       contact_value,
       deadline,
       status,
-      is_featured
+      is_featured,
+      cover_image: bodyCoverImage
     } = req.body;
 
+    const files = req.files || [];
+    const posterFile = files.find(f => f.fieldname === 'poster_image');
+    const coverFile = files.find(f => f.fieldname === 'cover_image' || f.fieldname === 'cover_image_input');
+    const flyerFiles = files.filter(f => f.fieldname === 'poster_images_input' || f.fieldname === 'flyer_images');
+
     let poster_image = existing.poster_image;
-    if (req.file) {
-      poster_image = '/uploads/' + req.file.filename;
+    if (posterFile) {
+      poster_image = '/uploads/' + posterFile.filename;
+    } else if (req.body && req.body.poster_image !== undefined) {
+      poster_image = req.body.poster_image;
     }
+
+    let cover_image = existing.cover_image || '';
+    if (coverFile) {
+      cover_image = '/uploads/' + coverFile.filename;
+    } else if (bodyCoverImage !== undefined || (req.body && req.body.cover_image !== undefined)) {
+      cover_image = bodyCoverImage !== undefined ? bodyCoverImage : req.body.cover_image;
+    }
+
+    let flyer_images = existing.flyer_images;
+    if (flyerFiles.length > 0) {
+      const uploadedPaths = flyerFiles.map(f => '/uploads/' + f.filename);
+      flyer_images = Array.isArray(flyer_images) ? [...flyer_images, ...uploadedPaths] : uploadedPaths;
+    } else if (req.body && req.body.flyer_images !== undefined) {
+      try {
+        flyer_images = typeof req.body.flyer_images === 'string' ? JSON.parse(req.body.flyer_images) : req.body.flyer_images;
+      } catch (e) {}
+    }
+    if (!Array.isArray(flyer_images)) flyer_images = [];
 
     const wa = whatsapp !== undefined ? whatsapp.trim() : (existing.whatsapp || '');
     const em = email !== undefined ? email.trim() : (existing.email || '');
     const wb = (website_url !== undefined ? website_url : website) !== undefined ? (website_url || website).trim() : (existing.website_url || '');
 
     let finalContactVal = contact_value !== undefined ? contact_value.trim() : existing.contact_value;
-    if (whatsapp !== undefined || email !== undefined || website !== undefined || website_url !== undefined) {
-      finalContactVal = JSON.stringify({ whatsapp: wa, email: em, website: wb });
+    let contactParsed = {};
+    if (finalContactVal) {
+      try { contactParsed = JSON.parse(finalContactVal); } catch (e) {}
     }
+    if (whatsapp !== undefined || email !== undefined || website !== undefined || website_url !== undefined) {
+      contactParsed.whatsapp = wa;
+      contactParsed.email = em;
+      contactParsed.website = wb;
+    }
+    if (cover_image !== undefined) contactParsed.cover_image = cover_image;
+    if (flyer_images !== undefined && Array.isArray(flyer_images)) contactParsed.flyer_images = flyer_images;
+    finalContactVal = JSON.stringify(contactParsed);
 
     const updated = await db.updateJob(id, {
       title: title ? title.trim() : existing.title,
@@ -644,6 +708,8 @@ app.put('/api/jobs/:id', requireAdminAuth, upload.single('poster_image'), async 
       salary_display: salary_display !== undefined ? salary_display : existing.salary_display,
       experience_level: experience_level || existing.experience_level,
       poster_image,
+      cover_image,
+      flyer_images,
       description: description ? description.trim() : existing.description,
       requirements: requirements !== undefined ? parseList(requirements) : existing.requirements,
       responsibilities: responsibilities !== undefined ? parseList(responsibilities) : existing.responsibilities,

@@ -165,6 +165,8 @@ const localStore = {
       salary_display: jobData.salary_display || 'Kompetitif',
       experience_level: jobData.experience_level || 'Semua Pengalaman',
       poster_image: jobData.poster_image || '',
+      cover_image: jobData.cover_image || '',
+      flyer_images: Array.isArray(jobData.flyer_images) ? jobData.flyer_images : [],
       description: jobData.description,
       requirements: Array.isArray(jobData.requirements) ? jobData.requirements : [],
       responsibilities: Array.isArray(jobData.responsibilities) ? jobData.responsibilities : [],
@@ -456,6 +458,8 @@ const db = {
         salary_display: jobData.salary_display || 'Kompetitif',
         experience_level: jobData.experience_level || 'Semua Pengalaman',
         poster_image: jobData.poster_image || '',
+        cover_image: jobData.cover_image || '',
+        flyer_images: Array.isArray(jobData.flyer_images) ? jobData.flyer_images : [],
         description: jobData.description,
         requirements: jobData.requirements || [],
         responsibilities: jobData.responsibilities || [],
@@ -499,9 +503,10 @@ const db = {
     try {
       const allowedColumns = [
         'title', 'company_name', 'category', 'job_type', 'location',
-        'salary_display', 'experience_level', 'poster_image', 'description',
-        'requirements', 'responsibilities', 'benefits', 'contact_type',
-        'contact_value', 'deadline', 'status', 'is_featured', 'views_count'
+        'salary_display', 'experience_level', 'poster_image', 'cover_image',
+        'flyer_images', 'description', 'requirements', 'responsibilities',
+        'benefits', 'contact_type', 'contact_value', 'deadline', 'status',
+        'is_featured', 'views_count'
       ];
 
       const payload = { updated_at: new Date().toISOString() };

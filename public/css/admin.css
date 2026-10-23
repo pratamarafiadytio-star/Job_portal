@@ -3454,6 +3454,95 @@ body {
   transform: scale(1.2);
 }
 
+/* Edit Modal Flyer Gallery Card Styles */
+.edit-flyer-thumb-card {
+  position: relative;
+  width: 90px;
+  height: 115px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #cbd5e1;
+  background: #1e293b;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-flyer-thumb-card:hover {
+  border-color: #6366f1;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.25);
+}
+
+.edit-flyer-thumb-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.edit-flyer-thumb-badge {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+}
+
+.edit-flyer-thumb-badge.cover {
+  background: linear-gradient(135deg, #059669, #10b981);
+}
+
+.edit-flyer-thumb-delete {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.9);
+  color: #fff;
+  border: none;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.edit-flyer-thumb-delete:hover {
+  background: #dc2626;
+  transform: scale(1.2);
+}
+
+.btn-make-cover {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 3px 2px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.btn-make-cover:hover {
+  background: #059669;
+  border-color: #10b981;
+}
+
 
 
 

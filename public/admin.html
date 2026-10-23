@@ -448,10 +448,69 @@
                   </div>
                 </div>
 
-                <!-- KELOMPOK 4: POSTER FLYER REKRUTMEN (BISA 2 ATAU LEBIH GAMBAR) -->
+                <!-- KELOMPOK 4: PENGATURAN FOTO SAMPUL / BANNER KARTU (COVER IMAGE) -->
                 <div class="form-section-card">
                   <div class="section-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                    <span class="section-badge"><i class="fa-solid fa-images"></i> 4. Poster Flyer Rekrutmen Resmi (Bisa 2 atau Lebih Gambar)</span>
+                    <span class="section-badge"><i class="fa-solid fa-panorama"></i> 4. Pengaturan Foto Sampul Kartu (Cover Banner)</span>
+                    <span class="badge" id="cover-status-badge" style="background: #ecfdf5; color: #047857; font-size: 0.76rem; font-weight: 700; border: 1px solid #a7f3d0;">
+                      <i class="fa-solid fa-building"></i> Gedung Kantor Resmi (Otomatis)
+                    </span>
+                  </div>
+                  <p class="form-hint" style="margin-bottom: 14px; color: #475569;">
+                    Foto sampul adalah banner landscape yang muncul di bagian atas kartu lowongan feed pengunjung (misal: foto gedung perusahaan, banner tim, atau foto kantor).
+                  </p>
+
+                  <div class="cover-settings-layout" style="display: grid; grid-template-columns: 280px 1fr; gap: 18px; align-items: center;">
+                    <!-- LIVE COVER BANNER PREVIEW -->
+                    <div class="cover-card-preview-box" style="position: relative; border-radius: 12px; overflow: hidden; border: 2px solid #e2e8f0; background: #0f172a; aspect-ratio: 16/9; box-shadow: 0 4px 14px rgba(0,0,0,0.08);">
+                      <img id="upload-cover-preview-img" src="./uploads/default_company.jpg" alt="Preview Sampul" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+                      <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 10px 12px; background: linear-gradient(to top, rgba(0,0,0,0.85), transparent); color: #fff; display: flex; justify-content: space-between; align-items: flex-end;">
+                        <div>
+                          <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 600;">SIMULASI SAMPUL KARTU</div>
+                          <div id="sim-cover-title" style="font-size: 0.82rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">Judul Lowongan</div>
+                        </div>
+                        <span class="badge" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(4px); font-size: 0.65rem; color: #fff; padding: 2px 6px;">16 : 9</span>
+                      </div>
+                    </div>
+
+                    <!-- COVER CONTROLS & UPLOAD OPTIONS -->
+                    <div class="cover-controls-box">
+                      <input type="file" id="cover-file-input" name="cover_image_input" accept="image/jpeg,image/png,image/webp,image/jpg" style="display: none;" onchange="handleManualCoverUpload(event)">
+                      
+                      <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                          <button type="button" class="btn btn-outline btn-sm active" id="btn-cover-mode-auto" onclick="setCoverMode('auto')" style="border-color: #10b981; color: #047857; font-weight: 700; background: #ecfdf5;">
+                            <i class="fa-solid fa-building"></i> Foto Gedung Otomatis
+                          </button>
+                          <button type="button" class="btn btn-outline btn-sm" id="btn-cover-mode-upload" onclick="document.getElementById('cover-file-input').click()" style="border-color: #6366f1; color: #4338ca; font-weight: 700;">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Upload Sampul Kustom
+                          </button>
+                          <button type="button" class="btn btn-outline btn-sm" id="btn-cover-mode-flyer" onclick="setCoverMode('flyer')" style="border-color: #f59e0b; color: #b45309; font-weight: 700;">
+                            <i class="fa-solid fa-file-image"></i> Gunakan Flyer Sebagai Sampul
+                          </button>
+                        </div>
+
+                        <div id="cover-file-info-bar" style="display: none; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px;">
+                          <span style="font-size: 0.78rem; color: #047857; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-circle-check"></i> Sampul Kustom Terpasang: <span id="cover-file-name-text">sampul.jpg</span>
+                          </span>
+                          <button type="button" class="btn-table" onclick="resetCoverToAuto()" style="color: #ef4444; font-size: 0.75rem;" title="Reset Sampul">
+                            <i class="fa-solid fa-trash-can"></i> Hapus
+                          </button>
+                        </div>
+
+                        <div style="font-size: 0.74rem; color: #64748b; line-height: 1.4;">
+                          💡 <strong>Tips:</strong> Foto sampul landscape (rasio 16:9) sangat direkomendasikan agar kartu lowongan terlihat rapi dan elegan di feed publik!
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- KELOMPOK 5: POSTER FLYER REKRUTMEN (BISA 2 ATAU LEBIH GAMBAR) -->
+                <div class="form-section-card">
+                  <div class="section-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <span class="section-badge"><i class="fa-solid fa-images"></i> 5. Poster Flyer Rekrutmen Resmi (Bisa 2 atau Lebih Gambar)</span>
                     <span class="badge" id="manual-flyer-count-badge" style="background: #eef2ff; color: #4f46e5; font-size: 0.76rem; font-weight: 700; border: 1px solid #c7d2fe; display: none;">
                       <i class="fa-solid fa-layer-group"></i> <span id="manual-flyer-count-text">0 Gambar</span> (Slider Otomatis Aktif)
                     </span>
@@ -490,10 +549,10 @@
                   </div>
                 </div>
 
-                <!-- KELOMPOK 5: DESKRIPSI & KUALIFIKASI -->
+                <!-- KELOMPOK 6: DESKRIPSI & KUALIFIKASI -->
                 <div class="form-section-card">
                   <div class="section-card-header">
-                    <span class="section-badge"><i class="fa-solid fa-file-lines"></i> 5. Deskripsi & Kualifikasi Detail</span>
+                    <span class="section-badge"><i class="fa-solid fa-file-lines"></i> 6. Deskripsi & Kualifikasi Detail</span>
                   </div>
 
                   <div class="form-group full-width">
@@ -1144,16 +1203,52 @@
             </div>
           </div>
 
-          <!-- Ganti Poster -->
-          <div class="form-group" style="background:#f8fafc; padding:14px; border-radius:var(--radius-md); border:1px solid var(--admin-border);">
-            <label class="form-label">Ganti Poster Flyer (Opsional)</label>
-            <div style="display:flex; gap:16px; align-items:center;">
-              <img id="edit-current-poster-preview" src="" style="width:65px; height:85px; object-fit:cover; border-radius:6px; border:1px solid #cbd5e1;">
-              <div>
-                <input type="file" name="poster_image" class="form-input" accept="image/*">
-                <div class="form-hint">Pilih gambar baru jika ingin mengganti poster flyer lowongan ini.</div>
+          <!-- PENGATURAN FOTO SAMPUL KARTU (COVER BANNER) -->
+          <div class="edit-section-card" style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <div style="font-size: 0.88rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-panorama" style="color: #4f46e5;"></i> Foto Sampul Kartu (Cover Banner)
+              </div>
+              <span style="font-size: 0.74rem; color: #64748b;">Tampil di bagian atas kartu lowongan</span>
+            </div>
+            <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+              <div style="position: relative; width: 140px; height: 80px; border-radius: 8px; overflow: hidden; border: 1.5px solid #cbd5e1; background: #0f172a; flex-shrink: 0;">
+                <img id="edit-current-cover-preview" src="" style="width: 100%; height: 100%; object-fit: cover;">
+              </div>
+              <div style="flex: 1; min-width: 200px;">
+                <input type="file" id="edit-cover-file-input" accept="image/*" style="display: none;" onchange="handleEditCoverUpload(event)">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('edit-cover-file-input').click()" style="border-color: #6366f1; color: #4f46e5; font-weight: 700; background: #ffffff;">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Ganti Foto Sampul
+                  </button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="resetEditCoverToAuto()" style="border-color: #94a3b8; color: #64748b; background: #ffffff;">
+                    <i class="fa-solid fa-rotate-left"></i> Reset ke Gedung Otomatis
+                  </button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="setEditCoverFromFlyer()" style="border-color: #059669; color: #059669; background: #ffffff;">
+                    <i class="fa-solid fa-file-image"></i> Gunakan Flyer Sebagai Sampul
+                  </button>
+                </div>
+                <div class="form-hint" style="margin-top: 6px;">Pilih foto gedung kantor, banner, atau desain landscape untuk mengganti sampul kartu lowongan ini.</div>
               </div>
             </div>
+          </div>
+
+          <!-- GALERI POSTER FLYER REKRUTMEN (MULTI-SLIDE) -->
+          <div class="edit-section-card" style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <div style="font-size: 0.88rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-images" style="color: #4f46e5;"></i> Galeri Poster Flyer Rekrutmen (Slide)
+              </div>
+              <span class="badge" id="edit-flyer-count-badge" style="background: #e0e7ff; color: #4338ca; font-weight: 700; font-size: 0.74rem;">0 Flyer</span>
+            </div>
+            <div id="edit-flyer-gallery-grid" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; min-height: 40px; align-items: center;">
+              <!-- Populated dynamically with flyer slides -->
+            </div>
+            <input type="file" id="edit-flyer-add-input" accept="image/*" multiple style="display: none;" onchange="handleEditAddFlyers(event)">
+            <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('edit-flyer-add-input').click()" style="border-color: #4f46e5; color: #4338ca; font-weight: 700; background: #ffffff;">
+              <i class="fa-solid fa-plus"></i> Tambah / Upload Flyer Baru
+            </button>
+            <div class="form-hint" style="margin-top: 6px;">Flyer ini akan tampil di galeri slider auto-slide halaman detail lowongan pengunjung.</div>
           </div>
 
           <div class="form-group">
@@ -1322,6 +1417,18 @@
                 <button type="button" class="btn btn-outline btn-sm" id="btn-use-poster-for-job" style="flex: 1; font-size: 0.8rem; color: #4f46e5; border-color: #c7d2fe; border-radius: 10px;">
                   <i class="fa-solid fa-cloud-arrow-up"></i> Jadikan Poster Form
                 </button>
+              </div>
+
+              <!-- TOMBOL JADIKAN SEBAGAI SAMPUL KARTU -->
+              <button type="button" class="btn btn-outline btn-sm" id="btn-studio-as-cover" onclick="setStudioCanvasAsCover()" style="width: 100%; margin-top: 2px; font-size: 0.82rem; color: #047857; border-color: #6ee7b7; background: #ecfdf5; border-radius: 10px; padding: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;">
+                <i class="fa-solid fa-panorama"></i> Jadikan Sebagai Sampul Kartu Lowongan
+              </button>
+
+              <div style="display: flex; justify-content: center; margin-top: 2px;">
+                <label style="font-size: 0.74rem; color: #475569; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                  <input type="checkbox" id="studio-sync-cover-checkbox">
+                  <span>Sertakan juga sebagai Foto Sampul Kartu Lowongan</span>
+                </label>
               </div>
             </div>
           </div>

@@ -723,10 +723,13 @@ function renderManualFlyerGallery() {
       <div class="manual-flyer-card" title="Slide #${idx + 1}${isPrimary ? ' (Cover Utama)' : ''}">
         <img src="${imgSrc}" alt="Flyer ${idx + 1}">
         <span class="manual-flyer-badge ${isPrimary ? 'primary' : ''}">
-          ${isPrimary ? '★ Cover' : `#${idx + 1}`}
+          ${isPrimary ? '★ Slide 1' : `#${idx + 1}`}
         </span>
         <button type="button" class="manual-flyer-delete-btn" onclick="removeManualFlyer(${idx}, event)" title="Hapus gambar ini">
           <i class="fa-solid fa-xmark"></i>
+        </button>
+        <button type="button" class="btn-make-cover" onclick="setFlyerAsCover(${idx}, event)" title="Jadikan flyer ini sebagai foto sampul kartu">
+          <i class="fa-solid fa-panorama"></i> Jadi Sampul
         </button>
       </div>
     `;
@@ -777,6 +780,278 @@ window.addManualFlyerImages = function(filesOrUrls) {
     renderManualFlyerGallery();
     showAdminToast('Flyer Dimuat!', `${dataUrls.length} flyer berhasil ditambahkan. Total: ${manualUploadedFlyers.length} flyer.`, 'success');
   });
+};
+
+// -------------------------------------------------------------
+// PENGATURAN FOTO SAMPUL KARTU (COVER BANNER)
+// -------------------------------------------------------------
+let currentManualCoverBase64 = '';
+let currentCoverMode = 'auto'; // 'auto' | 'upload' | 'flyer'
+
+window.handleManualCoverUpload = function(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    currentManualCoverBase64 = evt.target.result;
+    currentCoverMode = 'upload';
+    updateCoverPreviewUI(file.name);
+    showAdminToast('Sampul Kustom', `Foto ${file.name} dipasang sebagai sampul kartu lowongan!`, 'success');
+  };
+  reader.readAsDataURL(file);
+};
+
+window.setCoverMode = function(mode) {
+  currentCoverMode = mode;
+  if (mode === 'auto') {
+    currentManualCoverBase64 = '';
+    updateCoverPreviewUI();
+    showAdminToast('Sampul Otomatis', 'Menggunakan foto gedung/kantor resmi dari database KerjaHub.', 'info');
+  } else if (mode === 'upload') {
+    document.getElementById('cover-file-input')?.click();
+  } else if (mode === 'flyer') {
+    if (manualUploadedFlyers && manualUploadedFlyers.length > 0) {
+      currentManualCoverBase64 = manualUploadedFlyers[0];
+      updateCoverPreviewUI('Slide Flyer #1');
+      showAdminToast('Sampul Flyer', 'Flyer #1 diset sebagai foto sampul kartu lowongan!', 'success');
+    } else {
+      showAdminToast('Perhatian', 'Belum ada gambar flyer yang diupload. Upload flyer terlebih dahulu.', 'warning');
+    }
+  }
+};
+
+window.resetCoverToAuto = function() {
+  window.setCoverMode('auto');
+};
+
+window.setFlyerAsCover = function(idx, e) {
+  if (e) e.stopPropagation();
+  if (!manualUploadedFlyers[idx]) return;
+  currentManualCoverBase64 = manualUploadedFlyers[idx];
+  currentCoverMode = 'flyer';
+  updateCoverPreviewUI(`Slide Flyer #${idx + 1}`);
+  showAdminToast('Sampul Diperbarui', `Slide Flyer #${idx + 1} dijadikan sebagai Foto Sampul Kartu!`, 'success');
+};
+
+function updateCoverPreviewUI(customFileName = '') {
+  const previewImg = document.getElementById('upload-cover-preview-img');
+  const badge = document.getElementById('cover-status-badge');
+  const infoBar = document.getElementById('cover-file-info-bar');
+  const fileNameText = document.getElementById('cover-file-name-text');
+  const btnAuto = document.getElementById('btn-cover-mode-auto');
+  const btnUpload = document.getElementById('btn-cover-mode-upload');
+  const btnFlyer = document.getElementById('btn-cover-mode-flyer');
+
+  // Reset button active styles
+  [btnAuto, btnUpload, btnFlyer].forEach(b => {
+    if (b) {
+      b.classList.remove('active');
+      b.style.background = '#ffffff';
+    }
+  });
+
+  if (currentCoverMode === 'upload' && currentManualCoverBase64) {
+    if (previewImg) previewImg.src = currentManualCoverBase64;
+    if (badge) {
+      badge.innerHTML = '<i class="fa-solid fa-camera"></i> Sampul Kustom (Aktif)';
+      badge.style.background = '#e0e7ff';
+      badge.style.color = '#4338ca';
+      badge.style.borderColor = '#c7d2fe';
+    }
+    if (infoBar) infoBar.style.display = 'flex';
+    if (fileNameText) fileNameText.textContent = customFileName || 'foto_sampul.jpg';
+    if (btnUpload) {
+      btnUpload.classList.add('active');
+      btnUpload.style.background = '#eef2ff';
+    }
+  } else if (currentCoverMode === 'flyer' && currentManualCoverBase64) {
+    if (previewImg) previewImg.src = currentManualCoverBase64;
+    if (badge) {
+      badge.innerHTML = '<i class="fa-solid fa-file-image"></i> Flyer Sebagai Sampul';
+      badge.style.background = '#fef3c7';
+      badge.style.color = '#92400e';
+      badge.style.borderColor = '#fde68a';
+    }
+    if (infoBar) infoBar.style.display = 'flex';
+    if (fileNameText) fileNameText.textContent = customFileName || 'flyer_cover.png';
+    if (btnFlyer) {
+      btnFlyer.classList.add('active');
+      btnFlyer.style.background = '#fef3c7';
+    }
+  } else {
+    // Mode 'auto'
+    const companyInput = document.querySelector('#form-upload-job [name="company_name"]');
+    const compName = companyInput ? companyInput.value.trim() : '';
+    let autoCover = '';
+    if (window._companyImagesCache && compName) {
+      autoCover = window._companyImagesCache[compName] || '';
+    }
+    if (!autoCover) autoCover = './uploads/default_company.jpg';
+    if (previewImg) previewImg.src = autoCover;
+    if (badge) {
+      badge.innerHTML = '<i class="fa-solid fa-building"></i> Gedung Kantor Resmi (Otomatis)';
+      badge.style.background = '#ecfdf5';
+      badge.style.color = '#047857';
+      badge.style.borderColor = '#a7f3d0';
+    }
+    if (infoBar) infoBar.style.display = 'none';
+    if (btnAuto) {
+      btnAuto.classList.add('active');
+      btnAuto.style.background = '#ecfdf5';
+    }
+  }
+}
+
+// -------------------------------------------------------------
+// EDIT MODAL: FOTO SAMPUL & MULTI-FLYER GALLERY STATE
+// -------------------------------------------------------------
+let currentEditCoverBase64 = '';
+let currentEditFlyers = [];
+let currentEditingJob = null;
+
+function getJobFlyerImages(job) {
+  const images = [];
+  if (!job) return images;
+
+  if (Array.isArray(job.flyer_images) && job.flyer_images.length > 0) {
+    job.flyer_images.forEach(img => {
+      if (img && typeof img === 'string' && img.trim()) images.push(img.trim());
+    });
+  } else if (typeof job.flyer_images === 'string' && job.flyer_images.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(job.flyer_images);
+      if (Array.isArray(parsed)) {
+        parsed.forEach(img => {
+          if (img && typeof img === 'string' && img.trim()) images.push(img.trim());
+        });
+      }
+    } catch (e) {}
+  }
+
+  if (images.length === 0 && job.contact_value) {
+    try {
+      const cv = typeof job.contact_value === 'string' ? JSON.parse(job.contact_value) : job.contact_value;
+      if (cv && Array.isArray(cv.flyer_images) && cv.flyer_images.length > 0) {
+        cv.flyer_images.forEach(img => {
+          if (img && typeof img === 'string' && img.trim()) images.push(img.trim());
+        });
+      }
+    } catch (e) {}
+  }
+
+  if (images.length === 0 && job.poster_image) {
+    const p = String(job.poster_image).trim();
+    if (p.startsWith('[') && p.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(p);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(img => {
+            if (img && typeof img === 'string' && img.trim()) images.push(img.trim());
+          });
+        }
+      } catch (e) {}
+    } else if (p) {
+      images.push(p);
+    }
+  }
+
+  return images.filter(Boolean);
+}
+
+window.getJobFlyerImages = getJobFlyerImages;
+
+window.renderEditFlyerGallery = function() {
+  const grid = document.getElementById('edit-flyer-gallery-grid');
+  const badge = document.getElementById('edit-flyer-count-badge');
+  if (!grid) return;
+
+  if (badge) {
+    badge.textContent = `${currentEditFlyers.length} Flyer`;
+    badge.style.background = currentEditFlyers.length > 1 ? '#dcfce7' : '#e0e7ff';
+    badge.style.color = currentEditFlyers.length > 1 ? '#15803d' : '#4338ca';
+  }
+
+  if (currentEditFlyers.length === 0) {
+    grid.innerHTML = '<div style="font-size: 0.78rem; color: #94a3b8; font-style: italic; padding: 6px;">Belum ada flyer lowongan terunggah. Klik "+ Tambah / Upload Flyer Baru" di bawah.</div>';
+    return;
+  }
+
+  grid.innerHTML = currentEditFlyers.map((imgSrc, idx) => {
+    return `
+      <div class="edit-flyer-thumb-card" title="Slide Flyer #${idx + 1}">
+        <img src="${imgSrc}" alt="Slide ${idx + 1}">
+        <span class="edit-flyer-thumb-badge">#${idx + 1}</span>
+        <button type="button" class="edit-flyer-thumb-delete" onclick="removeEditFlyer(${idx})" title="Hapus flyer ini">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <button type="button" class="btn-make-cover" onclick="setEditCoverFromFlyer(${idx})" title="Jadikan gambar ini sebagai sampul">
+          Jadikan Sampul
+        </button>
+      </div>
+    `;
+  }).join('');
+};
+
+window.handleEditCoverUpload = function(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    currentEditCoverBase64 = evt.target.result;
+    const preview = document.getElementById('edit-current-cover-preview');
+    if (preview) preview.src = currentEditCoverBase64;
+    showAdminToast('Foto Sampul Diperbarui', 'Foto sampul kartu berhasil diganti!', 'success');
+  };
+  reader.readAsDataURL(file);
+};
+
+window.resetEditCoverToAuto = function() {
+  currentEditCoverBase64 = '';
+  const preview = document.getElementById('edit-current-cover-preview');
+  if (preview && currentEditingJob) {
+    preview.src = getEffectiveJobCover({ ...currentEditingJob, cover_image: '' });
+  }
+  showAdminToast('Reset Sampul', 'Foto sampul direset ke foto gedung kantor otomatis.', 'info');
+};
+
+window.setEditCoverFromFlyer = function(idx = 0) {
+  if (!currentEditFlyers || currentEditFlyers.length === 0) {
+    showAdminToast('Perhatian', 'Belum ada flyer yang diupload untuk lowongan ini.', 'warning');
+    return;
+  }
+  currentEditCoverBase64 = currentEditFlyers[idx] || currentEditFlyers[0];
+  const preview = document.getElementById('edit-current-cover-preview');
+  if (preview) preview.src = currentEditCoverBase64;
+  showAdminToast('Sampul Diperbarui', `Slide Flyer #${idx + 1} dijadikan sebagai foto sampul kartu!`, 'success');
+};
+
+window.handleEditAddFlyers = function(e) {
+  const files = e.target.files;
+  if (!files || files.length === 0) return;
+  const fileArray = Array.from(files).filter(f => f.type && f.type.startsWith('image/'));
+  if (fileArray.length === 0) return;
+
+  const readers = fileArray.map(f => {
+    return new Promise(resolve => {
+      const r = new FileReader();
+      r.onload = ev => resolve(ev.target.result);
+      r.readAsDataURL(f);
+    });
+  });
+
+  Promise.all(readers).then(results => {
+    results.forEach(u => currentEditFlyers.push(u));
+    window.renderEditFlyerGallery();
+    showAdminToast('Flyer Ditambahkan', `${results.length} flyer baru ditambahkan ke galeri lowongan.`, 'success');
+    e.target.value = '';
+  });
+};
+
+window.removeEditFlyer = function(idx) {
+  if (idx >= 0 && idx < currentEditFlyers.length) {
+    currentEditFlyers.splice(idx, 1);
+    window.renderEditFlyerGallery();
+  }
 };
 
 function setupPosterDropzone() {
@@ -1060,11 +1335,32 @@ function setupJobFormSubmit() {
 
   // Initialize upload form dynamic rows (clean and empty, admin fills in manually)
   initUploadFormDynamicLists();
+  updateCoverPreviewUI();
+
+  // Realtime simulation of cover title & auto company photo
+  const titleInp = form.querySelector('[name="title"]');
+  const compInp = form.querySelector('[name="company_name"]');
+  if (titleInp) {
+    titleInp.addEventListener('input', () => {
+      const sim = document.getElementById('sim-cover-title');
+      if (sim) sim.textContent = titleInp.value.trim() || 'Judul Lowongan';
+    });
+  }
+  if (compInp) {
+    compInp.addEventListener('input', () => {
+      if (currentCoverMode === 'auto') {
+        updateCoverPreviewUI();
+      }
+    });
+  }
 
   form.addEventListener('reset', () => {
     setTimeout(() => {
       initUploadFormDynamicLists();
       if (typeof clearAllManualFlyers === 'function') clearAllManualFlyers();
+      currentManualCoverBase64 = '';
+      currentCoverMode = 'auto';
+      updateCoverPreviewUI();
     }, 10);
   });
 
@@ -1149,6 +1445,7 @@ function setupJobFormSubmit() {
       whatsapp,
       email,
       website,
+      cover_image: currentManualCoverBase64 || '',
       flyer_images: allFlyers
     };
     const primaryContactType = whatsapp ? 'whatsapp' : (email ? 'email' : 'link');
@@ -1180,6 +1477,7 @@ function setupJobFormSubmit() {
       benefits: benValues,
       is_featured: form.querySelector('[name="is_featured"]').checked,
       status: 'active',
+      cover_image: currentManualCoverBase64 || '',
       poster_image: primaryFlyer,
       flyer_images: allFlyers,
       views_count: 0
@@ -1195,6 +1493,8 @@ function setupJobFormSubmit() {
       formData.set('whatsapp', whatsapp);
       formData.set('email', email);
       formData.set('website_url', website);
+      formData.set('cover_image', currentManualCoverBase64 || '');
+      formData.set('flyer_images', JSON.stringify(allFlyers));
       formData.set('requirements', reqValues.join('\n'));
       formData.set('responsibilities', respValues.join('\n'));
       formData.set('benefits', benValues.join('\n'));
@@ -1447,13 +1747,22 @@ window.handleAdminPosterError = function(imgEl, jobId) {
   imgEl.src = generateCompanyBannerDataUrl(job || { company_name: 'KerjaHub', title: 'Lowongan Kerja' });
 };
 
-function getEffectiveJobPoster(job) {
+function getEffectiveJobCover(job) {
   if (!job) return '';
-  if (isManualJobFlyer(job)) {
-    let p = String(job.poster_image).trim();
+  // 1. Explicit cover_image (from column or contact_value)
+  let cover = job.cover_image;
+  if (!cover && job.contact_value) {
+    try {
+      const cv = typeof job.contact_value === 'string' ? JSON.parse(job.contact_value) : job.contact_value;
+      if (cv && cv.cover_image) cover = cv.cover_image;
+    } catch (e) {}
+  }
+  if (cover && typeof cover === 'string' && cover.trim()) {
+    let p = cover.trim();
     if (p.startsWith('/uploads/')) p = '.' + p;
     return p;
   }
+  // 2. Real company photo/logo (headquarters building / official logo)
   const cName = getEffectiveCompanyName(job);
   if (job.company_image && !job.company_image.includes('unsplash.com')) {
     return job.company_image;
@@ -1463,8 +1772,21 @@ function getEffectiveJobPoster(job) {
     if (window._companyImagesCache[job.company_name]) return window._companyImagesCache[job.company_name];
     if (window._companyImagesCache[job.title]) return window._companyImagesCache[job.title];
   }
+  // 3. Fallback to manual flyer if present
+  if (isManualJobFlyer(job)) {
+    let p = String(job.poster_image).trim();
+    if (p.startsWith('/uploads/')) p = '.' + p;
+    return p;
+  }
   return generateCompanyBannerDataUrl(job);
 }
+
+function getEffectiveJobPoster(job) {
+  return getEffectiveJobCover(job);
+}
+
+window.getEffectiveJobCover = getEffectiveJobCover;
+window.getEffectiveJobPoster = getEffectiveJobPoster;
 
 // -------------------------------------------------------------
 // RENDER ADMIN JOBS TABLE (WITH LOCK SYSTEM & MULTI-CONTACTS)
@@ -1762,10 +2084,23 @@ window.openEditJobModal = function(jobId) {
   form.querySelector('[name="email"]').value = contacts.email || '';
   form.querySelector('[name="website"]').value = contacts.website || '';
 
-  const posterPreview = document.getElementById('edit-current-poster-preview');
-  if (posterPreview) {
-    posterPreview.src = getEffectiveJobPoster(job);
+  // Set editing job state & load cover + flyer gallery
+  currentEditingJob = job;
+  let initialCover = job.cover_image || '';
+  if (!initialCover && job.contact_value) {
+    try {
+      const cv = typeof job.contact_value === 'string' ? JSON.parse(job.contact_value) : job.contact_value;
+      if (cv && cv.cover_image) initialCover = cv.cover_image;
+    } catch(e) {}
   }
+  currentEditCoverBase64 = initialCover;
+  const editCoverPrev = document.getElementById('edit-current-cover-preview');
+  if (editCoverPrev) {
+    editCoverPrev.src = currentEditCoverBase64 || getEffectiveJobCover(job);
+  }
+
+  currentEditFlyers = typeof getJobFlyerImages === 'function' ? getJobFlyerImages(job) : [];
+  window.renderEditFlyerGallery();
 
   form.querySelector('[name="description"]').value = job.description || '';
 
@@ -1812,7 +2147,13 @@ function setupEditFormSubmit() {
     const whatsapp = form.querySelector('[name="whatsapp"]')?.value.trim() || '';
     const email = form.querySelector('[name="email"]')?.value.trim() || '';
     const website = form.querySelector('[name="website"]')?.value.trim() || '';
-    const contactsObj = { whatsapp, email, website };
+    const contactsObj = {
+      whatsapp,
+      email,
+      website,
+      cover_image: currentEditCoverBase64 || '',
+      flyer_images: currentEditFlyers
+    };
     const primaryContactType = whatsapp ? 'whatsapp' : (email ? 'email' : 'link');
     const contactValueJSON = JSON.stringify(contactsObj);
 
@@ -1827,12 +2168,17 @@ function setupEditFormSubmit() {
       status: form.querySelector('[name="status"]').value,
       contact_type: primaryContactType,
       contact_value: contactValueJSON,
+      cover_image: currentEditCoverBase64 || '',
+      flyer_images: currentEditFlyers,
       description: form.querySelector('[name="description"]').value.trim(),
       requirements: reqValues,
       responsibilities: respValues,
       benefits: benValues,
       updated_at: new Date().toISOString()
     };
+    if (currentEditFlyers.length > 0) {
+      updatePayload.poster_image = currentEditFlyers[0];
+    }
 
     // 1. Update in Supabase Cloud
     let updated = false;
@@ -1845,6 +2191,11 @@ function setupEditFormSubmit() {
       formData.set('whatsapp', whatsapp);
       formData.set('email', email);
       formData.set('website_url', website);
+      formData.set('cover_image', currentEditCoverBase64 || '');
+      formData.set('flyer_images', JSON.stringify(currentEditFlyers));
+      if (currentEditFlyers.length > 0) {
+        formData.set('poster_image', currentEditFlyers[0]);
+      }
       formData.set('requirements', reqValues.join('\n'));
       formData.set('responsibilities', respValues.join('\n'));
       formData.set('benefits', benValues.join('\n'));
@@ -5175,6 +5526,27 @@ function copyPosterToClipboard() {
 }
 
 // -------------------------------------------------------------
+// JADIKAN CANVAS POSTER STUDIO SEBAGAI FOTO SAMPUL KARTU
+// -------------------------------------------------------------
+window.setStudioCanvasAsCover = function() {
+  const canvas = document.getElementById('poster-canvas');
+  if (!canvas) return;
+  const dataUrl = canvas.toDataURL('image/png');
+  currentManualCoverBase64 = dataUrl;
+  currentCoverMode = 'upload';
+  updateCoverPreviewUI('desain_studio_sampul.png');
+
+  const syncCheck = document.getElementById('studio-sync-cover-checkbox');
+  if (syncCheck) syncCheck.checked = true;
+
+  if (currentPosterJobData) {
+    currentPosterJobData.cover_image = dataUrl;
+  }
+
+  showAdminToast('Foto Sampul Diset!', 'Desain poster ini berhasil diset sebagai Foto Sampul Kartu Lowongan!', 'success');
+};
+
+// -------------------------------------------------------------
 // TERBITKAN LOWONGAN LANGSUNG DARI STUDIO DENGAN SEMUA SLIDE FLYER
 // -------------------------------------------------------------
 window.publishJobFromStudio = async function() {
@@ -5234,6 +5606,15 @@ window.publishJobFromStudio = async function() {
     contacts.verified_screening_status = 'passed';
     contacts.flyer_images = currentFlyerSlides;
 
+    const syncCoverCb = document.getElementById('studio-sync-cover-checkbox');
+    let studioCover = (currentPosterJobData && currentPosterJobData.cover_image) || '';
+    if (syncCoverCb && syncCoverCb.checked) {
+      studioCover = currentFlyerSlides[0] || currentCanvasDataUrl;
+    }
+    if (studioCover) {
+      contacts.cover_image = studioCover;
+    }
+
     const contactsJson = JSON.stringify(contacts);
     const dMeta = getDeadlineMeta(updatedDead, 30);
 
@@ -5245,6 +5626,7 @@ window.publishJobFromStudio = async function() {
       location: currentPosterJobData.location || 'Indonesia',
       salary_display: currentPosterJobData.salary_display || 'Kompetitif',
       experience_level: currentPosterJobData.experience_level || 'Fresh Graduate',
+      cover_image: studioCover,
       poster_image: currentFlyerSlides[0] || currentCanvasDataUrl,
       flyer_images: currentFlyerSlides,
       description: currentPosterJobData.description || `Lowongan kerja resmi ${updatedTitle} di ${updatedComp}.`,
@@ -5438,6 +5820,15 @@ window.savePosterChangesToJob = async function() {
         contacts.website = updatedQr;
       }
       contacts.flyer_images = currentFlyerSlides;
+
+      const syncCoverCb = document.getElementById('studio-sync-cover-checkbox');
+      let studioCover = (currentPosterJobData && currentPosterJobData.cover_image) || '';
+      if (syncCoverCb && syncCoverCb.checked) {
+        studioCover = posterDataUrl;
+      }
+      if (studioCover) {
+        contacts.cover_image = studioCover;
+      }
       const contactValStr = JSON.stringify(contacts);
 
       const updatePayload = {
@@ -5447,6 +5838,7 @@ window.savePosterChangesToJob = async function() {
         responsibilities: respList,
         requirements: reqList,
         benefits: benList,
+        cover_image: studioCover || (currentPosterJobData && currentPosterJobData.cover_image) || '',
         poster_image: posterDataUrl,
         flyer_images: currentFlyerSlides,
         contact_value: contactValStr,
@@ -5535,6 +5927,13 @@ window.savePosterChangesToJob = async function() {
           manualUploadedFlyers = [posterDataUrl];
         }
         if (typeof renderManualFlyerGallery === 'function') renderManualFlyerGallery();
+
+        const syncCoverCb = document.getElementById('studio-sync-cover-checkbox');
+        if (syncCoverCb && syncCoverCb.checked) {
+          currentManualCoverBase64 = posterDataUrl;
+          currentCoverMode = 'upload';
+          if (typeof updateCoverPreviewUI === 'function') updateCoverPreviewUI('desain_studio_sampul.png');
+        }
 
         const uploadNav = document.querySelector('li[data-tab="upload"]') || document.querySelector('a[href="#upload"]') || document.querySelector('a[href="#upload-job"]');
         if (uploadNav) uploadNav.click();
