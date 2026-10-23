@@ -7,6 +7,8 @@ let sbClient = null;
 const DEFAULT_SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co";
 const DEFAULT_SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
 const DEFAULT_ADMIN_PASSWORD = "admin_supersecret_portal_2026";
+const defaultPoster = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80"><rect width="80" height="80" fill="#1e293b"/><text x="40" y="48" font-family="sans-serif" font-size="28" text-anchor="middle" fill="#6366f1">💼</text></svg>');
+let isLoadingAdminJobs = false;
 
 function getApiEndpoint(endpoint) {
   if (!endpoint) return '';
@@ -697,9 +699,13 @@ window.syncDynamicItems = function(containerId) {
   }
 
   // If this is poster studio, re-draw flyer canvas immediately!
-  if (containerId === 'poster-req-items') {
+  if (containerId === 'poster-req-items' || containerId === 'poster-resp-items' || containerId === 'poster-ben-items') {
     const legacyReq = document.getElementById('poster-input-requirements');
-    if (legacyReq) legacyReq.value = values.join('\n');
+    if (legacyReq && containerId === 'poster-req-items') legacyReq.value = values.join('\n');
+    const legacyResp = document.getElementById('poster-input-responsibilities');
+    if (legacyResp && containerId === 'poster-resp-items') legacyResp.value = values.join('\n');
+    const legacyBen = document.getElementById('poster-input-benefits');
+    if (legacyBen && containerId === 'poster-ben-items') legacyBen.value = values.join('\n');
     if (typeof renderPosterCanvas === 'function') {
       renderPosterCanvas();
     }
@@ -731,16 +737,20 @@ function setupJobFormSubmit() {
   const btnGenPoster = document.getElementById('btn-generate-poster-from-form');
   if (btnGenPoster) {
     btnGenPoster.addEventListener('click', () => {
-      const title = form.querySelector('[name="title"]')?.value.trim() || 'Lowongan Baru';
-      const company = form.querySelector('[name="company_name"]')?.value.trim() || 'Perusahaan';
+      const title = form.querySelector('[name="title"]')?.value.trim() || '';
+      const company = form.querySelector('[name="company_name"]')?.value.trim() || '';
+      const respLines = window.getDynamicListValues('upload-resp-items');
       const reqLines = window.getDynamicListValues('upload-req-items');
+      const benLines = window.getDynamicListValues('upload-ben-items');
       const deadline = form.querySelector('[name="deadline"]')?.value.trim() || '';
       const website = form.querySelector('[name="website"]')?.value.trim() || '';
 
       openPosterStudio({
         title,
         company_name: company,
+        responsibilities: respLines,
         requirements: reqLines,
+        benefits: benLines,
         deadline,
         official_url: website || window.location.href,
         apply_info: company ? `Kirim CV/Lamaran melalui tautan resmi ${company}.` : '',
@@ -796,7 +806,7 @@ function setupJobFormSubmit() {
       benefits: benValues,
       is_featured: form.querySelector('[name="is_featured"]').checked,
       status: 'active',
-      poster_image: currentSelectedFileBase64 || './uploads/sample_uiux.jpg',
+      poster_image: currentSelectedFileBase64 || '',
       views_count: 0
     };
 
@@ -1090,6 +1100,7 @@ function renderAdminJobsTable() {
 
   tbody.innerHTML = validJobs.map(job => {
     const posterSrc = getEffectiveJobPoster(job);
+    const fallbackPoster = generateCompanyBannerDataUrl(job);
 
     const contacts = extractJobContacts(job);
     const isLocked = job.status === 'expired' || job.status === 'closed';
@@ -1122,7 +1133,7 @@ function renderAdminJobsTable() {
       <tr>
         <td>
           <div class="job-cell">
-            <img src="${posterSrc}" alt="Poster" class="job-cell-poster" onerror="this.src='${defaultPoster}'">
+            <img src="${posterSrc}" alt="Poster" class="job-cell-poster" onerror="this.onerror=null; this.src='${fallbackPoster}';">
             <div class="job-cell-info">
               <a href="${job.website_url ? escapeHtml(job.website_url) : `./?job=${job.id}`}" target="_blank" rel="noopener noreferrer" class="job-cell-title" title="${job.website_url ? 'Buka Postingan Asli di Web' : 'Lihat di Web Publik'}">${escapeHtml(job.title)} ${job.website_url ? '<i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.75rem; margin-left:4px; color:#0284c7;"></i>' : ''}</a>
               <span class="job-cell-company">${escapeHtml(job.company_name)}</span>
@@ -1173,41 +1184,59 @@ async function loadAdminJobs(forceRefresh = false) {
     } catch (e) {}
   }
 
+  if (isLoadingAdminJobs) return;
+  isLoadingAdminJobs = true;
+
   if (tbody && (!adminJobs || adminJobs.length === 0)) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 30px;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data Supabase...</td></tr>`;
   }
 
   let jobs = null;
 
-  // 1. Fetch from Supabase Cloud
-  if (sbClient) {
-    try {
-      const { data, error } = await sbClient.from('jobs').select('*').order('id', { ascending: false });
-      if (!error && Array.isArray(data) && data.length > 0) {
-        jobs = data;
+  try {
+    // 1. Fetch from Supabase Cloud with 7-second timeout safety
+    if (sbClient) {
+      try {
+        const fetchPromise = sbClient.from('jobs').select('*').order('id', { ascending: false });
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase loadAdminJobs timeout')), 7000));
+        const res = await Promise.race([fetchPromise, timeoutPromise]);
+        if (res && !res.error && Array.isArray(res.data) && res.data.length > 0) {
+          jobs = res.data;
+        }
+      } catch (e) {
+        console.warn('Supabase loadAdminJobs warning:', e);
       }
-    } catch (e) {}
-  }
+    }
 
-  // 2. Fallback to API
-  if (!jobs) {
-    try {
-      const { ok, data } = await safeFetchJson(getApiEndpoint('/api/jobs?status=all'));
-      if (ok && data && data.success && Array.isArray(data.data)) jobs = data.data;
-    } catch (e) {}
-  }
+    // 2. Fallback to API if Supabase query yielded nothing
+    if (!jobs) {
+      try {
+        const { ok, data } = await safeFetchJson(getApiEndpoint('/api/jobs?status=all'));
+        if (ok && data && data.success && Array.isArray(data.data) && data.data.length > 0) {
+          jobs = data.data;
+        }
+      } catch (e) {}
+    }
 
-  if (jobs) {
-    adminJobs = jobs.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
-    try {
-      sessionStorage.setItem('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
-    } catch (e) {}
-  } else if (!adminJobs) {
-    adminJobs = [];
-  }
+    if (jobs) {
+      adminJobs = jobs.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+      try {
+        sessionStorage.setItem('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
+      } catch (e) {}
+    } else if (!adminJobs) {
+      adminJobs = [];
+    }
 
-  renderAdminJobsTable();
-  renderDashboardStats(adminJobs);
+    renderAdminJobsTable();
+    renderDashboardStats(adminJobs);
+  } catch (err) {
+    console.error('loadAdminJobs error:', err);
+    if (tbody && (!adminJobs || adminJobs.length === 0)) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 30px; color:#ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> Gagal memuat data. <button onclick="loadAdminJobs(true)" class="btn btn-sm btn-outline" style="margin-left:8px;">Coba Lagi</button></td></tr>`;
+    }
+  } finally {
+    isLoadingAdminJobs = false;
+  }
 }
 
 // -------------------------------------------------------------
@@ -2208,28 +2237,51 @@ window.resetOfficialFilters = function() {
 // -------------------------------------------------------------
 function generateFlyerPosterDataUrl(jobData) {
   const canvas = document.getElementById('poster-canvas');
-  if (!canvas) return './uploads/corporate_worker_mascot.jpg';
+  if (!canvas) return '';
 
   const compInp = document.getElementById('poster-input-company');
   const titleInp = document.getElementById('poster-input-title');
-  const reqInp = document.getElementById('poster-input-requirements');
   const deadInp = document.getElementById('poster-input-deadline');
   const applyInp = document.getElementById('poster-input-apply-info');
   const qrInp = document.getElementById('poster-input-qr-url');
   const hashInp = document.getElementById('poster-input-hashtag');
 
-  if (compInp) compInp.value = jobData.company_name || 'PERUSAHAAN';
-  if (titleInp) titleInp.value = jobData.title || 'LOWONGAN KERJA';
-  if (reqInp) {
-    const reqList = Array.isArray(jobData.requirements) && jobData.requirements.length > 0
-      ? jobData.requirements
-      : ['Pendidikan minimal sesuai kualifikasi', 'Mampu berkomunikasi dan bekerjasama', 'Disiplin dan bertanggung jawab'];
-    reqInp.value = reqList.slice(0, 4).join('\n');
-  }
-  if (deadInp) deadInp.value = jobData.deadline || '31 Desember 2026';
-  if (applyInp) applyInp.value = jobData.apply_info || `Kirim CV/Lamaran melalui tautan resmi ${jobData.company_name}.`;
+  if (compInp) compInp.value = jobData.company_name || '';
+  if (titleInp) titleInp.value = jobData.title || '';
+  if (deadInp) deadInp.value = jobData.deadline || '';
+  if (applyInp) applyInp.value = jobData.apply_info || (jobData.company_name ? `Kirim CV/Lamaran melalui tautan resmi ${jobData.company_name}.` : '');
   if (qrInp) qrInp.value = jobData.official_url || window.location.origin;
-  if (hashInp) hashInp.value = jobData.hashtag || `@KerjaHubOfficial #LowonganKerja2026`;
+  if (hashInp) hashInp.value = jobData.hashtag || `@KerjaHubOfficial #LowonganKerja`;
+
+  const parseList = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.map(s => String(s).trim()).filter(Boolean);
+    if (typeof val === 'string') {
+      if (val.trim().startsWith('[')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) return parsed.map(s => String(s).trim()).filter(Boolean);
+        } catch (e) {}
+      }
+      return val.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  const respList = parseList(jobData.responsibilities);
+  const reqList = parseList(jobData.requirements);
+  const benList = parseList(jobData.benefits);
+
+  window.setDynamicListValues('poster-resp-items', respList, 'responsibilities', 'poster-resp-counter');
+  window.setDynamicListValues('poster-req-items', reqList, 'requirements', 'poster-req-counter');
+  window.setDynamicListValues('poster-ben-items', benList, 'benefits', 'poster-ben-counter');
+
+  const legacyReq = document.getElementById('poster-input-requirements');
+  if (legacyReq) legacyReq.value = reqList.join('\n');
+  const legacyResp = document.getElementById('poster-input-responsibilities');
+  if (legacyResp) legacyResp.value = respList.join('\n');
+  const legacyBen = document.getElementById('poster-input-benefits');
+  if (legacyBen) legacyBen.value = benList.join('\n');
 
   // Select theme and mascot based on sector/job
   const isOperator = (jobData.title || '').toLowerCase().includes('operator') || (jobData.title || '').toLowerCase().includes('teknisi');
@@ -2252,7 +2304,7 @@ function generateFlyerPosterDataUrl(jobData) {
   try {
     return canvas.toDataURL('image/png');
   } catch(e) {
-    return './uploads/corporate_worker_mascot.jpg';
+    return '';
   }
 }
 
@@ -2595,15 +2647,23 @@ window.openPosterStudioFromExistingId = function(jobId) {
   if (!job) return;
 
   const contacts = extractJobContacts(job);
-  const reqs = Array.isArray(job.requirements)
-    ? job.requirements
-    : (typeof job.requirements === 'string' && job.requirements.startsWith('[') ? JSON.parse(job.requirements) : (job.requirements ? [job.requirements] : []));
+  const parseJsonList = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {}
+    return String(val).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  };
 
   openPosterStudio({
     title: job.title,
     company_name: job.company_name,
-    requirements: reqs,
-    deadline: job.deadline || 'Sesuai Jadwal HRD',
+    responsibilities: parseJsonList(job.responsibilities),
+    requirements: parseJsonList(job.requirements),
+    benefits: parseJsonList(job.benefits),
+    deadline: job.deadline || '',
     official_url: contacts.website || window.location.origin + '/?job=' + job.id,
     apply_info: contacts.website ? `Kirim CV/Lamaran melalui website resmi ${job.company_name}` : `Kirim lamaran melalui portal resmi KerjaHub`,
     theme: job.category === 'Operasional' || job.title.toLowerCase().includes('operator') ? 'factory' : 'modern',
@@ -2620,32 +2680,48 @@ function openPosterStudio(jobData) {
   // Fill in form inputs
   const compInp = document.getElementById('poster-input-company');
   const titleInp = document.getElementById('poster-input-title');
-  const reqInp = document.getElementById('poster-input-requirements');
   const deadInp = document.getElementById('poster-input-deadline');
   const applyInp = document.getElementById('poster-input-apply-info');
   const qrInp = document.getElementById('poster-input-qr-url');
   const hashInp = document.getElementById('poster-input-hashtag');
 
-  if (compInp) compInp.value = jobData.company_name || 'PT TOYOTA MOTOR MANUFACTURING INDONESIA';
-  if (titleInp) titleInp.value = jobData.title || 'OPERATOR PRODUKSI & LOGISTIK';
-
-  const reqList = Array.isArray(jobData.requirements) && jobData.requirements.length > 0
-    ? jobData.requirements
-    : [
-        'Pendidikan minimal SMA/SMK sederajat',
-        'Memiliki kemampuan Komunikasi, Kerja sama tim, dan Kedisiplinan yang baik',
-        'Dapat mengoperasikan Microsoft word, Excel dan Sistem Produksi',
-        'Bersedia bekerja dalam sistem shift'
-      ];
-  window.setDynamicListValues('poster-req-items', reqList, 'requirements', 'poster-req-counter');
-  if (reqInp) {
-    reqInp.value = reqList.slice(0, 10).join('\n');
-  }
-
-  if (deadInp) deadInp.value = jobData.deadline || '30 Oktober 2026';
-  if (applyInp) applyInp.value = jobData.apply_info || `Kirim CV/Lamaran melalui website ${jobData.company_name || 'perusahaan'}.`;
+  if (compInp) compInp.value = jobData.company_name || '';
+  if (titleInp) titleInp.value = jobData.title || '';
+  if (deadInp) deadInp.value = jobData.deadline || '';
+  if (applyInp) applyInp.value = jobData.apply_info || (jobData.company_name ? `Kirim CV/Lamaran melalui tautan resmi ${jobData.company_name}.` : '');
   if (qrInp) qrInp.value = jobData.official_url || window.location.origin;
-  if (hashInp) hashInp.value = jobData.hashtag || '@LokerTerpercaya #LowonganKerja2026';
+  if (hashInp) hashInp.value = jobData.hashtag || '@KerjaHubOfficial #LowonganKerja';
+
+  const parseList = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.map(s => String(s).trim()).filter(Boolean);
+    if (typeof val === 'string') {
+      if (val.trim().startsWith('[')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) return parsed.map(s => String(s).trim()).filter(Boolean);
+        } catch (e) {}
+      }
+      return val.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  const respList = parseList(jobData.responsibilities);
+  const reqList = parseList(jobData.requirements);
+  const benList = parseList(jobData.benefits);
+
+  // Directly set the dynamic lists without hardcoded defaults!
+  window.setDynamicListValues('poster-resp-items', respList, 'responsibilities', 'poster-resp-counter');
+  window.setDynamicListValues('poster-req-items', reqList, 'requirements', 'poster-req-counter');
+  window.setDynamicListValues('poster-ben-items', benList, 'benefits', 'poster-ben-counter');
+
+  const legacyReq = document.getElementById('poster-input-requirements');
+  if (legacyReq) legacyReq.value = reqList.join('\n');
+  const legacyResp = document.getElementById('poster-input-responsibilities');
+  if (legacyResp) legacyResp.value = respList.join('\n');
+  const legacyBen = document.getElementById('poster-input-benefits');
+  if (legacyBen) legacyBen.value = benList.join('\n');
 
   // Set selected theme & mascot pills
   const theme = jobData.theme || 'factory';
@@ -2662,6 +2738,7 @@ function openPosterStudio(jobData) {
   });
 
   modal.classList.add('active');
+  modal.style.display = 'flex';
 
   // Trigger initial draw
   setTimeout(() => {
@@ -2688,15 +2765,15 @@ function renderPosterCanvas() {
   canvas.width = width;
   canvas.height = height;
 
-  const company = (document.getElementById('poster-input-company')?.value || 'PT TOYOTA MOTOR MANUFACTURING INDONESIA').trim();
-  const title = (document.getElementById('poster-input-title')?.value || 'OPERATOR PRODUKSI & LOGISTIK').trim().toUpperCase();
-  const dynReqs = window.getDynamicListValues('poster-req-items');
-  const reqText = document.getElementById('poster-input-requirements')?.value || '';
-  const requirements = dynReqs.length > 0 ? dynReqs : reqText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  const deadline = (document.getElementById('poster-input-deadline')?.value || '30 November 2026').trim();
-  const applyInfo = (document.getElementById('poster-input-apply-info')?.value || `Kirim CV/Lamaran melalui website resmi ${company}.`).trim();
-  const qrUrl = (document.getElementById('poster-input-qr-url')?.value || 'https://recruitment.toyota.co.id').trim();
-  const hashtag = (document.getElementById('poster-input-hashtag')?.value || '@KerjaHubOfficial #Lowongankerja2026').trim();
+  const company = (document.getElementById('poster-input-company')?.value || '').trim();
+  const title = (document.getElementById('poster-input-title')?.value || '').trim().toUpperCase();
+  const responsibilities = window.getDynamicListValues('poster-resp-items');
+  const requirements = window.getDynamicListValues('poster-req-items');
+  const benefits = window.getDynamicListValues('poster-ben-items');
+  const deadline = (document.getElementById('poster-input-deadline')?.value || '').trim();
+  const applyInfo = (document.getElementById('poster-input-apply-info')?.value || '').trim();
+  const qrUrl = (document.getElementById('poster-input-qr-url')?.value || window.location.href).trim();
+  const hashtag = (document.getElementById('poster-input-hashtag')?.value || '@KerjaHubOfficial #LowonganKerja').trim();
 
   const selectedTheme = document.querySelector('input[name="poster_theme"]:checked')?.value || 'factory';
   const selectedMascot = document.querySelector('input[name="poster_mascot"]:checked')?.value || 'factory';
@@ -2945,54 +3022,125 @@ function renderPosterCanvas() {
   ctx.font = `800 ${titleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
 
   const totalTextBlockH = (titleLines.length - 1) * lineHeight;
-  const startY = badgeY + (badgeH / 2) - (totalTextBlockH / 2) + (titleFontSize * 0.35);
-
   titleLines.forEach((l, idx) => {
     ctx.fillText(l, badgeX + (badgeW / 2), startY + (idx * lineHeight));
   });
   ctx.restore();
 
-  // 5. Kualifikasi Section (Dynamically offset below position badge)
-  const kualifikasiTitleY = badgeY + badgeH + 38;
-  ctx.textAlign = 'left';
-  ctx.fillStyle = p.textDark;
-  ctx.font = '800 32px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText('Kualifikasi', 60, kualifikasiTitleY);
+  // 5. Dynamic Sections: Tanggung Jawab, Kualifikasi, Benefit & Fasilitas
+  const activeSections = [];
+  if (responsibilities && responsibilities.length > 0) {
+    activeSections.push({
+      title: 'Tanggung Jawab',
+      icon: '📌',
+      items: responsibilities,
+      headerColor: p.primary
+    });
+  }
+  if (requirements && requirements.length > 0) {
+    activeSections.push({
+      title: 'Kualifikasi',
+      icon: '🎓',
+      items: requirements,
+      headerColor: p.textDark
+    });
+  }
+  if (benefits && benefits.length > 0) {
+    activeSections.push({
+      title: 'Benefit & Fasilitas',
+      icon: '🎁',
+      items: benefits,
+      headerColor: p.accentOrange
+    });
+  }
 
-  // Render requirement bullet points with icons
-  const reqIcons = ['🎓', '🤝', '💻', '🕒', '🩺'];
-  let currentY = kualifikasiTitleY + 46;
-  const maxReqW = hasMascot ? 490 : (width - 180);
+  let currentY = badgeY + badgeH + 34;
+  const maxReqW = hasMascot ? 490 : (width - 160);
   const appBoxY = 790;
+  const maxY = appBoxY - 18;
 
-  requirements.slice(0, 5).forEach((req, idx) => {
-    if (currentY + 40 > appBoxY - 20) return; // Prevent collision with application box
+  if (activeSections.length === 0) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'italic 600 20px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('• Kualifikasi, tanggung jawab, dan benefit akan tampil sesuai input formulir.', 60, currentY + 30);
+  } else {
+    // Dynamic sizing depending on number of sections
+    const numSections = activeSections.length;
+    let headerFontSize = 26;
+    let itemFontSize = 20;
+    let itemLineHeight = 27;
+    let maxItemsPerSec = 4;
 
-    const icon = reqIcons[idx % reqIcons.length];
-    ctx.font = '24px "Segoe UI Emoji", Arial';
-    ctx.fillText(icon, 60, currentY);
-
-    ctx.font = '600 23px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillStyle = '#334155';
-
-    const words = req.split(' ');
-    let line = '';
-    let lineY = currentY;
-
-    for (let n = 0; n < words.length; n++) {
-      const testLine = line + words[n] + ' ';
-      const metrics = ctx.measureText(testLine);
-      if (metrics.width > maxReqW && n > 0) {
-        ctx.fillText(line, 105, lineY);
-        line = words[n] + ' ';
-        lineY += 32;
-      } else {
-        line = testLine;
-      }
+    if (numSections === 1) {
+      headerFontSize = 28;
+      itemFontSize = 22;
+      itemLineHeight = 30;
+      maxItemsPerSec = 5;
+    } else if (numSections === 2) {
+      headerFontSize = 24;
+      itemFontSize = 19;
+      itemLineHeight = 26;
+      maxItemsPerSec = 3;
+    } else {
+      headerFontSize = 22;
+      itemFontSize = 17;
+      itemLineHeight = 23;
+      maxItemsPerSec = 2;
     }
-    ctx.fillText(line, 105, lineY);
-    currentY = lineY + 42;
-  });
+
+    activeSections.forEach((sec) => {
+      if (currentY + 45 > maxY) return;
+
+      // Draw Section Header
+      ctx.textAlign = 'left';
+      ctx.fillStyle = sec.headerColor;
+      ctx.font = `800 ${headerFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+      ctx.fillText(`${sec.icon} ${sec.title}`, 60, currentY);
+      currentY += Math.round(headerFontSize * 1.35);
+
+      // Draw Items
+      const itemsToDraw = sec.items.slice(0, maxItemsPerSec);
+      itemsToDraw.forEach((itemText) => {
+        if (currentY + itemLineHeight > maxY) return;
+
+        // Bullet dot
+        ctx.fillStyle = sec.headerColor || p.primary;
+        ctx.beginPath();
+        ctx.arc(68, currentY - (itemFontSize * 0.35), 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Wrapped item text
+        ctx.font = `600 ${itemFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+        ctx.fillStyle = '#334155';
+
+        const words = String(itemText).trim().split(/\s+/);
+        let line = '';
+        let lineY = currentY;
+
+        for (let n = 0; n < words.length; n++) {
+          const testLine = line + words[n] + ' ';
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > (maxReqW - 35) && n > 0) {
+            ctx.fillText(line.trim(), 84, lineY);
+            line = words[n] + ' ';
+            lineY += itemLineHeight;
+            if (lineY + itemLineHeight > maxY) break;
+          } else {
+            line = testLine;
+          }
+        }
+        if (line.trim() && lineY <= maxY) {
+          ctx.fillText(line.trim(), 84, lineY);
+          currentY = lineY + Math.round(itemFontSize * 1.5);
+        } else {
+          currentY = lineY;
+        }
+      });
+
+      currentY += 12; // Small gap between sections
+    });
+  }
 
   // 6. Draw Mascot Illustration (Right Column)
   if (hasMascot) {
@@ -3030,16 +3178,17 @@ function renderPosterCanvas() {
 
   ctx.fillStyle = p.primary;
   ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
-  let shortComp = company;
+  let shortComp = company || 'Perusahaan Terverifikasi';
   while (ctx.measureText(shortComp).width > appBoxW - 60 && shortComp.length > 10) {
     shortComp = shortComp.slice(0, -1);
   }
-  if (shortComp !== company) shortComp += '...';
+  if (shortComp !== (company || 'Perusahaan Terverifikasi')) shortComp += '...';
   ctx.fillText(shortComp, appBoxX + 26, appBoxY + 96);
 
   ctx.fillStyle = p.accentOrange;
   ctx.font = '800 32px "Plus Jakarta Sans", Arial, sans-serif';
-  ctx.fillText(`Deadline ${deadline}.`, appBoxX + 26, appBoxY + 154);
+  const deadlineLabel = deadline ? `Deadline ${deadline}.` : 'Pendaftaran Terbuka';
+  ctx.fillText(deadlineLabel, appBoxX + 26, appBoxY + 154);
 
   // 8. QR Code Generation & Drawing (Right-aligned next to apply box)
   const qrBoxX = 735;

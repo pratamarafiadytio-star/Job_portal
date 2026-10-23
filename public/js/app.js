@@ -212,6 +212,8 @@ window.filterByPlatform = function(plat) {
   document.getElementById('lowongan')?.scrollIntoView({ behavior: 'smooth' });
 };
 
+let isLoadingPublicJobs = false;
+
 async function initSupabaseClient() {
   // 1. Immediately initialize with client-side default Supabase credentials so it works on GitHub Pages, workdev, and static previews
   if (window.supabase && typeof window.supabase.createClient === 'function') {
@@ -222,39 +224,43 @@ async function initSupabaseClient() {
     }
   }
 
-  // 2. Attempt fetching runtime /api/config from backend (if running on Node or Cloudflare Functions)
-  try {
-    const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
-    if (ok && data) {
-      if (data.supabaseUrl && data.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function') {
-        try {
-          sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey);
-        } catch (e) {
-          console.warn('Supabase createClient error:', e);
+  // 2. Fetch runtime /api/config and settings in background without blocking initial rendering
+  (async () => {
+    try {
+      const { ok, data } = await safeFetchJson(getApiEndpoint('/api/config'));
+      if (ok && data) {
+        if (data.supabaseUrl && data.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function') {
+          try {
+            sbClient = window.supabase.createClient(data.supabaseUrl, data.supabaseKey);
+          } catch (e) {
+            console.warn('Supabase createClient error:', e);
+          }
+        }
+        if (data.cv_whatsapp) {
+          window.siteSettings.cv_whatsapp = data.cv_whatsapp;
+        }
+        if (data.cv_order_message) {
+          window.siteSettings.cv_order_message = data.cv_order_message;
         }
       }
-      if (data.cv_whatsapp) {
-        window.siteSettings.cv_whatsapp = data.cv_whatsapp;
-      }
-      if (data.cv_order_message) {
-        window.siteSettings.cv_order_message = data.cv_order_message;
-      }
+    } catch (e) {
+      console.warn('Init Supabase config error:', e);
     }
-  } catch (e) {
-    console.warn('Init Supabase config error:', e);
-  }
 
-  // 3. Resilient fallback for site settings directly from Supabase if needed
-  if (sbClient && window.siteSettings && (!window.siteSettings.cv_whatsapp || window.siteSettings.cv_whatsapp === '081234567890')) {
-    try {
-      const { data: stRows } = await sbClient.from('jobs').select('description').eq('status', 'system_settings').limit(1);
-      if (stRows && stRows.length > 0 && stRows[0].description) {
-        const parsed = JSON.parse(stRows[0].description);
-        if (parsed.cv_whatsapp) window.siteSettings.cv_whatsapp = parsed.cv_whatsapp;
-        if (parsed.cv_order_message) window.siteSettings.cv_order_message = parsed.cv_order_message;
-      }
-    } catch (e) {}
-  }
+    // 3. Resilient fallback for site settings directly from Supabase if needed
+    if (sbClient && window.siteSettings && (!window.siteSettings.cv_whatsapp || window.siteSettings.cv_whatsapp === '081234567890')) {
+      try {
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
+        const fetchPromise = sbClient.from('jobs').select('description').eq('status', 'system_settings').limit(1);
+        const { data: stRows } = await Promise.race([fetchPromise, timeoutPromise]);
+        if (stRows && stRows.length > 0 && stRows[0].description) {
+          const parsed = JSON.parse(stRows[0].description);
+          if (parsed.cv_whatsapp) window.siteSettings.cv_whatsapp = parsed.cv_whatsapp;
+          if (parsed.cv_order_message) window.siteSettings.cv_order_message = parsed.cv_order_message;
+        }
+      } catch (e) {}
+    }
+  })();
 }
 
 // Active State
@@ -771,7 +777,9 @@ async function loadMasterDataFilters() {
   // Resilient fallback to direct Supabase if API is unavailable
   if (!data && sbClient) {
     try {
-      const { data: rows } = await sbClient.from('jobs').select('description').eq('status', 'system_master_data').limit(1);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+      const fetchPromise = sbClient.from('jobs').select('description').eq('status', 'system_master_data').limit(1);
+      const { data: rows } = await Promise.race([fetchPromise, timeoutPromise]);
       if (rows && rows.length > 0 && rows[0].description) {
         const parsed = JSON.parse(rows[0].description);
         if (parsed && Array.isArray(parsed.categories)) {
@@ -916,88 +924,98 @@ function setupModalDismiss(modalId) {
 
 // Load Jobs: Multi-layer fetching with Stale-While-Revalidate Caching for 0ms Instant Display
 async function loadJobs() {
-  const container = document.getElementById('jobs-container');
+  if (isLoadingPublicJobs) return;
+  isLoadingPublicJobs = true;
 
-  // 1. Instant display from sessionStorage cache if available (0ms perceived load time)
-  let hadCached = false;
   try {
-    const cached = sessionStorage.getItem('kerja_public_jobs_cache');
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        rawAllJobs = parsed.map(window.cleanJobData).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
-        updateTabCounters();
-        applyFiltersAndRender();
-        hadCached = true;
-      }
-    }
-  } catch (e) {}
+    const container = document.getElementById('jobs-container');
 
-  if (!hadCached && container) {
-    container.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 60px;">
-        <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.2rem; color: var(--primary);"></i>
-        <p style="margin-top: 14px; color: var(--text-muted); font-weight: 500;">Memuat info lowongan & poster resmi...</p>
-      </div>
-    `;
-  }
-
-  let jobs = null;
-
-  // 2. Fetch fresh data from Supabase Cloud Client (fetch active, expired, and closed)
-  if (sbClient) {
+    // 1. Instant display from sessionStorage cache if available (0ms perceived load time)
+    let hadCached = false;
     try {
-      const { data, error } = await sbClient
-        .from('jobs')
-        .select('*')
-        .neq('status', 'system_master_data')
-        .neq('status', 'system_settings')
-        .order('is_featured', { ascending: false })
-        .order('id', { ascending: false });
-      if (!error && Array.isArray(data) && data.length > 0) {
-        jobs = data.map(window.cleanJobData).filter(j => j.status !== 'system_master_data' && j.status !== 'system_settings');
-      } else if (error) {
-        console.warn('Supabase query error in loadJobs:', error.message);
-      }
-    } catch (e) {
-      console.warn('Supabase query exception in loadJobs:', e);
-    }
-  }
-
-  // 3. Fallback to Local Express Server API
-  if (!jobs) {
-    try {
-      const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
-      if (ok && json && json.success && Array.isArray(json.data) && json.data.length > 0) {
-        jobs = json.data.map(window.cleanJobData);
+      const cached = sessionStorage.getItem('kerja_public_jobs_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          rawAllJobs = parsed.map(window.cleanJobData).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+          updateTabCounters();
+          applyFiltersAndRender();
+          hadCached = true;
+        }
       }
     } catch (e) {}
-  }
 
-  // 4. Default to empty array if no jobs fetched
-  if (!jobs) {
-    jobs = [];
-  }
-
-  if (jobs) {
-    rawAllJobs = jobs.map(window.cleanJobData).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
-    try {
-      sessionStorage.setItem('kerja_public_jobs_cache', JSON.stringify(rawAllJobs));
-    } catch (e) {}
-    updateTabCounters();
-    applyFiltersAndRender();
-  }
-
-  // Deep linking check ?job=:id
-  try {
-    const urlParams = new URLSearchParams(window.location.search);
-    const targetJobId = urlParams.get('job');
-    if (targetJobId) {
-      setTimeout(() => {
-        openJobDetail(targetJobId);
-      }, 500);
+    if (!hadCached && container) {
+      container.innerHTML = `
+        <div style="grid-column: 1/-1; text-align: center; padding: 60px;">
+          <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.2rem; color: var(--primary);"></i>
+          <p style="margin-top: 14px; color: var(--text-muted); font-weight: 500;">Memuat info lowongan & poster resmi...</p>
+        </div>
+      `;
     }
-  } catch (e) {}
+
+    let jobs = null;
+
+    // 2. Fetch fresh data from Supabase Cloud Client (fetch active, expired, and closed) with 7s timeout safety
+    if (sbClient) {
+      try {
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase loadJobs timeout')), 7000));
+        const fetchPromise = sbClient
+          .from('jobs')
+          .select('*')
+          .neq('status', 'system_master_data')
+          .neq('status', 'system_settings')
+          .order('is_featured', { ascending: false })
+          .order('id', { ascending: false });
+
+        const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
+        if (!error && Array.isArray(data) && data.length > 0) {
+          jobs = data.map(window.cleanJobData).filter(j => j.status !== 'system_master_data' && j.status !== 'system_settings');
+        } else if (error) {
+          console.warn('Supabase query error in loadJobs:', error.message);
+        }
+      } catch (e) {
+        console.warn('Supabase query exception in loadJobs:', e);
+      }
+    }
+
+    // 3. Fallback to Local Express Server API
+    if (!jobs) {
+      try {
+        const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
+        if (ok && json && json.success && Array.isArray(json.data) && json.data.length > 0) {
+          jobs = json.data.map(window.cleanJobData);
+        }
+      } catch (e) {}
+    }
+
+    // 4. Default to empty array if no jobs fetched
+    if (!jobs) {
+      jobs = [];
+    }
+
+    if (jobs) {
+      rawAllJobs = jobs.map(window.cleanJobData).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+      try {
+        sessionStorage.setItem('kerja_public_jobs_cache', JSON.stringify(rawAllJobs));
+      } catch (e) {}
+      updateTabCounters();
+      applyFiltersAndRender();
+    }
+
+    // Deep linking check ?job=:id
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetJobId = urlParams.get('job');
+      if (targetJobId) {
+        setTimeout(() => {
+          openJobDetail(targetJobId);
+        }, 500);
+      }
+    } catch (e) {}
+  } finally {
+    isLoadingPublicJobs = false;
+  }
 }
 
 // Calculate Tab Counters

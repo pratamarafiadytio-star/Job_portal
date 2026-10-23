@@ -1350,13 +1350,34 @@
                 <input type="text" id="poster-input-title" class="form-input" placeholder="OPERATOR PRODUKSI">
               </div>
 
+              <!-- 3 SEKSI DINAMIS: TANGGUNG JAWAB, KUALIFIKASI, BENEFIT (DIGAMBAR KE POSTER) -->
+              <div class="dynamic-manager-card" data-category="responsibilities" id="poster-resp-card" style="margin-bottom: 12px;">
+                <div class="dm-card-header">
+                  <div class="dm-header-left">
+                    <span class="dm-icon-pill resp-pill"><i class="fa-solid fa-list-check"></i></span>
+                    <div>
+                      <h4 class="dm-title">Tanggung Jawab</h4>
+                      <span class="dm-subtitle">Tugas harian (Digambar ke poster)</span>
+                    </div>
+                  </div>
+                  <div class="dm-header-right">
+                    <span class="dm-counter-badge" id="poster-resp-counter">0/10</span>
+                    <button type="button" class="btn-dm-add" id="poster-resp-add-btn" onclick="addDynamicItemRow('poster-resp-items', 'responsibilities', 'poster-resp-counter')">
+                      <i class="fa-solid fa-plus"></i> Tambah
+                    </button>
+                  </div>
+                </div>
+                <div class="dm-items-container" id="poster-resp-items" data-max="10"></div>
+                <textarea id="poster-input-responsibilities" style="display:none;"></textarea>
+              </div>
+
               <div class="dynamic-manager-card" data-category="requirements" id="poster-req-card" style="margin-bottom: 12px;">
                 <div class="dm-card-header">
                   <div class="dm-header-left">
                     <span class="dm-icon-pill req-pill"><i class="fa-solid fa-user-check"></i></span>
                     <div>
-                      <h4 class="dm-title">Kualifikasi Poster</h4>
-                      <span class="dm-subtitle">Digambar ke poster flyer (Maks 10)</span>
+                      <h4 class="dm-title">Kualifikasi</h4>
+                      <span class="dm-subtitle">Syarat pelamar (Digambar ke poster)</span>
                     </div>
                   </div>
                   <div class="dm-header-right">
@@ -1368,6 +1389,26 @@
                 </div>
                 <div class="dm-items-container" id="poster-req-items" data-max="10"></div>
                 <textarea id="poster-input-requirements" style="display:none;"></textarea>
+              </div>
+
+              <div class="dynamic-manager-card" data-category="benefits" id="poster-ben-card" style="margin-bottom: 12px;">
+                <div class="dm-card-header">
+                  <div class="dm-header-left">
+                    <span class="dm-icon-pill ben-pill"><i class="fa-solid fa-gift"></i></span>
+                    <div>
+                      <h4 class="dm-title">Benefit & Fasilitas</h4>
+                      <span class="dm-subtitle">Tunjangan kerja (Digambar ke poster)</span>
+                    </div>
+                  </div>
+                  <div class="dm-header-right">
+                    <span class="dm-counter-badge" id="poster-ben-counter">0/10</span>
+                    <button type="button" class="btn-dm-add" id="poster-ben-add-btn" onclick="addDynamicItemRow('poster-ben-items', 'benefits', 'poster-ben-counter')">
+                      <i class="fa-solid fa-plus"></i> Tambah
+                    </button>
+                  </div>
+                </div>
+                <div class="dm-items-container" id="poster-ben-items" data-max="10"></div>
+                <textarea id="poster-input-benefits" style="display:none;"></textarea>
               </div>
 
               <div class="form-grid-2" style="margin-bottom: 10px;">

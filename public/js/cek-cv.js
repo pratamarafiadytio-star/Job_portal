@@ -155,7 +155,9 @@ async function loadAllJobs() {
   // 1. Direct Supabase Query (works instantly on GitHub Pages, workdev, and local)
   if (sb) {
     try {
-      const { data, error } = await sb.from('jobs').select('*').in('status', ['active']);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000));
+      const fetchPromise = sb.from('jobs').select('*').in('status', ['active']);
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
       if (!error && Array.isArray(data) && data.length > 0) {
         const normalizer = typeof window.cleanJobData === 'function' ? window.cleanJobData : (j => j);
         allJobs = data.map(normalizer).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
