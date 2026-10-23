@@ -1046,7 +1046,7 @@ function setupModalDismiss(modalId) {
   });
 }
 
-// Load Jobs: Multi-layer fetching with Stale-While-Revalidate Caching for 0ms Instant Display
+// Load Jobs: Ultra-Fast Multi-Layer Fetching with 0ms Instant Cache & Concurrent Race
 async function loadJobs() {
   if (isLoadingPublicJobs) return;
   isLoadingPublicJobs = true;
@@ -1054,10 +1054,10 @@ async function loadJobs() {
   try {
     const container = document.getElementById('jobs-container');
 
-    // 1. Instant display from sessionStorage cache if available (0ms perceived load time)
+    // 1. Instant 0ms perceived load time: check localStorage first, then sessionStorage
     let hadCached = false;
     try {
-      const cached = safeSessionGet('kerja_public_jobs_cache');
+      const cached = safeLocalGet('kerja_public_jobs_cache') || safeSessionGet('kerja_public_jobs_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -1078,13 +1078,23 @@ async function loadJobs() {
       `;
     }
 
-    let jobs = null;
-
-    // 2. Fetch fresh data from Supabase Cloud Client (fetch active, expired, and closed) with 7s timeout safety
-    if (sbClient) {
+    // 2. Ultra-Fast Parallel Fetch: Query local /api/jobs AND Supabase Cloud concurrently
+    // Whichever responds first with valid jobs wins immediately!
+    const fetchLocalApi = async () => {
       try {
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase loadJobs timeout')), 7000));
-        const fetchPromise = sbClient
+        const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
+        if (ok && json && json.success && Array.isArray(json.data) && json.data.length > 0) {
+          return json.data.map(window.cleanJobData).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+        }
+      } catch (e) {}
+      return null;
+    };
+
+    const fetchSupabase = async () => {
+      if (!sbClient) return null;
+      try {
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase loadJobs timeout')), 2500));
+        const queryPromise = sbClient
           .from('jobs')
           .select('*')
           .neq('status', 'system_master_data')
@@ -1092,37 +1102,38 @@ async function loadJobs() {
           .order('is_featured', { ascending: false })
           .order('id', { ascending: false });
 
-        const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
+        const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
         if (!error && Array.isArray(data) && data.length > 0) {
-          jobs = data.map(window.cleanJobData).filter(j => j.status !== 'system_master_data' && j.status !== 'system_settings');
-        } else if (error) {
-          console.warn('Supabase query error in loadJobs:', error.message);
+          return data.map(window.cleanJobData).filter(j => j.status !== 'system_master_data' && j.status !== 'system_settings');
         }
-      } catch (e) {
-        console.warn('Supabase query exception in loadJobs:', e);
-      }
-    }
+      } catch (e) {}
+      return null;
+    };
 
-    // 3. Fallback to Local Express Server API
-    if (!jobs) {
+    // Fetch both sources in parallel
+    const [localResult, supabaseResult] = await Promise.all([fetchLocalApi(), fetchSupabase()]);
+    let freshJobs = localResult || supabaseResult;
+
+    // Fallback if both returned null
+    if (!freshJobs && sbClient && !supabaseResult) {
       try {
-        const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
-        if (ok && json && json.success && Array.isArray(json.data) && json.data.length > 0) {
-          jobs = json.data.map(window.cleanJobData);
+        const { data } = await sbClient.from('jobs').select('*').limit(30);
+        if (Array.isArray(data) && data.length > 0) {
+          freshJobs = data.map(window.cleanJobData).filter(j => j.status !== 'system_master_data' && j.status !== 'system_settings');
         }
       } catch (e) {}
     }
 
-    // 4. Default to empty array if no jobs fetched
-    if (!jobs) {
-      jobs = [];
-    }
-
-    if (jobs) {
-      rawAllJobs = jobs.map(window.cleanJobData).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+    if (freshJobs && Array.isArray(freshJobs) && freshJobs.length > 0) {
+      rawAllJobs = freshJobs;
       try {
+        safeLocalSet('kerja_public_jobs_cache', JSON.stringify(rawAllJobs));
         safeSessionSet('kerja_public_jobs_cache', JSON.stringify(rawAllJobs));
       } catch (e) {}
+      updateTabCounters();
+      applyFiltersAndRender();
+    } else if (!hadCached) {
+      rawAllJobs = [];
       updateTabCounters();
       applyFiltersAndRender();
     }
@@ -1134,7 +1145,7 @@ async function loadJobs() {
       if (targetJobId) {
         setTimeout(() => {
           openJobDetail(targetJobId);
-        }, 500);
+        }, 300);
       }
     } catch (e) {}
   } finally {
@@ -1643,13 +1654,22 @@ function getEffectiveJobCover(job) {
 
 function getEffectiveJobPoster(job) {
   if (!job) return '';
-  const flyers = typeof getJobFlyerImages === 'function' ? getJobFlyerImages(job) : [];
-  const manualFlyer = flyers.find(src => isManualJobFlyer({ poster_image: src }));
-  if (manualFlyer) {
-    let p = manualFlyer;
+  // 1. Direct flyer_images array
+  if (Array.isArray(job.flyer_images) && job.flyer_images.length > 0) {
+    const f = job.flyer_images[0];
+    if (f && typeof f === 'string' && f.trim()) {
+      let p = f.trim();
+      if (p.startsWith('/uploads/')) p = '.' + p;
+      return p;
+    }
+  }
+  // 2. Poster image manual flyer
+  if (isManualJobFlyer(job)) {
+    let p = String(job.poster_image).trim();
     if (p.startsWith('/uploads/')) p = '.' + p;
     return p;
   }
+  // 3. Fallback to cover
   return getEffectiveJobCover(job);
 }
 
@@ -1683,7 +1703,10 @@ function renderJobs(jobs) {
 
   const cardsHtml = jobs.map(job => {
     const coverSrc = getEffectiveJobCover(job);
-    const flyerList = typeof getJobFlyerImages === 'function' ? getJobFlyerImages(job).filter(src => isManualJobFlyer({ poster_image: src })) : [];
+    const rawFlyers = Array.isArray(job.flyer_images) && job.flyer_images.length > 0
+      ? job.flyer_images
+      : (typeof getJobFlyerImages === 'function' ? getJobFlyerImages(job) : []);
+    const flyerList = rawFlyers.filter(src => isManualJobFlyer({ poster_image: src }));
     const hasFlyers = flyerList.length > 0;
 
     const dObj = parseDateSafe(job.deadline);
@@ -1978,7 +2001,8 @@ function getJobFlyerImages(job) {
 
   // 4. Fallback if still empty
   if (images.length === 0) {
-    images.push(getEffectiveJobPoster(job));
+    const fallbackCover = typeof getEffectiveJobCover === 'function' ? getEffectiveJobCover(job) : '';
+    if (fallbackCover) images.push(fallbackCover);
   }
 
   return images.filter(Boolean);
