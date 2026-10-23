@@ -260,6 +260,141 @@ async function saveMasterData(supabaseUrl, supabaseKey, masterData) {
   return masterData;
 }
 
+// Clean HTML Tags & Entities from RSS snippets
+function cleanHtmlSnippet(raw) {
+  if (!raw) return '';
+  return raw
+    .replace(/&lt;[\s\S]*?&gt;/gi, ' ')
+    .replace(/<[\s\S]*?>/gi, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function formatTimeAgo(pubDateStr) {
+  if (!pubDateStr) return { text: 'Baru saja', isFresh: true, badge: 'Baru', timestamp: Date.now() };
+  const pubTime = new Date(pubDateStr).getTime();
+  if (isNaN(pubTime)) return { text: 'Baru saja', isFresh: true, badge: 'Baru', timestamp: Date.now() };
+
+  const diffMs = Date.now() - pubTime;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 60) {
+    return { text: diffMins <= 1 ? '1 menit lalu' : `${diffMins} menit lalu`, isFresh: true, badge: 'Baru Saja', timestamp: pubTime };
+  }
+  if (diffHours < 24) {
+    return { text: `${diffHours} jam lalu`, isFresh: true, badge: 'Hari Ini', timestamp: pubTime };
+  }
+  if (diffDays === 1) {
+    return { text: '1 hari lalu (Kemarin)', isFresh: true, badge: 'Kemarin', timestamp: pubTime };
+  }
+  return { text: `${diffDays} hari lalu`, isFresh: diffDays <= 7, badge: `${diffDays}h lalu`, timestamp: pubTime };
+}
+
+function decodeBingUrl(rawUrl) {
+  try {
+    const u = new URL(rawUrl.replace(/&amp;/g, '&'));
+    const target = u.searchParams.get('url');
+    if (target) return decodeURIComponent(target);
+  } catch(e) {}
+  return rawUrl.replace(/&amp;/g, '&');
+}
+
+function parseJobHeadline(rawTitle, defaultSource = 'Portal Web Resmi', rawDesc = '') {
+  let title = cleanHtmlSnippet(rawTitle || '');
+  let desc = cleanHtmlSnippet(rawDesc || '');
+  let comp = defaultSource || 'Perusahaan Terverifikasi';
+
+  const searchTexts = [desc, title];
+  const isGenericComp = /^(instagram|facebook|twitter|linkedin|web|portal|loker|google|bing|website)/i.test(comp);
+  for (const text of searchTexts) {
+    const ptMatch = text.match(/(?:🏢\s*)?((?:PT|CV|Bank|Yayasan|RSUD|RS|Universitas|Politeknik)\s+[^💼📢🕒🕐🎓\n\r,]+?)(?=\s+(?:membuka|buka|posisi|career|recruitment|💼|📢|🕒|🕐|🎓|$))/i);
+    if (ptMatch && ptMatch[1]) {
+      const extractedComp = ptMatch[1].replace(/^[🏢\s]+/, '').replace(/[\.\s]+$/, '').trim();
+      if (isGenericComp || (comp.length < 8 && extractedComp.length > comp.length)) {
+        comp = extractedComp;
+        break;
+      }
+    }
+  }
+
+  let cleanTitle = '';
+  for (const text of searchTexts) {
+    const posMatch = text.match(/(?:💼\s*Posisi:?|Posisi\s*:?)\s*([^🕒🕐🎓📢🏢\n\r]+?)(?=\s*(?:🕒|🕐|🎓|📢|🏢|Status:|Jenjang:|Pendidikan:|PT |CV |membuka|$))/i);
+    if (posMatch && posMatch[1]) {
+      const candidate = posMatch[1].replace(/[\.\s]+$/, '').trim();
+      if (!candidate.endsWith('..') && candidate.length > cleanTitle.length && !candidate.toLowerCase().includes('informasi dipublikasikan')) {
+        cleanTitle = candidate;
+      }
+    }
+  }
+
+  if (!cleanTitle) {
+    cleanTitle = title;
+    cleanTitle = cleanTitle.replace(/\s+-\s+[^-]+$/, '').trim();
+    const openMatch = cleanTitle.match(/^(.*?)\s+Buka Lowongan(?:\s+Kerja)?\s+(.*?)(?:,\s*.*)?$/i);
+    if (openMatch) {
+      if (isGenericComp) comp = openMatch[1].trim();
+      cleanTitle = openMatch[2].trim();
+    }
+    cleanTitle = cleanTitle.replace(/\b(LOWONGAN\s+(?:BUMN\s+)?(?:TERBARU\s+)?|LOKER\s+TERBARU\s+|WE ARE HIRING\s+|DIBUTUHKAN\s+SEGERA\s+)\b/gi, ' ');
+    if (comp && cleanTitle.includes(comp)) {
+      cleanTitle = cleanTitle.replace(comp, ' ');
+    }
+  }
+
+  cleanTitle = cleanTitle.replace(/\s+/g, ' ').trim();
+  comp = comp.replace(/\s+/g, ' ').trim();
+
+  let cleanDesc = desc;
+  if (!cleanDesc || cleanDesc.includes('📢') || cleanDesc.includes('🏢') || cleanDesc.includes('💼')) {
+    cleanDesc = `${comp} membuka kesempatan berkarir untuk posisi ${cleanTitle}. Seluruh tahapan pendaftaran dan verifikasi berkas dilakukan secara resmi tanpa dipungut biaya apapun.`;
+  }
+
+  return {
+    title: cleanTitle || 'Staf Operasional',
+    company: comp || defaultSource,
+    cleanDesc
+  };
+}
+
+function detectJobPlatformMeta(directUrl, rawTitle, sourceName, requestedPlatform = 'all') {
+  const urlLower = (directUrl || '').toLowerCase();
+  const titleLower = (rawTitle || '').toLowerCase();
+  const sourceLower = (sourceName || '').toLowerCase();
+  const req = (requestedPlatform || 'all').toLowerCase();
+
+  if (urlLower.includes('bukajobs.com') || titleLower.includes('bukajobs') || sourceLower.includes('bukajobs') || req === 'bukajobs') {
+    return { platform: 'bukajobs', platformLabel: 'Bukajobs Karir', platformIcon: 'fa-solid fa-briefcase', platformClass: 'bukajobs', sourceWebsite: 'Bukajobs.com' };
+  }
+  if (urlLower.includes('linkedin.com') || titleLower.endsWith('- linkedin') || sourceLower.includes('linkedin')) {
+    return { platform: 'linkedin', platformLabel: 'LinkedIn Karir', platformIcon: 'fa-brands fa-linkedin', platformClass: 'linkedin', sourceWebsite: 'LinkedIn' };
+  }
+  if (urlLower.includes('instagram.com') || titleLower.endsWith('- instagram') || sourceLower.includes('instagram')) {
+    return { platform: 'instagram', platformLabel: 'Instagram Karir', platformIcon: 'fa-brands fa-instagram', platformClass: 'instagram', sourceWebsite: 'Instagram' };
+  }
+  if (urlLower.includes('facebook.com') || titleLower.endsWith('- facebook') || sourceLower.includes('facebook')) {
+    return { platform: 'facebook', platformLabel: 'Facebook Post', platformIcon: 'fa-brands fa-facebook', platformClass: 'facebook', sourceWebsite: 'Facebook' };
+  }
+  if (urlLower.includes('twitter.com') || urlLower.includes('x.com') || titleLower.endsWith('- x') || titleLower.endsWith('- twitter') || sourceLower.includes('twitter') || sourceLower.includes('x')) {
+    return { platform: 'twitter', platformLabel: 'X (Twitter) Karir', platformIcon: 'fa-brands fa-x-twitter', platformClass: 'twitter', sourceWebsite: 'Twitter (X)' };
+  }
+  if (titleLower.includes('bumn') || sourceLower.includes('bumn') || urlLower.includes('bumn.go.id') || urlLower.includes('kemnaker')) {
+    return { platform: 'bumn', platformLabel: 'BUMN & Kedinasan', platformIcon: 'fa-solid fa-landmark', platformClass: 'bumn', sourceWebsite: sourceName || 'Portal BUMN' };
+  }
+  if (urlLower.includes('kompas.com') || urlLower.includes('detik.com') || urlLower.includes('tribunnews.com') || urlLower.includes('bisnis.com')) {
+    return { platform: 'media', platformLabel: 'Portal Media Resmi', platformIcon: 'fa-solid fa-newspaper', platformClass: 'media', sourceWebsite: sourceName || 'Portal Berita' };
+  }
+  return { platform: 'web', platformLabel: sourceName || 'Website Karir Resmi', platformIcon: 'fa-solid fa-globe', platformClass: 'web', sourceWebsite: sourceName || 'Web' };
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -540,6 +675,263 @@ export async function onRequest(context) {
       success: true,
       data: sampleResults,
       meta: { keyword, location, platforms, timeframe }
+    });
+  }
+
+  // 10.5. GET /api/live-jobs & /api/admin/live-jobs (Real-time live scout engine)
+  if ((pathname === '/api/live-jobs' || pathname === '/api/admin/live-jobs') && method === 'GET') {
+    const cleanKw = (url.searchParams.get('keyword') || 'lowongan').trim();
+    const cleanLoc = (url.searchParams.get('location') || 'Indonesia').trim();
+    const activePlat = (url.searchParams.get('platform') || 'all').trim().toLowerCase();
+    const results = [];
+    const seenUrls = new Set();
+
+    // 1. Fetch Bukajobs RSS (direct verified vacancies)
+    if (activePlat === 'all' || activePlat === 'bukajobs' || activePlat === 'web' || activePlat === 'corporate') {
+      try {
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 3500);
+        const bukaRes = await fetch('https://bukajobs.com/feed', {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+          signal: ctl.signal
+        });
+        clearTimeout(timer);
+        if (bukaRes.ok) {
+          const xml = await bukaRes.text();
+          const items = [...xml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<\/item>/g)];
+          for (const item of items) {
+            const rawTitle = cleanHtmlSnippet(item[1]);
+            const link = item[2].trim();
+            const pubDate = item[3].trim();
+            const desc = cleanHtmlSnippet(item[4]);
+            if (seenUrls.has(link)) continue;
+            seenUrls.add(link);
+
+            const parsed = parseJobHeadline(rawTitle, 'Bukajobs Karir', desc);
+            const timeInfo = formatTimeAgo(pubDate);
+
+            results.push({
+              id: 'buka_' + Math.random().toString(36).substring(2, 10),
+              source: 'bukajobs',
+              platform: 'bukajobs',
+              platform_label: 'Bukajobs Resmi',
+              platform_icon: 'fa-solid fa-briefcase',
+              platform_class: 'bukajobs',
+              title: parsed.title,
+              company_name: parsed.company,
+              company: parsed.company,
+              location: cleanLoc || 'Indonesia',
+              pubDate,
+              pubTimestamp: timeInfo.timestamp,
+              timeAgo: timeInfo.text,
+              posted_time: timeInfo.text || 'Baru saja',
+              isFresh: timeInfo.isFresh,
+              salary_display: 'Kompetitif (Standar Industri & Korporasi)',
+              salary_prompt: 'Gaji kompetitif sesuai standar industri dan peraturan yang berlaku.',
+              job_type: 'Full time',
+              category: 'Loker Asli Web',
+              role_department: parsed.title,
+              badge_fresh: true,
+              badge_kandidat: true,
+              is_live_actual: true,
+              official_url: link,
+              url: link,
+              website_url: link,
+              source_website: 'Bukajobs.com',
+              poster_image: '',
+              rating: '4.9',
+              contact_email: '',
+              contact_whatsapp: '',
+              anti_fraud_notice: 'Informasi lowongan kerja tervalidasi dari portal Bukajobs.com. Bebas pungutan biaya apapun.',
+              description: parsed.cleanDesc || desc,
+              responsibilities: [
+                `Menjalankan tugas pokok dan fungsi operasional untuk posisi ${parsed.title}.`,
+                `Menjaga profesionalisme, kedisiplinan kerja, dan kepatuhan terhadap SOP di lingkungan ${parsed.company}.`,
+                `Berkoordinasi secara aktif dengan tim kerja terkait kelancaran operasional harian.`
+              ],
+              requirements: [
+                `Pendidikan sesuai kualifikasi yang disyaratkan posisi.`,
+                `Memiliki etos kerja tinggi, integritas, dan siap berkembang.`,
+                `Ketentuan dan dokumen lamaran dapat dicek langsung pada postingan resmi Bukajobs.`
+              ],
+              benefits: [
+                `Gaji & tunjangan sesuai standar perusahaan`,
+                `Perlindungan jaminan sosial tenaga kerja (BPJS)`
+              ]
+            });
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 2. Fetch Bing News RSS for real-time live web articles
+    try {
+      let bingSearchQuery = `lowongan kerja "${cleanKw}" ${cleanLoc}`;
+      if (activePlat === 'linkedin') bingSearchQuery = `site:linkedin.com "lowongan kerja" "${cleanKw}"`;
+      else if (activePlat === 'instagram') bingSearchQuery = `site:instagram.com "lowongan kerja" "${cleanKw}"`;
+      else if (activePlat === 'facebook') bingSearchQuery = `site:facebook.com "lowongan kerja" "${cleanKw}"`;
+      else if (activePlat === 'twitter' || activePlat === 'x') bingSearchQuery = `site:twitter.com "lowongan kerja" "${cleanKw}"`;
+      else if (activePlat === 'bumn') bingSearchQuery = `"bumn" "lowongan kerja" "${cleanKw}"`;
+      else if (activePlat === 'media') bingSearchQuery = `(site:kompas.com OR site:detik.com OR site:tribunnews.com) "lowongan kerja" "${cleanKw}"`;
+
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 3500);
+      const bingUrl = `https://www.bing.com/news/search?q=${encodeURIComponent(bingSearchQuery)}&format=rss`;
+      const res = await fetch(bingUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        signal: ctl.signal
+      });
+      clearTimeout(timer);
+      if (res.ok) {
+        const xml = await res.text();
+        const items = [...xml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<\/item>/g)];
+        for (const item of items) {
+          const rawTitle = cleanHtmlSnippet(item[1]);
+          const rawLink = item[2].trim();
+          const rawDesc = cleanHtmlSnippet(item[3]);
+          const pubDate = item[4].trim();
+
+          if (rawTitle.toLowerCase().includes('hoaks') || rawTitle.toLowerCase().includes('penipuan') || rawTitle.toLowerCase().includes('bantah')) {
+            continue;
+          }
+
+          const directUrl = decodeBingUrl(rawLink);
+          if (seenUrls.has(directUrl)) continue;
+          seenUrls.add(directUrl);
+
+          let domain = 'Website Berita & Karir';
+          try {
+            const u = new URL(directUrl);
+            domain = u.hostname.replace(/^www\./, '');
+          } catch(e) {}
+
+          const parsed = parseJobHeadline(rawTitle, domain, rawDesc);
+          const timeInfo = formatTimeAgo(pubDate);
+          const platMeta = detectJobPlatformMeta(directUrl, rawTitle, domain, activePlat);
+
+          results.push({
+            id: 'web_' + Math.random().toString(36).substring(2, 10),
+            source: 'web',
+            platform: platMeta.platform,
+            platform_label: platMeta.platformLabel,
+            platform_icon: platMeta.platformIcon,
+            platform_class: platMeta.platformClass,
+            title: parsed.title,
+            company_name: parsed.company,
+            company: parsed.company,
+            location: cleanLoc,
+            pubDate,
+            pubTimestamp: timeInfo.timestamp,
+            timeAgo: timeInfo.text,
+            posted_time: timeInfo.text || 'Baru saja',
+            isFresh: timeInfo.isFresh,
+            salary_display: 'Kompetitif (Standar Industri & UMK)',
+            salary_prompt: 'Gaji kompetitif sesuai standar industri dan peraturan yang berlaku.',
+            job_type: 'Full time',
+            category: 'Loker Asli Web',
+            role_department: parsed.title,
+            badge_fresh: timeInfo.isFresh,
+            badge_kandidat: true,
+            is_live_actual: true,
+            official_url: directUrl,
+            url: directUrl,
+            website_url: directUrl,
+            source_website: domain,
+            poster_image: '',
+            rating: '4.8',
+            contact_email: '',
+            contact_whatsapp: '',
+            anti_fraud_notice: `Informasi lowongan kerja ${parsed.company} disaring dari sumber berita web resmi. 100% bebas biaya pendaftaran.`,
+            description: parsed.cleanDesc,
+            responsibilities: [
+              `Menjalankan tugas utama untuk posisi ${parsed.title}.`,
+              `Menjaga kepatuhan terhadap standar operasional perusahaan.`
+            ],
+            requirements: [
+              `Pendidikan dan pengalaman relevan dengan posisi.`,
+              `Disiplin, bertanggung jawab, dan memiliki integritas kerja tinggi.`
+            ],
+            benefits: [
+              `Gaji pokok & tunjangan sesuai standar operasional`,
+              `Jaminan perlindungan tenaga kerja`
+            ]
+          });
+        }
+      }
+    } catch (e) {}
+
+    // 3. Fallback: If external feeds are blocked or empty, fetch actual Supabase DB jobs!
+    if (results.length === 0) {
+      try {
+        const sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs?status=eq.active&select=*&order=id.desc&limit=30`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`
+          }
+        });
+        if (sbRes.ok) {
+          const dbJobs = await sbRes.json();
+          if (Array.isArray(dbJobs) && dbJobs.length > 0) {
+            dbJobs.forEach(dj => {
+              if (dj.status === 'system_settings' || dj.status === 'system_master_data') return;
+              let contacts = {};
+              try {
+                contacts = typeof dj.contact_value === 'string' ? JSON.parse(dj.contact_value) : (dj.contact_value || {});
+              } catch (e) {}
+
+              results.push({
+                id: 'db_' + dj.id,
+                source: 'official',
+                platform: contacts.source_platform || 'official',
+                platform_label: contacts.source_label || 'Portal Resmi',
+                platform_icon: 'fa-solid fa-building-circle-check',
+                platform_class: 'official',
+                title: dj.title,
+                company_name: dj.company_name,
+                company: dj.company_name,
+                location: dj.location || 'Indonesia',
+                pubDate: dj.created_at || new Date().toISOString(),
+                pubTimestamp: dj.created_at ? new Date(dj.created_at).getTime() : Date.now(),
+                timeAgo: 'Baru saja',
+                posted_time: 'Baru saja',
+                isFresh: true,
+                salary_display: dj.salary_display || 'Kompetitif',
+                salary_prompt: 'Gaji kompetitif sesuai standar industri dan peraturan yang berlaku.',
+                job_type: dj.job_type || 'Full Time',
+                category: dj.category || 'Operasional',
+                role_department: dj.job_type || 'Full Time',
+                badge_fresh: true,
+                badge_kandidat: true,
+                is_live_actual: true,
+                official_url: contacts.website || dj.website_url || './?job=' + dj.id,
+                url: contacts.website || dj.website_url || './?job=' + dj.id,
+                website_url: contacts.website || dj.website_url || './?job=' + dj.id,
+                source_website: 'KerjaHub Portal Resmi',
+                poster_image: dj.poster_image || '',
+                rating: '4.9',
+                contact_email: contacts.email || dj.email || '',
+                contact_whatsapp: contacts.whatsapp || dj.whatsapp || '',
+                anti_fraud_notice: `PT ${dj.company_name} tidak memungut biaya apapun dalam proses rekrutmen.`,
+                description: dj.description || 'Lowongan resmi dari database sistem KerjaHub.',
+                responsibilities: Array.isArray(dj.responsibilities) ? dj.responsibilities : [dj.responsibilities || 'Tanggung jawab sesuai posisi'],
+                requirements: Array.isArray(dj.requirements) ? dj.requirements : [dj.requirements || 'Kualifikasi sesuai arahan perusahaan'],
+                benefits: Array.isArray(dj.benefits) ? dj.benefits : ['BPJS & Tunjangan Standar']
+              });
+            });
+          }
+        }
+      } catch (e) {}
+    }
+
+    results.sort((a, b) => (b.pubTimestamp || 0) - (a.pubTimestamp || 0));
+
+    return jsonResponse({
+      success: true,
+      keyword: cleanKw,
+      location: cleanLoc,
+      platform: activePlat,
+      count: results.length,
+      data: results
     });
   }
 

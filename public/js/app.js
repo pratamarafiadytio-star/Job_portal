@@ -356,6 +356,25 @@ let activeFilters = {
 
 let searchDebounceTimer = null;
 
+let _publicRealtimeChannel = null;
+function setupSupabaseRealtimeSync() {
+  if (!sbClient || typeof sbClient.channel !== 'function') return;
+  if (_publicRealtimeChannel) return;
+  try {
+    _publicRealtimeChannel = sbClient.channel('public-jobs-realtime-stream')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, async (payload) => {
+        console.log('⚡ [Public Realtime] Realtime job update detected:', payload.eventType);
+        safeSessionRemove('kerja_public_jobs_cache');
+        await loadJobs();
+      })
+      .subscribe((status) => {
+        console.log('⚡ [Public Realtime] Realtime listener status:', status);
+      });
+  } catch (err) {
+    console.warn('Realtime sync warning in public app:', err);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   await initSupabaseClient();
@@ -366,7 +385,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupModalDismiss('poster-lightbox');
   setupCvMatcher();
   loadMasterDataFilters();
-  loadJobs();
+  await loadJobs();
+  setupSupabaseRealtimeSync();
 });
 
 const STATIC_COMPANY_IMAGES = {

@@ -578,16 +578,17 @@ function showLoginScreen() {
   if (app) app.style.display = 'none';
 }
 
-function unlockDashboard() {
+async function unlockDashboard() {
   const modal = document.getElementById('admin-login-modal');
   const app = document.getElementById('admin-dashboard-app');
   if (modal) modal.style.display = 'none';
   if (app) app.style.display = 'flex';
   loadDashboardData();
-  loadAdminJobs();
+  await loadAdminJobs();
   // Autoload & initial sync for official web vacancies
-  populateOfficialVacanciesFromSystem('lowongan');
+  await populateOfficialVacanciesFromSystem('lowongan');
   startAdminAutoloadEngine();
+  setupSupabaseRealtimeSync();
 }
 
 // -------------------------------------------------------------
@@ -1519,6 +1520,8 @@ async function loadAdminJobs(forceRefresh = false) {
 
     renderAdminJobsTable();
     renderDashboardStats(adminJobs);
+    syncAdminJobsToOfficialDb();
+    filterAndRenderOfficialJobs();
   } catch (err) {
     console.error('loadAdminJobs error:', err);
     if (tbody && (!adminJobs || adminJobs.length === 0)) {
@@ -1886,78 +1889,148 @@ let isAutoloadActive = true;
 let autoloadCountdown = 30; // 30 seconds interval
 let isAutoloadFetching = false;
 let lastAutoloadTime = null;
+let _adminRealtimeChannel = null;
+
+function detectCompanySector(comp, title, category) {
+  const text = `${comp || ''} ${title || ''} ${category || ''}`.toLowerCase();
+  if (text.includes('bumn') || text.includes('persero') || text.includes('bank') || text.includes('bri') || text.includes('bca') || text.includes('kai') || text.includes('asdp') || text.includes('krakatau') || text.includes('pertamina') || text.includes('pln') || text.includes('telkom')) {
+    return 'bumn';
+  }
+  if (text.includes('fmcg') || text.includes('indofood') || text.includes('mayora') || text.includes('kalbe') || text.includes('indolakto') || text.includes('indomilk') || text.includes('farmasi') || text.includes('makanan') || text.includes('beverage') || text.includes('retail') || text.includes('kobe')) {
+    return 'fmcg';
+  }
+  if (text.includes('tech') || text.includes('teknologi') || text.includes('shopee') || text.includes('amazon') || text.includes('developer') || text.includes('software') || text.includes('ui/ux') || text.includes('digital') || text.includes('it ') || text.includes('data center')) {
+    return 'tech';
+  }
+  return 'manufaktur';
+}
+
+function syncAdminJobsToOfficialDb() {
+  if (!Array.isArray(adminJobs) || adminJobs.length === 0) return;
+  adminJobs.forEach(dbJob => {
+    if (dbJob.status === 'system_settings' || dbJob.status === 'system_master_data') return;
+    const exists = OFFICIAL_VACANCIES_DB.some(o => 
+      o.id === 'db_' + dbJob.id ||
+      (o.title && dbJob.title && o.title.toLowerCase().trim() === dbJob.title.toLowerCase().trim() && (o.company_name || '').toLowerCase().trim() === (dbJob.company_name || '').toLowerCase().trim())
+    );
+    if (!exists) {
+      const dbCreated = dbJob.created_at ? new Date(dbJob.created_at).getTime() : Date.now();
+      const detectedSector = detectCompanySector(dbJob.company_name, dbJob.title, dbJob.category);
+      let sectorLabel = 'Manufaktur & Otomotif';
+      if (detectedSector === 'bumn') sectorLabel = 'BUMN & Perbankan';
+      else if (detectedSector === 'fmcg') sectorLabel = 'FMCG & Konsumsi';
+      else if (detectedSector === 'tech') sectorLabel = 'Teknologi & Digital';
+
+      OFFICIAL_VACANCIES_DB.push({
+        id: 'db_' + dbJob.id,
+        title: dbJob.title,
+        company_name: dbJob.company_name,
+        brand_logo_text: (dbJob.company_name || 'CO').slice(0, 3).toUpperCase(),
+        brand_banner: dbJob.poster_image || './uploads/indolakto_indomilk_banner.jpg',
+        sector: detectedSector,
+        sector_label: sectorLabel,
+        category: dbJob.category || 'Operasional',
+        role_department: dbJob.job_type || 'Full Time',
+        job_type: dbJob.job_type || 'Full Time',
+        location: dbJob.location || 'Indonesia',
+        education_level: 'all',
+        education_label: 'Semua Pendidikan',
+        experience_level: dbJob.experience_level || 'Semua Pengalaman',
+        salary_display: dbJob.salary_display || 'Kompetitif',
+        deadline: dbJob.deadline || 'Aktif di Portal',
+        pubDate: dbJob.created_at || '',
+        pubTimestamp: dbCreated,
+        timeAgo: 'Diposting di Portal',
+        isFresh: dbCreated > (Date.now() - 24 * 60 * 60 * 1000),
+        platform: 'official',
+        platform_label: 'Database Resmi Portal',
+        platform_icon: 'fa-solid fa-building-circle-check',
+        platform_class: 'official',
+        official_url: dbJob.website_url || './?job=' + dbJob.id,
+        contact_type: 'link',
+        contact_value: JSON.stringify({ whatsapp: dbJob.whatsapp || '', email: dbJob.email || '', website: dbJob.website_url || '' }),
+        anti_fraud_notice: `PT ${dbJob.company_name} tidak memungut biaya apapun dalam proses rekrutmen.`,
+        description: dbJob.description || 'Lowongan resmi dari database sistem KerjaHub.',
+        requirements: Array.isArray(dbJob.requirements) ? dbJob.requirements : [dbJob.requirements || 'Kualifikasi sesuai arahan perusahaan'],
+        responsibilities: Array.isArray(dbJob.responsibilities) ? dbJob.responsibilities : [dbJob.responsibilities || 'Tanggung jawab sesuai posisi'],
+        benefits: Array.isArray(dbJob.benefits) ? dbJob.benefits : ['BPJS & Tunjangan Standar'],
+        theme: 'modern',
+        mascot: (dbJob.title || '').toLowerCase().includes('operator') ? 'factory' : 'corporate',
+        verified_badge: 'Database Resmi',
+        apply_info: 'Lamaran langsung ke sistem KerjaHub.',
+        hashtag: '#KerjaHub #LokerResmi'
+      });
+    }
+  });
+}
+
+function setupSupabaseRealtimeSync() {
+  if (!sbClient || typeof sbClient.channel !== 'function') return;
+  if (_adminRealtimeChannel) return;
+  try {
+    _adminRealtimeChannel = sbClient.channel('admin-jobs-realtime-stream')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, async (payload) => {
+        console.log('⚡ [Admin Realtime] Perubahan database terdeteksi:', payload.eventType);
+        await loadAdminJobs(true);
+      })
+      .subscribe((status) => {
+        console.log('⚡ [Admin Realtime] Realtime listener aktif:', status);
+      });
+  } catch (err) {
+    console.warn('Realtime sync warning in admin:', err);
+  }
+}
 
 async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackgroundAutoload = false, targetPlatform = null) {
   const activeSourceBtn = document.querySelector('.official-source-pills .source-pill.active');
   const activePlatform = targetPlatform || (activeSourceBtn ? activeSourceBtn.getAttribute('data-source') : 'all');
 
+  const container = document.getElementById('official-jobs-container');
+  if (!isBackgroundAutoload && container && (!OFFICIAL_VACANCIES_DB || OFFICIAL_VACANCIES_DB.length === 0)) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: #ffffff; border-radius: 12px; border: 1.5px dashed #cbd5e1;">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.2rem; color: #0284c7; margin-bottom: 12px;"></i>
+        <h4 style="color: #1e293b; font-size: 1.05rem; margin-bottom: 4px;">Menyinkronkan Lowongan Real-Time...</h4>
+        <p style="font-size: 0.82rem; color: #64748b;">Memuat update lowongan kerja aktual dari web resmi & cloud database...</p>
+      </div>
+    `;
+  }
+
   // If not background silent autoload, rebuild base list with DB jobs
   if (!isBackgroundAutoload) {
     OFFICIAL_VACANCIES_DB = [];
-
-    // 1. Convert real database jobs from adminJobs
-    if (Array.isArray(adminJobs) && adminJobs.length > 0) {
-      adminJobs.forEach(dbJob => {
-        if (dbJob.status === 'system_settings') return;
-        const dbCreated = dbJob.created_at ? new Date(dbJob.created_at).getTime() : 0;
-        OFFICIAL_VACANCIES_DB.push({
-          id: 'db_' + dbJob.id,
-          title: dbJob.title,
-          company_name: dbJob.company_name,
-          brand_logo_text: (dbJob.company_name || 'CO').slice(0, 3).toUpperCase(),
-          brand_banner: dbJob.poster_image || './uploads/indolakto_indomilk_banner.jpg',
-          sector: (dbJob.category || '').toLowerCase().includes('fmcg') ? 'fmcg' : 'manufaktur',
-          sector_label: dbJob.category || 'Operasional',
-          category: dbJob.category || 'Administrasi',
-          role_department: dbJob.job_type || 'Full Time',
-          job_type: dbJob.job_type || 'Full Time',
-          location: dbJob.location || 'Indonesia',
-          education_level: 'all',
-          education_label: 'Semua Pendidikan',
-          experience_level: dbJob.experience_level || 'Semua Pengalaman',
-          salary_display: dbJob.salary_display || 'Kompetitif',
-          deadline: 'Aktif di Portal',
-          pubDate: dbJob.created_at || '',
-          pubTimestamp: dbCreated,
-          timeAgo: 'Diposting di Portal',
-          isFresh: dbCreated > (Date.now() - 24 * 60 * 60 * 1000),
-          platform: 'official',
-          platform_label: 'Database Resmi Portal',
-          platform_icon: 'fa-solid fa-building-circle-check',
-          platform_class: 'official',
-          official_url: dbJob.website_url || './',
-          contact_type: 'link',
-          contact_value: JSON.stringify({ whatsapp: dbJob.whatsapp || '', email: dbJob.email || '', website: dbJob.website_url || '' }),
-          anti_fraud_notice: `PT ${dbJob.company_name} tidak memungut biaya apapun dalam proses rekrutmen.`,
-          description: dbJob.description || 'Lowongan resmi dari database sistem KerjaHub.',
-          requirements: Array.isArray(dbJob.requirements) ? dbJob.requirements : [dbJob.requirements || 'Kualifikasi sesuai arahan perusahaan'],
-          responsibilities: Array.isArray(dbJob.responsibilities) ? dbJob.responsibilities : [dbJob.responsibilities || 'Tanggung jawab sesuai posisi'],
-          benefits: Array.isArray(dbJob.benefits) ? dbJob.benefits : ['BPJS & Tunjangan Standar'],
-          theme: 'modern',
-          mascot: 'corporate',
-          verified_badge: 'Database Resmi',
-          apply_info: 'Lamaran langsung ke sistem KerjaHub.',
-          hashtag: '#KerjaHub #LokerResmi'
-        });
-      });
-    }
   }
+
+  // 1. Ensure DB jobs from adminJobs or session cache are merged
+  if (!Array.isArray(adminJobs) || adminJobs.length === 0) {
+    try {
+      const cached = safeSessionGet('kerja_admin_jobs_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          adminJobs = parsed.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+        }
+      }
+    } catch (e) {}
+  }
+  syncAdminJobsToOfficialDb();
 
   // 2. Fetch real live portal jobs from /api/live-jobs
   let newArrivalsCount = 0;
   try {
     const { ok, data: json } = await safeFetchJson(getApiEndpoint(`/api/live-jobs?keyword=${encodeURIComponent(keyword || 'lowongan')}&platform=${encodeURIComponent(activePlatform || 'all')}`));
-    if (ok && json && json.success && Array.isArray(json.data)) {
+    if (ok && json && json.success && Array.isArray(json.data) && json.data.length > 0) {
       json.data.forEach(lj => {
         const exists = OFFICIAL_VACANCIES_DB.some(o => 
           (o.official_url && lj.official_url && o.official_url === lj.official_url) ||
-          (o.title.toLowerCase() === lj.title.toLowerCase() && o.company_name.toLowerCase() === lj.company_name.toLowerCase())
+          (o.title && lj.title && o.title.toLowerCase().trim() === lj.title.toLowerCase().trim() && (o.company_name || '').toLowerCase().trim() === (lj.company_name || '').toLowerCase().trim())
         );
         if (!exists) {
           newArrivalsCount++;
 
           const plat = lj.platform || 'web';
           const compClean = (lj.company_name || 'Perusahaan').replace(/[^a-zA-Z0-9]/g, '');
+          const detectedSector = detectCompanySector(lj.company_name, lj.title, lj.category);
           let defaultTheme = 'modern';
           let defaultHashtag = '#LokerWebAsli #InfoLowongan';
 
@@ -1973,7 +2046,7 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
           } else if (plat === 'twitter') {
             defaultTheme = 'twitter';
             defaultHashtag = `#LokerTwitter #InfoLoker #${compClean}`;
-          } else if (plat === 'bumn') {
+          } else if (plat === 'bumn' || detectedSector === 'bumn') {
             defaultTheme = 'bumn';
             defaultHashtag = `#LokerBUMN #RekrutmenBUMN #BUMNUntukIndonesia #${compClean}`;
           } else if ((lj.title || '').toLowerCase().includes('operator') || (lj.title || '').toLowerCase().includes('teknisi')) {
@@ -1981,14 +2054,19 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
             defaultHashtag = `#LokerPabrik #OperatorProduksi #${compClean}`;
           }
 
+          let sectorLabel = 'Manufaktur & Otomotif';
+          if (detectedSector === 'bumn') sectorLabel = 'BUMN & Perbankan';
+          else if (detectedSector === 'fmcg') sectorLabel = 'FMCG & Konsumsi';
+          else if (detectedSector === 'tech') sectorLabel = 'Teknologi & Digital';
+
           OFFICIAL_VACANCIES_DB.push({
             id: lj.id || ('live_web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
             title: lj.title,
             company_name: lj.company_name,
             brand_logo_text: (lj.company_name || 'CO').slice(0, 3).toUpperCase(),
-            brand_banner: './uploads/indolakto_indomilk_banner.jpg',
-            sector: 'manufaktur',
-            sector_label: lj.source_website || 'Website Berita & Karir',
+            brand_banner: lj.poster_image || './uploads/indolakto_indomilk_banner.jpg',
+            sector: detectedSector,
+            sector_label: sectorLabel,
             category: lj.category || 'Operasional',
             role_department: lj.role_department || lj.title,
             job_type: lj.job_type || 'Full Time',
@@ -2004,13 +2082,13 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
             isFresh: lj.isFresh !== undefined ? lj.isFresh : true,
             platform: plat,
             platform_label: lj.platform_label || 'Website Resmi Terverifikasi',
-            platform_icon: lj.platform_icon || 'fa-solid fa-globe',
-            platform_class: lj.platform_class || 'web',
+            platform_icon: lj.platform_icon || (plat === 'bukajobs' ? 'fa-solid fa-briefcase' : 'fa-solid fa-globe'),
+            platform_class: lj.platform_class || plat,
             official_url: lj.official_url || lj.website_url || lj.url,
             contact_type: 'link',
             contact_value: JSON.stringify({ whatsapp: lj.contact_whatsapp || '', email: lj.contact_email || '', website: lj.official_url || lj.website_url || lj.url }),
-            anti_fraud_notice: lj.anti_fraud_notice,
-            description: lj.description,
+            anti_fraud_notice: lj.anti_fraud_notice || `Informasi lowongan ${lj.company_name} telah diverifikasi bebas biaya pendaftaran apapun.`,
+            description: lj.description || `Lowongan resmi untuk posisi ${lj.title} di ${lj.company_name}.`,
             requirements: Array.isArray(lj.requirements) && lj.requirements.length > 0 ? lj.requirements : ['Kualifikasi tercantum pada postingan web resmi', 'Pendidikan relevan', 'Disiplin dan bertanggung jawab'],
             responsibilities: Array.isArray(lj.responsibilities) && lj.responsibilities.length > 0 ? lj.responsibilities : ['Menjalankan tugas sesuai arahan operasional'],
             benefits: Array.isArray(lj.benefits) && lj.benefits.length > 0 ? lj.benefits : ['Gaji pokok sesuai standar UMK / korporasi', 'BPJS Ketenagakerjaan & Kesehatan'],
@@ -2024,10 +2102,21 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
       });
     }
   } catch (e) {
-    // Offline or static preview fallback
+    console.warn('Live jobs fetch warning in admin:', e);
   }
 
-  // 3. Sort strictly by newest pubTimestamp descending (Freshest jobs always at top!)
+  // 3. Fallback: If OFFICIAL_VACANCIES_DB is still empty and sbClient is available, fetch Supabase jobs directly
+  if (OFFICIAL_VACANCIES_DB.length === 0 && sbClient) {
+    try {
+      const { data: directJobs } = await sbClient.from('jobs').select('*').limit(30);
+      if (Array.isArray(directJobs) && directJobs.length > 0) {
+        adminJobs = directJobs.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+        syncAdminJobsToOfficialDb();
+      }
+    } catch (e) {}
+  }
+
+  // 4. Sort strictly by newest pubTimestamp descending (Freshest jobs always at top!)
   OFFICIAL_VACANCIES_DB.sort((a, b) => (b.pubTimestamp || 0) - (a.pubTimestamp || 0));
 
   lastAutoloadTime = new Date();
@@ -2215,42 +2304,53 @@ function filterAndRenderOfficialJobs() {
   currentOfficialFilteredJobs = OFFICIAL_VACANCIES_DB.filter(job => {
     // 1. Filter Ketat Batas Waktu: Hanya tampilkan loker yang BENAR-BENAR AKTIF dan belum lewat deadline
     const dMeta = getDeadlineMeta(job.deadline);
-    if (dMeta.isExpired) {
+    if (dMeta.isExpired && job.deadline !== 'Aktif Real-Time' && job.deadline !== 'Aktif di Portal') {
       return false; // Skip loker kedaluwarsa
     }
 
     // Platform / Medsos filter
     if (source !== 'all') {
       const jobPlat = (job.platform || 'web').toLowerCase();
+      const compText = `${job.company_name || ''} ${job.title || ''} ${job.platform_label || ''}`.toLowerCase();
+
       if (source === 'corporate') {
-        if (jobPlat !== 'corporate' && jobPlat !== 'web' && jobPlat !== 'official') return false;
+        if (jobPlat !== 'corporate' && jobPlat !== 'web' && jobPlat !== 'official' && jobPlat !== 'bukajobs') return false;
+      } else if (source === 'bumn') {
+        const isBumn = jobPlat === 'bumn' || job.sector === 'bumn' || compText.includes('bumn') || compText.includes('persero') || compText.includes('bank') || compText.includes('kai') || compText.includes('asdp') || compText.includes('pertamina');
+        if (!isBumn) return false;
+      } else if (source === 'media') {
+        const isMedia = jobPlat === 'media' || compText.includes('kompas') || compText.includes('detik') || compText.includes('tribun') || compText.includes('bisnis');
+        if (!isMedia) return false;
       } else {
-        if (jobPlat !== source) return false;
+        if (jobPlat !== source && !jobPlat.includes(source)) return false;
       }
     }
 
     // Sector filter
-    if (sector !== 'all' && job.sector !== sector) return false;
+    if (sector !== 'all') {
+      const jobSec = job.sector || detectCompanySector(job.company_name, job.title, job.category);
+      if (jobSec !== sector) return false;
+    }
 
     // Education filter
-    if (education !== 'all' && job.education_level !== education && education !== 'all') {
+    if (education !== 'all' && job.education_level !== 'all') {
       if (education === 'smk' && job.education_level !== 'smk') return false;
       if (education === 'd3' && job.education_level !== 'd3' && job.education_level !== 'smk') return false;
     }
 
     // Keyword filter
     if (keyword) {
-      const matchTitle = job.title.toLowerCase().includes(keyword);
-      const matchComp = job.company_name.toLowerCase().includes(keyword);
-      const matchDesc = job.description.toLowerCase().includes(keyword);
-      const matchReq = job.requirements.some(r => r.toLowerCase().includes(keyword));
+      const matchTitle = (job.title || '').toLowerCase().includes(keyword);
+      const matchComp = (job.company_name || '').toLowerCase().includes(keyword);
+      const matchDesc = (job.description || '').toLowerCase().includes(keyword);
+      const matchReq = Array.isArray(job.requirements) && job.requirements.some(r => r.toLowerCase().includes(keyword));
       const matchPlat = (job.platform_label || '').toLowerCase().includes(keyword);
       if (!matchTitle && !matchComp && !matchDesc && !matchReq && !matchPlat) return false;
     }
 
     // Location filter
     if (location) {
-      if (!job.location.toLowerCase().includes(location)) return false;
+      if (!(job.location || '').toLowerCase().includes(location)) return false;
     }
 
     return true;

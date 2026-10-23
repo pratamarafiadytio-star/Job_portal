@@ -2268,6 +2268,12 @@ body {
   border: 1px solid #a7f3d0;
 }
 
+.official-platform-badge.bukajobs {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
 /* Card Social Media Borders */
 .official-job-card.card-linkedin {
   border-left: 4px solid #0077b5;
@@ -2287,6 +2293,10 @@ body {
 .official-job-card.card-media {
   border-left: 4px solid #0284c7;
 }
+.official-job-card.card-bukajobs {
+  border-left: 4px solid #16a34a;
+}
+
 
 .btn-copy-caption {
   background: #f8fafc;
