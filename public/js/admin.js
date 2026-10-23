@@ -734,30 +734,58 @@ function setupJobFormSubmit() {
     }, 10);
   });
 
+  window.generatePosterFromUploadForm = function() {
+    const uploadForm = document.getElementById('form-upload-job') || form;
+    if (!uploadForm) return;
+
+    const title = uploadForm.querySelector('[name="title"]')?.value.trim() || '';
+    const company = uploadForm.querySelector('[name="company_name"]')?.value.trim() || '';
+    const desc = uploadForm.querySelector('[name="description"]')?.value.trim() || '';
+    let respLines = window.getDynamicListValues ? window.getDynamicListValues('upload-resp-items') : [];
+    let reqLines = window.getDynamicListValues ? window.getDynamicListValues('upload-req-items') : [];
+    let benLines = window.getDynamicListValues ? window.getDynamicListValues('upload-ben-items') : [];
+    const deadline = uploadForm.querySelector('[name="deadline"]')?.value.trim() || '';
+    const website = uploadForm.querySelector('[name="website"]')?.value.trim() || '';
+    const whatsapp = uploadForm.querySelector('[name="whatsapp"]')?.value.trim() || '';
+    const email = uploadForm.querySelector('[name="email"]')?.value.trim() || '';
+
+    // Smart fallback: if user typed description text but didn't click "+" dynamic rows, extract lines
+    if (reqLines.length === 0 && respLines.length === 0 && benLines.length === 0 && desc) {
+      const descLines = desc.split(/\r?\n/).map(s => s.replace(/^[•\-\*\d\.\)\s]+/, '').trim()).filter(Boolean);
+      if (descLines.length > 0) {
+        reqLines = descLines.slice(0, 6);
+      }
+    }
+
+    let applyInfo = '';
+    const shortComp = company || 'Perusahaan';
+    if (whatsapp) {
+      applyInfo = `Kirim CV/Lamaran via WhatsApp resmi ${shortComp} (${whatsapp})`;
+    } else if (email) {
+      applyInfo = `Kirim CV/Lamaran via Email resmi ${shortComp} (${email})`;
+    } else if (website) {
+      applyInfo = `Kirim CV/Lamaran melalui portal resmi ${shortComp}.`;
+    } else {
+      applyInfo = `Kirim CV/Lamaran melalui tautan resmi ${shortComp}.`;
+    }
+
+    openPosterStudio({
+      title: title || 'POSISI LOWONGAN KERJA',
+      company_name: company || 'PERUSAHAAN TERVERIFIKASI',
+      responsibilities: respLines,
+      requirements: reqLines,
+      benefits: benLines,
+      deadline,
+      official_url: website || window.location.href,
+      apply_info: applyInfo,
+      theme: title.toLowerCase().includes('operator') || title.toLowerCase().includes('teknisi') ? 'factory' : 'modern',
+      mascot: title.toLowerCase().includes('operator') || title.toLowerCase().includes('teknisi') ? 'factory' : 'corporate'
+    });
+  };
+
   const btnGenPoster = document.getElementById('btn-generate-poster-from-form');
   if (btnGenPoster) {
-    btnGenPoster.addEventListener('click', () => {
-      const title = form.querySelector('[name="title"]')?.value.trim() || '';
-      const company = form.querySelector('[name="company_name"]')?.value.trim() || '';
-      const respLines = window.getDynamicListValues('upload-resp-items');
-      const reqLines = window.getDynamicListValues('upload-req-items');
-      const benLines = window.getDynamicListValues('upload-ben-items');
-      const deadline = form.querySelector('[name="deadline"]')?.value.trim() || '';
-      const website = form.querySelector('[name="website"]')?.value.trim() || '';
-
-      openPosterStudio({
-        title,
-        company_name: company,
-        responsibilities: respLines,
-        requirements: reqLines,
-        benefits: benLines,
-        deadline,
-        official_url: website || window.location.href,
-        apply_info: company ? `Kirim CV/Lamaran melalui tautan resmi ${company}.` : '',
-        theme: title.toLowerCase().includes('operator') || title.toLowerCase().includes('teknisi') ? 'factory' : 'modern',
-        mascot: title.toLowerCase().includes('operator') || title.toLowerCase().includes('teknisi') ? 'factory' : 'corporate'
-      });
-    });
+    btnGenPoster.onclick = window.generatePosterFromUploadForm;
   }
 
   form.addEventListener('submit', async (e) => {
@@ -2745,10 +2773,14 @@ function openPosterStudio(jobData) {
     renderPosterCanvas();
   }, 50);
 }
+window.openPosterStudio = openPosterStudio;
 
 window.closePosterStudioModal = function() {
   const modal = document.getElementById('poster-studio-modal');
-  if (modal) modal.classList.remove('active');
+  if (modal) {
+    modal.classList.remove('active');
+    modal.style.display = 'none';
+  }
 };
 
 // -------------------------------------------------------------
@@ -3022,6 +3054,7 @@ function renderPosterCanvas() {
   ctx.font = `800 ${titleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
 
   const totalTextBlockH = (titleLines.length - 1) * lineHeight;
+  const startY = badgeY + (badgeH / 2) - (totalTextBlockH / 2) + (titleFontSize * 0.35);
   titleLines.forEach((l, idx) => {
     ctx.fillText(l, badgeX + (badgeW / 2), startY + (idx * lineHeight));
   });
@@ -3359,22 +3392,22 @@ function usePosterForJob() {
   const dataUrl = canvas.toDataURL('image/png');
   currentSelectedFileBase64 = dataUrl;
 
-  const dropzone = document.getElementById('poster-dropzone');
-  const preview = document.getElementById('poster-preview');
-  const previewImg = document.getElementById('poster-preview-img');
-  const dropzonePrompt = document.getElementById('dropzone-prompt');
+  const dropzonePlaceholder = document.getElementById('dropzone-placeholder') || document.getElementById('dropzone-prompt');
+  const previewWrapper = document.getElementById('poster-preview-wrapper') || document.getElementById('poster-preview');
+  const previewImg = document.getElementById('poster-img-preview') || document.getElementById('poster-preview-img');
 
   if (previewImg) previewImg.src = dataUrl;
-  if (preview) preview.style.display = 'block';
-  if (dropzonePrompt) dropzonePrompt.style.display = 'none';
+  if (previewWrapper) previewWrapper.style.display = 'block';
+  if (dropzonePlaceholder) dropzonePlaceholder.style.display = 'none';
 
   closePosterStudioModal();
 
-  const uploadNav = document.querySelector('a[href="#upload-job"]');
+  const uploadNav = document.querySelector('li[data-tab="upload"]') || document.querySelector('a[href="#upload"]') || document.querySelector('a[href="#upload-job"]');
   if (uploadNav) uploadNav.click();
 
   alert('Poster yang baru di-generate telah disetel sebagai gambar resmi formulir upload!');
 }
+window.usePosterForJob = usePosterForJob;
 
 // -------------------------------------------------------------
 // SETUP OFFICIAL GENERATOR & POSTER STUDIO LISTENERS
