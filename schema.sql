@@ -49,14 +49,14 @@ CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON public.jobs (created_at DESC);
 -- 3. Aktifkan Row Level Security (RLS)
 ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
 
--- 4. Policy Keamanan:
--- Pengunjung publik hanya boleh MEMBACA (SELECT)
+-- 4. Policy Keamanan (Idempotent):
+DROP POLICY IF EXISTS "Public Read Access" ON public.jobs;
 CREATE POLICY "Public Read Access"
 ON public.jobs
 FOR SELECT
 USING (true);
 
--- Admin / API key boleh INSERT, UPDATE, DELETE
+DROP POLICY IF EXISTS "Enable Full Access for API" ON public.jobs;
 CREATE POLICY "Enable Full Access for API"
 ON public.jobs
 FOR ALL
@@ -146,11 +146,13 @@ CREATE TABLE IF NOT EXISTS public.master_data (
 CREATE INDEX IF NOT EXISTS idx_master_data_type ON public.master_data (type);
 ALTER TABLE public.master_data ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public Read Access Master Data" ON public.master_data;
 CREATE POLICY "Public Read Access Master Data"
 ON public.master_data
 FOR SELECT
 USING (true);
 
+DROP POLICY IF EXISTS "Enable Full Access for API Master Data" ON public.master_data;
 CREATE POLICY "Enable Full Access for API Master Data"
 ON public.master_data
 FOR ALL
@@ -198,11 +200,13 @@ CREATE TABLE IF NOT EXISTS public.settings (
 
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public Read Settings" ON public.settings;
 CREATE POLICY "Public Read Settings"
 ON public.settings
 FOR SELECT
 USING (true);
 
+DROP POLICY IF EXISTS "Enable Full Access Settings" ON public.settings;
 CREATE POLICY "Enable Full Access Settings"
 ON public.settings
 FOR ALL
