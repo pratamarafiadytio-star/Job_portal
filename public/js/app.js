@@ -2273,10 +2273,16 @@ function openJobDetail(jobId) {
 
           <!-- Poster Showcase (Auto-Sliding Carousel if > 1 flyer) -->
           <div class="poster-showcase-box ${isMultiFlyer ? 'sidebar-flyer-carousel' : ''}" id="sidebar-carousel-${job.id}">
-            <p style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 2px;">
-              <span><i class="fa-solid fa-images"></i> ${flyerImages.some(src => isManualJobFlyer({ poster_image: src })) ? 'POSTER REKRUTMEN RESMI' : 'FOTO & FLYER RESMI'}</span>
-              ${isMultiFlyer ? `<span class="badge-slide-count" style="font-size: 0.72rem; color: var(--primary); font-weight: 800;">Slide <span id="side-slide-num-${job.id}">1</span> / ${flyerImages.length}</span>` : ''}
-            </p>
+            <div class="poster-showcase-heading" style="text-align: center; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; margin-bottom: 10px;">
+              <span style="font-size: 0.82rem; font-weight: 800; color: var(--text-main); display: inline-flex; align-items: center; justify-content: center; gap: 6px; letter-spacing: 0.5px;">
+                <i class="fa-solid fa-images" style="color: var(--primary);"></i> ${flyerImages.some(src => isManualJobFlyer({ poster_image: src })) ? 'POSTER REKRUTMEN RESMI' : 'FOTO & FLYER RESMI'}
+              </span>
+              ${isMultiFlyer ? `
+                <span class="badge-slide-count" style="font-size: 0.72rem; color: var(--primary); font-weight: 800; background: rgba(79, 70, 229, 0.08); border: 1px solid rgba(79, 70, 229, 0.2); border-radius: 999px; padding: 2px 10px; display: inline-flex; align-items: center; gap: 4px;">
+                  <i class="fa-solid fa-layer-group" style="font-size: 0.65rem;"></i> Slide <span id="side-slide-num-${job.id}">1</span> dari ${flyerImages.length}
+                </span>
+              ` : ''}
+            </div>
             ${isMultiFlyer ? `
               <div class="side-carousel-wrapper" onmouseenter="pauseJobFlyerCarousels(${job.id})" onmouseleave="resumeJobFlyerCarousels(${job.id})">
                 <div class="side-carousel-track">

@@ -9,6 +9,24 @@ if (!fs.existsSync(dataDir)) {
 }
 const jobsFilePath = path.join(dataDir, 'jobs.json');
 const masterDataFilePath = path.join(dataDir, 'master_data.json');
+const flyerThemesFilePath = path.join(dataDir, 'flyer_themes.json');
+
+function readLocalThemes() {
+  try {
+    if (!fs.existsSync(flyerThemesFilePath)) return [];
+    const raw = fs.readFileSync(flyerThemesFilePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeLocalThemes(themes) {
+  try {
+    fs.writeFileSync(flyerThemesFilePath, JSON.stringify(themes, null, 2), 'utf8');
+  } catch (e) {}
+}
 
 const defaultMasterData = {
   categories: [
@@ -850,6 +868,57 @@ const db = {
 
     cache.settings = { timestamp: Date.now(), data: updated };
     return updated;
+  },
+
+  async getFlyerThemes() {
+    let themes = readLocalThemes();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('flyer_themes').select('id,name,image_data,created_at').order('id', { ascending: false });
+        if (!error && Array.isArray(data) && data.length > 0) {
+          themes = data;
+          writeLocalThemes(themes);
+        }
+      } catch (e) {}
+    }
+    return themes;
+  },
+
+  async addFlyerTheme(themeData) {
+    let themes = readLocalThemes();
+    const newTheme = {
+      id: Date.now(),
+      name: themeData.name || 'Tema Latar Kustom',
+      image_data: themeData.image_data,
+      created_at: new Date().toISOString()
+    };
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('flyer_themes').insert([{
+          name: newTheme.name,
+          image_data: newTheme.image_data
+        }]).select('id,name,image_data,created_at').single();
+        if (!error && data) {
+          newTheme.id = data.id;
+          newTheme.created_at = data.created_at;
+        }
+      } catch (e) {}
+    }
+    themes.unshift(newTheme);
+    writeLocalThemes(themes);
+    return newTheme;
+  },
+
+  async deleteFlyerTheme(id) {
+    let themes = readLocalThemes();
+    themes = themes.filter(t => String(t.id) !== String(id));
+    writeLocalThemes(themes);
+    if (supabase) {
+      try {
+        await supabase.from('flyer_themes').delete().eq('id', id);
+      } catch (e) {}
+    }
+    return true;
   }
 };
 

@@ -4294,11 +4294,43 @@ window.handleCustomTemplateUpload = function(event) {
 };
 
 // -------------------------------------------------------------
-// GALERI TEMA LATAR FLYER (Supabase table flyer_themes + localStorage fallback)
+// GALERI TEMA LATAR FLYER (SUPER PROMINENT BACKGROUND THEMES)
 // -------------------------------------------------------------
 let flyerThemes = [];
-let activeFlyerThemeId = null;
+let activeFlyerThemeId = 'tpl_chocomory';
 const escTheme = (s) => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Built-in theme presets with nice SVG preview thumbnails
+const BUILTIN_THEMES = [
+  {
+    id: 'tpl_chocomory',
+    name: 'Style Megafon Chocomory (Border Biru)',
+    is_builtin: true,
+    tpl: 'chocomory',
+    thumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="150" viewBox="0 0 120 150"><rect width="120" height="150" fill="%23ffffff"/><rect x="5" y="5" width="110" height="140" rx="8" fill="none" stroke="%230052cc" stroke-width="4.5"/><text x="60" y="26" font-family="sans-serif" font-size="8.5" font-weight="900" fill="%23000" text-anchor="middle">LOWONGAN</text><line x1="22" y1="30" x2="98" y2="30" stroke="%23000" stroke-width="2.5"/><text x="60" y="42" font-family="sans-serif" font-size="7.5" font-weight="bold" fill="%23000" text-anchor="middle">PT PERUSAHAAN</text><rect x="12" y="49" width="62" height="13" rx="3" fill="%230052cc"/><text x="43" y="58" font-family="sans-serif" font-size="6" fill="%23fff" text-anchor="middle">OPERATOR PRODUKSI</text><circle cx="95" cy="57" r="14" fill="%23f97316"/><rect x="12" y="104" width="58" height="32" rx="3" fill="%23f8fafc" stroke="%230052cc" stroke-width="1.5"/><rect x="76" y="104" width="32" height="32" fill="%230f172a"/></svg>'
+  },
+  {
+    id: 'tpl_modern',
+    name: 'Instagram Modern Feed',
+    is_builtin: true,
+    tpl: 'modern',
+    thumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="150" viewBox="0 0 120 150"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%25" stop-color="%23833ab4"/><stop offset="50%25" stop-color="%23fd1d1d"/><stop offset="100%25" stop-color="%23fcb045"/></linearGradient></defs><rect width="120" height="150" fill="url(%23g)"/><rect x="8" y="8" width="104" height="134" rx="8" fill="rgba(255,255,255,0.95)"/><text x="60" y="30" font-family="sans-serif" font-size="8" font-weight="bold" fill="%231e293b" text-anchor="middle">WE ARE HIRING</text><rect x="15" y="42" width="70" height="12" rx="4" fill="%23833ab4"/><text x="50" y="51" font-family="sans-serif" font-size="6" fill="%23fff" text-anchor="middle">CREATIVE ROLE</text></svg>'
+  },
+  {
+    id: 'tpl_factory',
+    name: 'Manufaktur & Pabrik',
+    is_builtin: true,
+    tpl: 'factory',
+    thumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="150" viewBox="0 0 120 150"><rect width="120" height="150" fill="%230f172a"/><rect x="6" y="6" width="108" height="138" rx="6" fill="%231e3e62" stroke="%23f97316" stroke-width="2"/><text x="60" y="26" font-family="sans-serif" font-size="7" font-weight="bold" fill="%23f97316" text-anchor="middle">REKRUTMEN PABRIK</text><rect x="12" y="38" width="75" height="14" rx="3" fill="%23f97316"/><text x="50" y="48" font-family="sans-serif" font-size="6" fill="%23fff" text-anchor="middle">TEKNISI / OPERATOR</text></svg>'
+  },
+  {
+    id: 'tpl_bumn',
+    name: 'BUMN & Korporat Elegan',
+    is_builtin: true,
+    tpl: 'bumn',
+    thumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="150" viewBox="0 0 120 150"><rect width="120" height="150" fill="%230b192c"/><rect x="6" y="6" width="108" height="138" rx="6" fill="%231e3e62" stroke="%2310b981" stroke-width="2"/><text x="60" y="26" font-family="sans-serif" font-size="7" font-weight="bold" fill="%2310b981" text-anchor="middle">KARIR BUMN RESMI</text><rect x="12" y="38" width="75" height="14" rx="3" fill="%2310b981"/><text x="50" y="48" font-family="sans-serif" font-size="6" fill="%23fff" text-anchor="middle">OFFICER / STAFF</text></svg>'
+  }
+];
 
 function compressThemeImage(dataUrl, maxW = 1080) {
   return new Promise((resolve) => {
@@ -4325,11 +4357,28 @@ window.loadFlyerThemes = async function() {
     const local = localStorage.getItem('kerja_flyer_themes');
     if (local) flyerThemes = JSON.parse(local) || [];
   } catch (e) {}
+
   renderFlyerThemeGallery();
+
+  // Try fetching from server API (stores in data/flyer_themes.json)
+  try {
+    const res = await fetch('/api/flyer-themes');
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
+        flyerThemes = json.data;
+        saveThemesLocal();
+        renderFlyerThemeGallery();
+        return;
+      }
+    }
+  } catch (e) {}
+
+  // Also query Supabase client if configured
   if (sbClient) {
     try {
       const { data, error } = await sbClient.from('flyer_themes').select('id,name,image_data,created_at').order('id', { ascending: false });
-      if (!error && Array.isArray(data)) {
+      if (!error && Array.isArray(data) && data.length > 0) {
         flyerThemes = data;
         saveThemesLocal();
         renderFlyerThemeGallery();
@@ -4341,114 +4390,148 @@ window.loadFlyerThemes = async function() {
 function renderFlyerThemeGallery() {
   const box = document.getElementById('flyer-theme-gallery');
   if (!box) return;
-  if (!flyerThemes.length) {
-    box.innerHTML = '<div class="flyer-theme-empty"><i class="fa-regular fa-image"></i> Belum ada tema. Upload latar belakang poster Anda.</div>';
-    return;
+
+  const allThemes = [...flyerThemes, ...BUILTIN_THEMES];
+
+  box.innerHTML = allThemes.map(t => {
+    const isActive = String(activeFlyerThemeId) === String(t.id);
+    const thumbSrc = t.image_data || t.thumbnail;
+    const isCustom = !t.is_builtin;
+    return `
+      <div class="flyer-theme-item ${isActive ? 'active' : ''}" onclick="applyFlyerTheme('${t.id}')" title="${escTheme(t.name || 'Tema')}">
+        <img src="${thumbSrc}" alt="${escTheme(t.name || 'Tema')}">
+        <div class="flyer-theme-name">${escTheme(t.name || 'Tema')}</div>
+        ${isCustom ? `<button type="button" class="flyer-theme-del" onclick="event.stopPropagation(); deleteFlyerTheme('${t.id}')" title="Hapus tema"><i class="fa-solid fa-xmark"></i></button>` : ''}
+        ${isActive ? '<span class="flyer-theme-check"><i class="fa-solid fa-check"></i></span>' : ''}
+      </div>
+    `;
+  }).join('');
+
+  const cur = allThemes.find(x => String(x.id) === String(activeFlyerThemeId)) || BUILTIN_THEMES[0];
+  const activeNameEl = document.getElementById('theme-active-name');
+  if (activeNameEl && cur) {
+    activeNameEl.textContent = cur.name;
   }
-  box.innerHTML = flyerThemes.map(t => `
-    <div class="flyer-theme-item ${String(activeFlyerThemeId) === String(t.id) ? 'active' : ''}" onclick="applyFlyerTheme('${t.id}')" title="${escTheme(t.name || 'Tema')}">
-      <img src="${t.image_data}" alt="${escTheme(t.name || 'Tema')}">
-      <button type="button" class="flyer-theme-del" onclick="event.stopPropagation(); deleteFlyerTheme('${t.id}')" title="Hapus tema"><i class="fa-solid fa-xmark"></i></button>
-      ${String(activeFlyerThemeId) === String(t.id) ? '<span class="flyer-theme-check"><i class="fa-solid fa-check"></i></span>' : ''}
-    </div>
-  `).join('');
 }
 
 window.handleFlyerThemeUpload = async function(event) {
   const files = Array.from((event.target && event.target.files) || []);
   if (!files.length) return;
+
   for (const file of files) {
-    const raw = await new Promise(r => { const fr = new FileReader(); fr.onload = e => r(e.target.result); fr.readAsDataURL(file); });
-    const image_data = await compressThemeImage(raw);
-    let theme = { id: 'local_' + Date.now() + Math.floor(Math.random() * 1000), name: file.name, image_data };
-    if (sbClient) {
+    try {
+      const raw = await new Promise(r => {
+        const fr = new FileReader();
+        fr.onload = e => r(e.target.result);
+        fr.readAsDataURL(file);
+      });
+      const image_data = await compressThemeImage(raw);
+      const cleanName = file.name.replace(/\.[^/.]+$/, '');
+      let theme = {
+        id: 'theme_' + Date.now() + Math.floor(Math.random() * 1000),
+        name: cleanName,
+        image_data
+      };
+
       try {
-        const { data, error } = await sbClient.from('flyer_themes').insert([{ name: file.name, image_data }]).select('id,name,image_data').single();
-        if (!error && data) theme = data;
-        else if (error) console.warn('flyer_themes insert:', error.message);
-      } catch (e) {}
+        const token = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken');
+        const res = await fetch('/api/flyer-themes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ name: cleanName, image_data })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.data) theme = json.data;
+        }
+      } catch (err) {}
+
+      if (sbClient && !theme.id.toString().startsWith('theme_')) {
+        try {
+          await sbClient.from('flyer_themes').insert([{ name: cleanName, image_data }]);
+        } catch (e) {}
+      }
+
+      flyerThemes.unshift(theme);
+    } catch (err) {
+      console.warn('Error reading theme file:', err);
     }
-    flyerThemes.unshift(theme);
   }
+
   saveThemesLocal();
   event.target.value = '';
-  applyFlyerTheme(flyerThemes[0].id);
-  showAdminToast('Tema Tersimpan!', `${files.length} tema latar ditambahkan ke galeri.`, 'success');
+
+  if (flyerThemes.length > 0) {
+    applyFlyerTheme(flyerThemes[0].id);
+  } else {
+    renderFlyerThemeGallery();
+  }
+
+  showAdminToast('Tema Tersimpan!', `${files.length} latar belakang tema baru ditambahkan & aktif.`, 'success');
 };
 
 window.applyFlyerTheme = function(id) {
-  const t = flyerThemes.find(x => String(x.id) === String(id));
+  const allThemes = [...flyerThemes, ...BUILTIN_THEMES];
+  const t = allThemes.find(x => String(x.id) === String(id));
   if (!t) return;
-  const img = new Image();
-  img.onload = () => {
-    loadedCustomTemplateImg = img;
-    customTemplateDataUrl = t.image_data;
-    activeFlyerThemeId = t.id;
-    const badgeRow = document.getElementById('custom-template-badge-row');
-    if (badgeRow) badgeRow.style.display = 'flex';
-    const nameEl = document.getElementById('custom-template-file-name');
-    if (nameEl) nameEl.textContent = t.name || 'Tema Latar';
-    const radio = document.querySelector('input[name="flyer_template"][value="custom"]');
-    if (radio) radio.checked = true;
+
+  activeFlyerThemeId = t.id;
+
+  if (t.is_builtin) {
+    selectedFlyerTemplate = t.tpl;
+    loadedCustomTemplateImg = null;
+    customTemplateDataUrl = null;
     renderFlyerThemeGallery();
-    if (typeof window.onFlyerTemplateChanged === 'function') window.onFlyerTemplateChanged('custom');
-  };
-  img.src = t.image_data;
+    renderPosterCanvas();
+  } else {
+    selectedFlyerTemplate = 'custom';
+    customTemplateDataUrl = t.image_data;
+    const img = new Image();
+    img.onload = () => {
+      loadedCustomTemplateImg = img;
+      renderFlyerThemeGallery();
+      renderPosterCanvas();
+    };
+    img.src = t.image_data;
+  }
 };
 
 window.deleteFlyerTheme = async function(id) {
-  if (!confirm('Hapus tema latar ini?')) return;
+  if (!confirm('Hapus tema latar ini dari galeri?')) return;
+
   flyerThemes = flyerThemes.filter(x => String(x.id) !== String(id));
   saveThemesLocal();
-  if (sbClient && !String(id).startsWith('local_')) {
-    try { await sbClient.from('flyer_themes').delete().eq('id', id); } catch (e) {}
-  }
-  if (String(activeFlyerThemeId) === String(id)) activeFlyerThemeId = null;
-  renderFlyerThemeGallery();
-};
 
-document.addEventListener('DOMContentLoaded', () => setTimeout(() => window.loadFlyerThemes(), 800));
-
-window.removeCustomTemplate = function() {
-  loadedCustomTemplateImg = null;
-  customTemplateDataUrl = null;
   try {
-    localStorage.removeItem('kerja_custom_flyer_template');
+    const token = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken');
+    await fetch('/api/flyer-themes/' + id, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
   } catch (e) {}
 
-  const badgeRow = document.getElementById('custom-template-badge-row');
-  if (badgeRow) badgeRow.style.display = 'none';
-
-  const fileInput = document.getElementById('flyer-custom-template-input');
-  if (fileInput) fileInput.value = '';
-
-  window.onFlyerTemplateChanged('chocomory');
-  showAdminToast('Template Dihapus', 'Kembali ke Template Megafon Chocomory.', 'info');
-};
-
-window.onFlyerTemplateChanged = function(tpl) {
-  selectedFlyerTemplate = tpl;
-  document.querySelectorAll('input[name="flyer_template"]').forEach(r => {
-    r.checked = (r.value === tpl);
-    r.closest('.poster-theme-pill')?.classList.toggle('active', r.checked);
-  });
-
-  const uploadBox = document.getElementById('custom-template-upload-box');
-  if (uploadBox) {
-    if (tpl === 'custom') {
-      uploadBox.style.borderColor = '#4f46e5';
-      uploadBox.style.background = '#f5f3ff';
-      if (!loadedCustomTemplateImg) {
-        const fileInp = document.getElementById('flyer-custom-template-input');
-        if (fileInp) fileInp.click();
-      }
-    } else {
-      uploadBox.style.borderColor = '#cbd5e1';
-      uploadBox.style.background = '#ffffff';
-    }
+  if (sbClient) {
+    try { await sbClient.from('flyer_themes').delete().eq('id', id); } catch (e) {}
   }
 
-  renderPosterCanvas();
+  if (String(activeFlyerThemeId) === String(id)) {
+    applyFlyerTheme('tpl_chocomory');
+  } else {
+    renderFlyerThemeGallery();
+  }
+
+  showAdminToast('Tema Dihapus', 'Tema latar belakang berhasil dihapus.', 'info');
+};
+
+document.addEventListener('DOMContentLoaded', () => setTimeout(() => window.loadFlyerThemes(), 600));
+
+window.openStudioFromFormWithTheme = function() {
+  if (typeof window.generatePosterFromUploadForm === 'function') {
+    window.generatePosterFromUploadForm();
+  }
 };
 
 // -------------------------------------------------------------
@@ -5187,6 +5270,29 @@ function renderPosterCanvas() {
   else if (selectedFlyerTemplate === 'custom') {
     if (loadedCustomTemplateImg) {
       ctx.drawImage(loadedCustomTemplateImg, 0, 0, width, height);
+
+      // Top Title & Company Name
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '900 44px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('LOWONGAN PEKERJAAN', width / 2, 108);
+
+      ctx.fillStyle = '#0052cc';
+      const underW = 740;
+      ctx.fillRect((width - underW) / 2, 122, underW, 4.5);
+
+      ctx.font = '900 40px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillStyle = '#000000';
+      let compText = company || 'PT PERUSAHAAN TERVERIFIKASI';
+      if (ctx.measureText(compText).width > 900) {
+        let words = compText.split(' ');
+        let line1 = words.slice(0, Math.ceil(words.length / 2)).join(' ');
+        let line2 = words.slice(Math.ceil(words.length / 2)).join(' ');
+        ctx.fillText(line1, width / 2, 168);
+        ctx.fillText(line2, width / 2, 214);
+      } else {
+        ctx.fillText(compText, width / 2, 182);
+      }
 
       if (drawMascotOnCustom && hasMascot) {
         if (selectedMascot === 'corporate' && loadedMascotCache['corporate']) {

@@ -110,9 +110,20 @@ app.use((req, res, next) => {
 });
 
 // Middlewares
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true, limit: '5mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: false,
+  lastModified: false,
+  setHeaders: (res, filePath) => {
+    // Disable aggressive browser caching for HTML, JS, and CSS so updates take effect immediately
+    if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // -------------------------------------------------------------
 // BRUTE-FORCE & RATE-LIMITING PROTECTION FOR ADMIN LOGIN
@@ -866,6 +877,41 @@ app.post('/api/master-data/reset', requireAdminAuth, async (req, res) => {
     const result = await db.resetMasterData();
     const fullData = result.allData || (result.categories ? result : await db.getMasterData());
     res.json({ success: true, message: 'Master data berhasil dikembalikan ke default!', data: fullData });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// POSTER STUDIO FLYER THEMES API (GET, POST, DELETE)
+// -------------------------------------------------------------
+app.get('/api/flyer-themes', async (req, res) => {
+  try {
+    const data = await db.getFlyerThemes();
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post('/api/flyer-themes', requireAdminAuth, async (req, res) => {
+  try {
+    const { name, image_data } = req.body || {};
+    if (!image_data) {
+      return res.status(400).json({ success: false, message: 'image_data wajib diisi!' });
+    }
+    const theme = await db.addFlyerTheme({ name: name || 'Tema Latar Kustom', image_data });
+    res.status(201).json({ success: true, data: theme });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.delete('/api/flyer-themes/:id', requireAdminAuth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    await db.deleteFlyerTheme(id);
+    res.json({ success: true, message: 'Tema latar berhasil dihapus' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

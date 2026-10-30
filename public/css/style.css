@@ -1593,8 +1593,23 @@ body {
   background: var(--bg-main);
   border: 1px dashed var(--border-color);
   border-radius: var(--radius-md);
-  padding: 12px;
-  text-align: center;
+  padding: 14px 12px;
+  text-align: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.poster-showcase-box .poster-showcase-heading,
+.poster-showcase-box p {
+  text-align: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 auto 10px auto !important;
+  width: 100% !important;
 }
 
 .poster-showcase-box img {
@@ -1604,6 +1619,7 @@ body {
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: transform var(--transition-fast);
+  margin: 0 auto;
 }
 
 .poster-showcase-box img:hover {
