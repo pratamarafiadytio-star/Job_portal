@@ -1494,6 +1494,19 @@
                   <button type="button" class="btn-table" onclick="removeCustomTemplate()" title="Hapus Template" style="color: #ef4444; font-size: 0.75rem;"><i class="fa-solid fa-trash"></i> Hapus</button>
                 </div>
 
+                <!-- GALERI TEMA LATAR (TERSIMPAN DI DATABASE) -->
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="font-size: 0.76rem; font-weight: 800; color: #1e293b;"><i class="fa-solid fa-swatchbook" style="color: #7c3aed;"></i> Galeri Tema Latar Tersimpan</span>
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-add-flyer-theme" onclick="document.getElementById('flyer-theme-bg-input').click()" style="font-size: 0.72rem; border-color: #ddd6fe; color: #6d28d9;">
+                      <i class="fa-solid fa-plus"></i> Upload Tema Baru
+                    </button>
+                    <input type="file" id="flyer-theme-bg-input" accept="image/*" multiple style="display: none;" onchange="handleFlyerThemeUpload(event)">
+                  </div>
+                  <div id="flyer-theme-gallery" class="flyer-theme-gallery"></div>
+                  <div style="font-size: 0.7rem; color: #64748b; margin-top: 6px;">* Klik tema untuk dipakai sebagai latar saat generate poster. Tema disimpan ke database.</div>
+                </div>
+
                 <div style="margin-top: 8px;">
                   <label style="font-size: 0.76rem; color: #334155; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
                     <input type="checkbox" id="custom-tpl-draw-mascot" checked onchange="renderPosterCanvas()">

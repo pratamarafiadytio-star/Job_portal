@@ -2273,9 +2273,9 @@ function openJobDetail(jobId) {
 
           <!-- Poster Showcase (Auto-Sliding Carousel if > 1 flyer) -->
           <div class="poster-showcase-box ${isMultiFlyer ? 'sidebar-flyer-carousel' : ''}" id="sidebar-carousel-${job.id}">
-            <p style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
-              <span><i class="fa-solid fa-images"></i> ${isManualJobFlyer(job) ? 'POSTER REKRUTMEN RESMI' : 'FOTO & FLYER RESMI'}</span>
-              ${isMultiFlyer ? `<span class="badge-slide-count" style="font-size: 0.72rem; color: var(--primary); font-weight: 800;"><span id="side-slide-num-${job.id}">1</span> / ${flyerImages.length}</span>` : ''}
+            <p style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 2px;">
+              <span><i class="fa-solid fa-images"></i> ${flyerImages.some(src => isManualJobFlyer({ poster_image: src })) ? 'POSTER REKRUTMEN RESMI' : 'FOTO & FLYER RESMI'}</span>
+              ${isMultiFlyer ? `<span class="badge-slide-count" style="font-size: 0.72rem; color: var(--primary); font-weight: 800;">Slide <span id="side-slide-num-${job.id}">1</span> / ${flyerImages.length}</span>` : ''}
             </p>
             ${isMultiFlyer ? `
               <div class="side-carousel-wrapper" onmouseenter="pauseJobFlyerCarousels(${job.id})" onmouseleave="resumeJobFlyerCarousels(${job.id})">

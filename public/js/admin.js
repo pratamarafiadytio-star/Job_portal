@@ -4293,6 +4293,122 @@ window.handleCustomTemplateUpload = function(event) {
   reader.readAsDataURL(file);
 };
 
+// -------------------------------------------------------------
+// GALERI TEMA LATAR FLYER (Supabase table flyer_themes + localStorage fallback)
+// -------------------------------------------------------------
+let flyerThemes = [];
+let activeFlyerThemeId = null;
+const escTheme = (s) => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function compressThemeImage(dataUrl, maxW = 1080) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.width);
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+function saveThemesLocal() {
+  try { localStorage.setItem('kerja_flyer_themes', JSON.stringify(flyerThemes)); } catch (e) {}
+}
+
+window.loadFlyerThemes = async function() {
+  try {
+    const local = localStorage.getItem('kerja_flyer_themes');
+    if (local) flyerThemes = JSON.parse(local) || [];
+  } catch (e) {}
+  renderFlyerThemeGallery();
+  if (sbClient) {
+    try {
+      const { data, error } = await sbClient.from('flyer_themes').select('id,name,image_data,created_at').order('id', { ascending: false });
+      if (!error && Array.isArray(data)) {
+        flyerThemes = data;
+        saveThemesLocal();
+        renderFlyerThemeGallery();
+      }
+    } catch (e) {}
+  }
+};
+
+function renderFlyerThemeGallery() {
+  const box = document.getElementById('flyer-theme-gallery');
+  if (!box) return;
+  if (!flyerThemes.length) {
+    box.innerHTML = '<div class="flyer-theme-empty"><i class="fa-regular fa-image"></i> Belum ada tema. Upload latar belakang poster Anda.</div>';
+    return;
+  }
+  box.innerHTML = flyerThemes.map(t => `
+    <div class="flyer-theme-item ${String(activeFlyerThemeId) === String(t.id) ? 'active' : ''}" onclick="applyFlyerTheme('${t.id}')" title="${escTheme(t.name || 'Tema')}">
+      <img src="${t.image_data}" alt="${escTheme(t.name || 'Tema')}">
+      <button type="button" class="flyer-theme-del" onclick="event.stopPropagation(); deleteFlyerTheme('${t.id}')" title="Hapus tema"><i class="fa-solid fa-xmark"></i></button>
+      ${String(activeFlyerThemeId) === String(t.id) ? '<span class="flyer-theme-check"><i class="fa-solid fa-check"></i></span>' : ''}
+    </div>
+  `).join('');
+}
+
+window.handleFlyerThemeUpload = async function(event) {
+  const files = Array.from((event.target && event.target.files) || []);
+  if (!files.length) return;
+  for (const file of files) {
+    const raw = await new Promise(r => { const fr = new FileReader(); fr.onload = e => r(e.target.result); fr.readAsDataURL(file); });
+    const image_data = await compressThemeImage(raw);
+    let theme = { id: 'local_' + Date.now() + Math.floor(Math.random() * 1000), name: file.name, image_data };
+    if (sbClient) {
+      try {
+        const { data, error } = await sbClient.from('flyer_themes').insert([{ name: file.name, image_data }]).select('id,name,image_data').single();
+        if (!error && data) theme = data;
+        else if (error) console.warn('flyer_themes insert:', error.message);
+      } catch (e) {}
+    }
+    flyerThemes.unshift(theme);
+  }
+  saveThemesLocal();
+  event.target.value = '';
+  applyFlyerTheme(flyerThemes[0].id);
+  showAdminToast('Tema Tersimpan!', `${files.length} tema latar ditambahkan ke galeri.`, 'success');
+};
+
+window.applyFlyerTheme = function(id) {
+  const t = flyerThemes.find(x => String(x.id) === String(id));
+  if (!t) return;
+  const img = new Image();
+  img.onload = () => {
+    loadedCustomTemplateImg = img;
+    customTemplateDataUrl = t.image_data;
+    activeFlyerThemeId = t.id;
+    const badgeRow = document.getElementById('custom-template-badge-row');
+    if (badgeRow) badgeRow.style.display = 'flex';
+    const nameEl = document.getElementById('custom-template-file-name');
+    if (nameEl) nameEl.textContent = t.name || 'Tema Latar';
+    const radio = document.querySelector('input[name="flyer_template"][value="custom"]');
+    if (radio) radio.checked = true;
+    renderFlyerThemeGallery();
+    if (typeof window.onFlyerTemplateChanged === 'function') window.onFlyerTemplateChanged('custom');
+  };
+  img.src = t.image_data;
+};
+
+window.deleteFlyerTheme = async function(id) {
+  if (!confirm('Hapus tema latar ini?')) return;
+  flyerThemes = flyerThemes.filter(x => String(x.id) !== String(id));
+  saveThemesLocal();
+  if (sbClient && !String(id).startsWith('local_')) {
+    try { await sbClient.from('flyer_themes').delete().eq('id', id); } catch (e) {}
+  }
+  if (String(activeFlyerThemeId) === String(id)) activeFlyerThemeId = null;
+  renderFlyerThemeGallery();
+};
+
+document.addEventListener('DOMContentLoaded', () => setTimeout(() => window.loadFlyerThemes(), 800));
+
 window.removeCustomTemplate = function() {
   loadedCustomTemplateImg = null;
   customTemplateDataUrl = null;

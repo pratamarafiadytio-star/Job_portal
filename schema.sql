@@ -216,3 +216,22 @@ USING (true)
 WITH CHECK (true);
 
 
+
+-- ==============================================================
+-- 8. Tabel flyer_themes (Galeri Tema Latar Poster Studio)
+-- ==============================================================
+CREATE TABLE IF NOT EXISTS public.flyer_themes (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT DEFAULT '',
+    image_data TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.flyer_themes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public Read Flyer Themes" ON public.flyer_themes;
+CREATE POLICY "Public Read Flyer Themes" ON public.flyer_themes FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Full Access Flyer Themes" ON public.flyer_themes;
+CREATE POLICY "Full Access Flyer Themes" ON public.flyer_themes FOR ALL USING (true) WITH CHECK (true);
+
+-- Pastikan kolom sampul & multi-flyer ada di tabel jobs
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS cover_image TEXT DEFAULT '';
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS flyer_images JSONB DEFAULT '[]'::jsonb;
