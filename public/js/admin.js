@@ -634,7 +634,7 @@ function setupNavigation() {
 }
 
 function switchSection(sectionName) {
-  const sections = ['dashboard', 'upload-job', 'manage-jobs', 'sosmed-generator', 'settings-master', 'settings-cv'];
+  const sections = ['dashboard', 'upload-job', 'manage-jobs', 'sosmed-generator', 'flyer-themes', 'settings-master', 'settings-cv'];
   sections.forEach(sec => {
     const el = document.getElementById(`section-${sec}`);
     if (el) el.style.display = (sec === sectionName) ? 'block' : 'none';
@@ -659,6 +659,10 @@ function switchSection(sectionName) {
     if (subEl) subEl.textContent = 'Ambil lowongan yang dibagikan langsung di website dan klik untuk membuka postingan aslinya.';
     startAdminAutoloadEngine();
     filterAndRenderOfficialJobs();
+  } else if (sectionName === 'flyer-themes') {
+    if (titleEl) titleEl.textContent = 'Galeri & Upload Tema Background Poster Flyer';
+    if (subEl) subEl.textContent = 'Upload latar belakang flyer kustom, atur nama dan kelola koleksi tema.';
+    loadFlyerThemesTab();
   } else if (sectionName === 'settings-master') {
     if (titleEl) titleEl.textContent = 'Pengaturan Master Data & Filter';
     if (subEl) subEl.textContent = 'Kelola Kategori Bidang, Tipe Pekerjaan, Level Pengalaman, dan Lokasi.';
@@ -4526,6 +4530,246 @@ window.deleteFlyerTheme = async function(id) {
   showAdminToast('Tema Dihapus', 'Tema latar belakang berhasil dihapus.', 'info');
 };
 
+// =============================================================
+// DEDICATED SECTION: FLYER THEMES MANAGEMENT TAB (#flyer-themes)
+// =============================================================
+let currentTabThemeBase64 = '';
+
+window.loadFlyerThemesTab = async function() {
+  await window.loadFlyerThemes();
+  renderFlyerThemesTab();
+  populateStudioThemeSelect();
+};
+
+window.renderFlyerThemesTab = function() {
+  const grid = document.getElementById('tab-themes-grid');
+  if (!grid) return;
+
+  const allThemes = [...flyerThemes, ...BUILTIN_THEMES];
+
+  if (!allThemes.length) {
+    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #94a3b8;">Belum ada tema tersedia.</div>';
+    return;
+  }
+
+  grid.innerHTML = allThemes.map(t => {
+    const isDefault = String(activeFlyerThemeId) === String(t.id);
+    const thumbSrc = t.image_data || t.thumbnail;
+    const isCustom = !t.is_builtin;
+
+    return `
+      <div class="tab-theme-card ${isDefault ? 'is-default' : ''}" style="background: #ffffff; border: 1.5px solid ${isDefault ? '#2563eb' : '#e2e8f0'}; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 12px rgba(15,23,42,0.05); transition: transform 0.2s ease, box-shadow 0.2s ease;">
+        <div style="position: relative; width: 100%; aspect-ratio: 4/5; background: #f8fafc; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+          <img src="${thumbSrc}" alt="${escTheme(t.name)}" style="width: 100%; height: 100%; object-fit: cover;">
+          <span style="position: absolute; top: 10px; left: 10px; font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; ${isCustom ? 'background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;' : 'background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;'}">
+            ${isCustom ? '<i class="fa-solid fa-cloud-arrow-up"></i> Kustom' : '<i class="fa-solid fa-cube"></i> Bawaan Sistem'}
+          </span>
+          ${isDefault ? `
+            <span style="position: absolute; top: 10px; right: 10px; background: #2563eb; color: #ffffff; font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; box-shadow: 0 2px 6px rgba(37,99,235,0.4);">
+              <i class="fa-solid fa-check"></i> AKTIF
+            </span>
+          ` : ''}
+        </div>
+        <div style="padding: 12px; display: flex; flex-direction: column; flex: 1; justify-content: space-between;">
+          <div style="font-size: 0.86rem; font-weight: 800; color: #0f172a; margin-bottom: 8px; line-height: 1.3;">
+            ${escTheme(t.name)}
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            ${!isDefault ? `
+              <button type="button" class="btn btn-outline btn-sm" onclick="setDefaultThemeFromTab('${t.id}')" style="flex: 1; font-size: 0.74rem; font-weight: 700; padding: 6px 8px; border-color: #93c5fd; color: #1d4ed8;">
+                <i class="fa-solid fa-check"></i> Jadikan Aktif
+              </button>
+            ` : `
+              <span style="flex: 1; font-size: 0.74rem; font-weight: 700; padding: 6px 8px; background: #eff6ff; color: #1d4ed8; border-radius: 8px; text-align: center; border: 1px solid #bfdbfe;">
+                <i class="fa-solid fa-circle-check"></i> Tema Terpasang
+              </span>
+            `}
+            ${isCustom ? `
+              <button type="button" class="btn btn-outline btn-sm" onclick="deleteThemeFromTab('${t.id}')" style="font-size: 0.74rem; padding: 6px 10px; border-color: #fca5a5; color: #dc2626;" title="Hapus Tema">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+};
+
+window.handleTabThemeFileSelect = async function(event) {
+  const file = event.target && event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const chosenLabel = document.getElementById('tab-theme-file-chosen');
+  if (chosenLabel) chosenLabel.textContent = file.name;
+
+  const nameInput = document.getElementById('tab-theme-name-input');
+  if (nameInput && !nameInput.value.trim()) {
+    nameInput.value = file.name.replace(/\.[^/.]+$/, '');
+  }
+
+  try {
+    const raw = await new Promise(r => {
+      const fr = new FileReader();
+      fr.onload = e => r(e.target.result);
+      fr.readAsDataURL(file);
+    });
+    const compressed = await compressThemeImage(raw);
+    currentTabThemeBase64 = compressed;
+
+    const previewImg = document.getElementById('tab-theme-preview-img');
+    const placeholder = document.getElementById('tab-theme-preview-placeholder');
+    if (previewImg) {
+      previewImg.src = compressed;
+      previewImg.style.display = 'block';
+    }
+    if (placeholder) placeholder.style.display = 'none';
+  } catch (err) {
+    console.warn('Error reading theme file:', err);
+  }
+};
+
+window.saveNewThemeFromTab = async function() {
+  const nameInput = document.getElementById('tab-theme-name-input');
+  const themeName = (nameInput && nameInput.value.trim()) || 'Tema Custom';
+
+  if (!currentTabThemeBase64) {
+    showAdminToast('Pilih File', 'Silakan pilih berkas gambar tema terlebih dahulu.', 'warning');
+    return;
+  }
+
+  const btn = document.getElementById('btn-save-tab-theme');
+  const origBtn = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+  }
+
+  let theme = {
+    id: 'theme_' + Date.now() + Math.floor(Math.random() * 1000),
+    name: themeName,
+    image_data: currentTabThemeBase64
+  };
+
+  try {
+    const token = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken');
+    const res = await fetch('/api/flyer-themes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ name: themeName, image_data: currentTabThemeBase64 })
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.data) theme = json.data;
+    }
+  } catch (err) {}
+
+  if (sbClient && !theme.id.toString().startsWith('theme_')) {
+    try {
+      await sbClient.from('flyer_themes').insert([{ name: themeName, image_data: currentTabThemeBase64 }]);
+    } catch (e) {}
+  }
+
+  flyerThemes.unshift(theme);
+  saveThemesLocal();
+
+  // Reset inputs
+  if (nameInput) nameInput.value = '';
+  currentTabThemeBase64 = '';
+  const fileInput = document.getElementById('tab-theme-file-input');
+  if (fileInput) fileInput.value = '';
+  const chosenLabel = document.getElementById('tab-theme-file-chosen');
+  if (chosenLabel) chosenLabel.textContent = 'Belum ada berkas dipilih';
+  const previewImg = document.getElementById('tab-theme-preview-img');
+  if (previewImg) previewImg.style.display = 'none';
+  const placeholder = document.getElementById('tab-theme-preview-placeholder');
+  if (placeholder) placeholder.style.display = 'block';
+
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = origBtn;
+  }
+
+  setDefaultThemeFromTab(theme.id);
+  renderFlyerThemesTab();
+  populateStudioThemeSelect();
+
+  showAdminToast('Tema Tersimpan!', `Tema "${themeName}" berhasil ditambahkan ke koleksi.`, 'success');
+};
+
+window.setDefaultThemeFromTab = function(id) {
+  applyFlyerTheme(id);
+  renderFlyerThemesTab();
+  populateStudioThemeSelect();
+  showAdminToast('Tema Aktif', 'Tema ini sekarang aktif sebagai latar belakang default di Studio Poster.', 'success');
+};
+
+window.deleteThemeFromTab = function(id) {
+  deleteFlyerTheme(id);
+  setTimeout(() => renderFlyerThemesTab(), 100);
+};
+
+// STUDIO DROPDOWN SELECTOR & COVER PHOTO LOGIC
+window.populateStudioThemeSelect = function() {
+  const select = document.getElementById('studio-theme-select');
+  if (!select) return;
+
+  const allThemes = [...flyerThemes, ...BUILTIN_THEMES];
+  select.innerHTML = allThemes.map(t => {
+    const isSelected = String(activeFlyerThemeId) === String(t.id);
+    return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${t.is_builtin ? '✨ [Bawaan] ' : '🖼️ [Kustom] '}${escTheme(t.name)}</option>`;
+  }).join('');
+
+  const activeTheme = allThemes.find(x => String(x.id) === String(activeFlyerThemeId)) || BUILTIN_THEMES[0];
+  const activePillText = document.getElementById('studio-active-theme-text');
+  if (activePillText && activeTheme) {
+    activePillText.textContent = activeTheme.name;
+  }
+};
+
+window.onStudioThemeSelectChange = function(themeId) {
+  applyFlyerTheme(themeId);
+  const allThemes = [...flyerThemes, ...BUILTIN_THEMES];
+  const activeTheme = allThemes.find(x => String(x.id) === String(themeId));
+  const activePillText = document.getElementById('studio-active-theme-text');
+  if (activePillText && activeTheme) {
+    activePillText.textContent = activeTheme.name;
+  }
+};
+
+window.handleStudioCoverUpload = async function(event) {
+  const file = event.target && event.target.files && event.target.files[0];
+  if (!file) return;
+
+  try {
+    const raw = await new Promise(r => {
+      const fr = new FileReader();
+      fr.onload = e => r(e.target.result);
+      fr.readAsDataURL(file);
+    });
+
+    const compressedCover = await compressThemeImage(raw, 1200);
+    if (!currentPosterJobData) currentPosterJobData = {};
+    currentPosterJobData.cover_image = compressedCover;
+
+    const badge = document.getElementById('studio-cover-status-badge');
+    const badgeName = document.getElementById('studio-cover-status-name');
+    if (badge) badge.style.display = 'block';
+    if (badgeName) badgeName.textContent = file.name;
+
+    const syncCheck = document.getElementById('studio-sync-cover-checkbox');
+    if (syncCheck) syncCheck.checked = false;
+
+    showAdminToast('Foto Sampul Terpasang', `Foto sampul kustom "${file.name}" berhasil diunggah.`, 'success');
+  } catch (err) {
+    console.warn('Cover upload error:', err);
+    showAdminToast('Gagal', 'Terjadi kesalahan saat memproses foto sampul.', 'error');
+  }
+};
+
 document.addEventListener('DOMContentLoaded', () => setTimeout(() => window.loadFlyerThemes(), 600));
 
 window.openStudioFromFormWithTheme = function() {
@@ -4814,6 +5058,27 @@ function openPosterStudio(jobData, isPublishIntent = false) {
     btnDirect.style.display = 'inline-flex';
   }
 
+  // Populate studio theme dropdown & sync active theme
+  populateStudioThemeSelect();
+  const themeSelect = document.getElementById('studio-theme-select');
+  if (themeSelect && activeFlyerThemeId) {
+    themeSelect.value = activeFlyerThemeId;
+  }
+
+  // Cover image badge setup
+  const coverBadge = document.getElementById('studio-cover-status-badge');
+  const coverBadgeName = document.getElementById('studio-cover-status-name');
+  const syncCoverCheck = document.getElementById('studio-sync-cover-checkbox');
+  if (jobData && jobData.cover_image) {
+    currentPosterJobData.cover_image = jobData.cover_image;
+    if (coverBadge) coverBadge.style.display = 'block';
+    if (coverBadgeName) coverBadgeName.textContent = 'Sampul Terdaftar';
+    if (syncCoverCheck) syncCoverCheck.checked = false;
+  } else {
+    if (coverBadge) coverBadge.style.display = 'none';
+    if (syncCoverCheck) syncCoverCheck.checked = true;
+  }
+
   modal.classList.add('active');
   modal.style.display = 'flex';
 
@@ -5096,12 +5361,21 @@ function renderPosterCanvas() {
 
     // Role Pill Badge (Solid Blue Chevron/Pill on Left)
     const badgeY = 246;
-    ctx.font = '900 28px "Plus Jakarta Sans", Arial, sans-serif';
-    const displayTitle = title || 'OPERATOR PRODUKSI';
-    const titleW = ctx.measureText(displayTitle).width;
-    const badgeW = Math.max(340, Math.min(560, titleW + 70));
-    const badgeH = 54;
     const badgeX = 52;
+    const badgeH = 54;
+    const displayTitle = (title || 'OPERATOR PRODUKSI').trim();
+    const maxBadgeLimit = hasMascot ? 560 : 960;
+    const maxBadgeTextW = maxBadgeLimit - 64;
+
+    let roleFontSize = 28;
+    ctx.font = `900 ${roleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+    while (ctx.measureText(displayTitle).width > maxBadgeTextW && roleFontSize > 14) {
+      roleFontSize -= 1;
+      ctx.font = `900 ${roleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+    }
+
+    const titleW = ctx.measureText(displayTitle).width;
+    const badgeW = Math.max(300, Math.min(maxBadgeLimit, titleW + 56));
 
     ctx.fillStyle = '#0052cc';
     ctx.beginPath();
@@ -5115,7 +5389,7 @@ function renderPosterCanvas() {
 
     ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(displayTitle, badgeX + 24, badgeY + 38);
+    ctx.fillText(displayTitle, badgeX + 22, badgeY + Math.round(badgeH / 2) + Math.round(roleFontSize * 0.35));
 
     // Megaphone Character Illustration (Top Right)
     if (hasMascot) {
@@ -5304,12 +5578,21 @@ function renderPosterCanvas() {
 
       // Role Pill Badge
       const badgeY = 246;
-      ctx.font = '900 28px "Plus Jakarta Sans", Arial, sans-serif';
-      const displayTitle = title || 'OPERATOR PRODUKSI';
-      const titleW = ctx.measureText(displayTitle).width;
-      const badgeW = Math.max(340, Math.min(560, titleW + 70));
-      const badgeH = 54;
       const badgeX = 52;
+      const badgeH = 54;
+      const displayTitle = (title || 'OPERATOR PRODUKSI').trim();
+      const maxBadgeLimit = (drawMascotOnCustom && hasMascot) ? 560 : 960;
+      const maxBadgeTextW = maxBadgeLimit - 64;
+
+      let roleFontSize = 28;
+      ctx.font = `900 ${roleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+      while (ctx.measureText(displayTitle).width > maxBadgeTextW && roleFontSize > 14) {
+        roleFontSize -= 1;
+        ctx.font = `900 ${roleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+      }
+
+      const titleW = ctx.measureText(displayTitle).width;
+      const badgeW = Math.max(300, Math.min(maxBadgeLimit, titleW + 56));
 
       ctx.fillStyle = '#0052cc';
       ctx.beginPath();
@@ -5323,7 +5606,7 @@ function renderPosterCanvas() {
 
       ctx.textAlign = 'left';
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(displayTitle, badgeX + 24, badgeY + 38);
+      ctx.fillText(displayTitle, badgeX + 22, badgeY + Math.round(badgeH / 2) + Math.round(roleFontSize * 0.35));
 
       // Qualifications Bullet List
       const kualY = 345;
@@ -5530,10 +5813,18 @@ function renderPosterCanvas() {
     ctx.lineWidth = 3;
     roundRect(ctx, badgeX + 2, badgeY + 2, badgeW - 4, badgeH - 4, 14, false, true);
 
+    const displayRole = (title || 'POSISI LOWONGAN').trim();
+    let roleFontSize = 28;
+    ctx.font = `800 ${roleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+    const maxTitleW = badgeW - 40;
+    while (ctx.measureText(displayRole).width > maxTitleW && roleFontSize > 14) {
+      roleFontSize -= 1;
+      ctx.font = `800 ${roleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+    }
+
     ctx.fillStyle = p.badgeText;
     ctx.textAlign = 'center';
-    ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText(title || 'POSISI LOWONGAN', badgeX + (badgeW / 2), badgeY + 42);
+    ctx.fillText(displayRole, badgeX + (badgeW / 2), badgeY + (badgeH / 2) + Math.round(roleFontSize * 0.35));
 
     if (hasMascot) {
       if (selectedMascot === 'corporate' && loadedMascotCache['corporate']) {
@@ -5595,13 +5886,28 @@ function renderPosterCanvas() {
     ctx.font = '800 24px "Plus Jakarta Sans", Arial, sans-serif';
     ctx.fillText('Kirim CV/Lamaran melalui website', appBoxX + 24, appBoxY + 48);
 
+    const fullComp = (company || 'Perusahaan Terverifikasi').trim();
+    let compFontSize = 26;
+    ctx.font = `800 ${compFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+    const maxCompW = appBoxW - 48;
+    while (ctx.measureText(fullComp).width > maxCompW && compFontSize > 15) {
+      compFontSize -= 1;
+      ctx.font = `800 ${compFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+    }
+
     ctx.fillStyle = p.primary;
-    ctx.font = '800 26px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText((company || 'Perusahaan Terverifikasi').substring(0, 30), appBoxX + 24, appBoxY + 92);
+    ctx.fillText(fullComp, appBoxX + 24, appBoxY + 92);
+
+    const deadlineText = deadline ? `Deadline ${deadline}` : 'Pendaftaran Terbuka';
+    let deadFontSize = 28;
+    ctx.font = `800 ${deadFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+    while (ctx.measureText(deadlineText).width > maxCompW && deadFontSize > 16) {
+      deadFontSize -= 1;
+      ctx.font = `800 ${deadFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+    }
 
     ctx.fillStyle = p.accentOrange;
-    ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText(deadline ? `Deadline ${deadline}` : 'Pendaftaran Terbuka', appBoxX + 24, appBoxY + 148);
+    ctx.fillText(deadlineText, appBoxX + 24, appBoxY + 148);
 
     const qrSize = 200;
     const qrBoxX = 715;
@@ -5914,24 +6220,7 @@ window.publishJobFromStudio = async function() {
         renderAdminJobsTable();
       }
     } else {
-      // NEW JOB FROM SCOUT / STUDIO: INSERT INTO DATABASE
-      if (sbClient) {
-        try {
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
-          const insPromise = sbClient.from('jobs').insert([prepareJobPayloadForSupabase(payload)]);
-          const { error } = await Promise.race([insPromise, timeoutPromise]);
-          if (!error) saved = true;
-          else {
-            console.warn('Supabase insert warning:', error);
-            if (!errorMsg) errorMsg = error.message;
-          }
-        } catch (e) {
-          console.warn('Supabase insert error:', e);
-          if (!errorMsg) errorMsg = e.message;
-        }
-      }
-
-      // Also sync to Backend API
+      // NEW JOB FROM SCOUT / STUDIO: INSERT INTO DATABASE (Single Source of Truth)
       try {
         const token = getAdminToken();
         const res = await safeFetchJson(getApiEndpoint('/api/jobs'), {
@@ -5947,6 +6236,23 @@ window.publishJobFromStudio = async function() {
         }
       } catch (e) {
         console.warn('Backend API insert warning:', e);
+      }
+
+      // Fallback: ONLY execute direct Supabase insert if backend API failed or was offline
+      if (!saved && sbClient) {
+        try {
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+          const insPromise = sbClient.from('jobs').insert([prepareJobPayloadForSupabase(payload)]);
+          const { error } = await Promise.race([insPromise, timeoutPromise]);
+          if (!error) saved = true;
+          else {
+            console.warn('Supabase fallback insert warning:', error);
+            if (!errorMsg) errorMsg = error.message;
+          }
+        } catch (e) {
+          console.warn('Supabase fallback insert error:', e);
+          if (!errorMsg) errorMsg = e.message;
+        }
       }
     }
 

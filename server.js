@@ -535,6 +535,27 @@ app.post('/api/jobs', requireAdminAuth, upload.any(), async (req, res) => {
       });
     }
 
+    // Deduplication check: Prevent duplicate jobs created within 20 seconds
+    try {
+      const existingJobs = await db.getJobs();
+      const cleanTitle = title.trim().toLowerCase();
+      const cleanComp = company_name.trim().toLowerCase();
+      const twentySecsAgo = Date.now() - 20000;
+      const duplicate = existingJobs.find(j => 
+        j.title && j.company_name &&
+        j.title.trim().toLowerCase() === cleanTitle &&
+        j.company_name.trim().toLowerCase() === cleanComp &&
+        j.created_at && new Date(j.created_at).getTime() > twentySecsAgo
+      );
+      if (duplicate) {
+        return res.status(200).json({
+          success: true,
+          message: 'Lowongan telah tersimpan (mencegah duplikasi ganda).',
+          data: duplicate
+        });
+      }
+    } catch (e) {}
+
     const files = req.files || [];
     const posterFile = files.find(f => f.fieldname === 'poster_image');
     const coverFile = files.find(f => f.fieldname === 'cover_image' || f.fieldname === 'cover_image_input');

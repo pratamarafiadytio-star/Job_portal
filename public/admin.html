@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
   
-  <link rel="stylesheet" href="./css/admin.css?v=20261031_04">
+  <link rel="stylesheet" href="./css/admin.css?v=20261031_05">
   <!-- Supabase JS Client (Self-Hosted Local Vendor Asset) -->
   <script src="./vendor/supabase/supabase.min.js"></script>
   <!-- QRCode.js (Self-Hosted Local Vendor Asset) -->
@@ -106,6 +106,13 @@
             <i class="fa-solid fa-globe" style="color: #0284c7;"></i>
             <span>Scout Loker Asli Web</span>
             <span class="menu-pill-sparkle" style="background: linear-gradient(135deg, #0284c7, #10b981); color: white;">WEB ASLI</span>
+          </a>
+        </li>
+        <li class="menu-item">
+          <a href="#flyer-themes">
+            <i class="fa-solid fa-swatchbook" style="color: #2563eb;"></i>
+            <span>Tema Background Flyer</span>
+            <span class="menu-pill-sparkle" style="background: #2563eb; color: white;">FITUR BARU</span>
           </a>
         </li>
         <li class="menu-item">
@@ -902,6 +909,87 @@
           </div>
         </section>
 
+        <!-- ============================================================== -->
+        <!-- SECTION KHUSUS: GALERI & MANAJEMEN TEMA BACKGROUND FLYER       -->
+        <!-- ============================================================== -->
+        <section id="section-flyer-themes" style="display: none;">
+          <div class="panel">
+            <div class="panel-header" style="background: linear-gradient(135deg, rgba(29,78,216,0.06), rgba(37,99,235,0.08)); flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center;">
+              <div>
+                <div class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+                  <i class="fa-solid fa-swatchbook" style="color: var(--admin-primary);"></i> Galeri & Upload Tema Background Poster Flyer
+                </div>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px;">
+                  Upload latar belakang poster resmi atau bingkai desain kosong. Saat men-generate poster, teks lowongan dan maskot akan otomatis digambar rapi di atas latar ini.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="loadFlyerThemesTab()">
+                  <i class="fa-solid fa-rotate"></i> Refresh Galeri
+                </button>
+              </div>
+            </div>
+
+            <!-- UPLOAD TEMA FORM CARD -->
+            <div style="padding: 20px 24px; border-bottom: 1px solid var(--admin-border); background: #f8fafc;">
+              <div style="max-width: 820px; background: #ffffff; border: 2px dashed #93c5fd; border-radius: 16px; padding: 20px; box-shadow: 0 4px 14px rgba(29,78,216,0.05);">
+                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 260px;">
+                    <div style="font-size: 0.95rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                      <i class="fa-solid fa-cloud-arrow-up" style="color: var(--admin-primary);"></i> Upload Background / Frame Desain Baru
+                    </div>
+                    <p style="font-size: 0.78rem; color: #64748b; margin-top: 4px; line-height: 1.4;">
+                      Format rasio disarankan 4:5 (1080 x 1350 px). File didukung: JPG, PNG, WEBP. Frame transparan atau bergambar akan dipadukan dengan teks lowongan resmi.
+                    </p>
+                    
+                    <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 10px;">
+                      <div>
+                        <label class="form-label" style="font-size: 0.78rem; font-weight: 700;">Nama Tema / Identitas Frame:</label>
+                        <input type="text" id="tab-theme-name-input" class="form-input" placeholder="Misal: Frame Biru Rounded KAI, Desain Poster Pabrik..." style="padding: 8px 12px; font-size: 0.85rem;">
+                      </div>
+                      
+                      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('tab-theme-file-input').click()" style="border-color: #2563eb; color: #1d4ed8; font-weight: 700;">
+                          <i class="fa-solid fa-folder-open"></i> Pilih Berkas Gambar
+                        </button>
+                        <input type="file" id="tab-theme-file-input" accept="image/*" style="display: none;" onchange="handleTabThemeFileSelect(event)">
+                        
+                        <span id="tab-theme-file-chosen" style="font-size: 0.76rem; color: #64748b; font-style: italic;">Belum ada berkas dipilih</span>
+                        
+                        <button type="button" class="btn btn-primary btn-sm" id="btn-save-tab-theme" onclick="saveNewThemeFromTab()" style="font-weight: 800; padding: 7px 16px; border-radius: 8px;">
+                          <i class="fa-solid fa-floppy-disk"></i> Simpan ke Galeri
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- PREVIEW THUMBNAIL IF SELECTED -->
+                  <div id="tab-theme-preview-box" style="width: 120px; aspect-ratio: 4/5; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #f1f5f9; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;">
+                    <img id="tab-theme-preview-img" src="" alt="Preview" style="display: none; width: 100%; height: 100%; object-fit: cover;">
+                    <span id="tab-theme-preview-placeholder" style="font-size: 0.7rem; color: #94a3b8; text-align: center; padding: 6px;">Pratinjau Gambar</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- KOLEKSI TEMA GRID -->
+            <div style="padding: 24px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+                <div style="font-size: 0.95rem; font-weight: 800; color: #0f172a;">
+                  <i class="fa-solid fa-layer-group" style="color: var(--admin-primary);"></i> Daftar Tema Background Tersedia
+                </div>
+                <div style="font-size: 0.76rem; color: #64748b;">
+                  * Tema yang dipilih sebagai default akan otomatis terpasang saat membuka Studio Poster.
+                </div>
+              </div>
+
+              <div id="tab-themes-grid" class="tab-themes-grid">
+                <!-- Dynamically populated with theme cards -->
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- ========================================== -->
         <!-- SECTION 5: MASTER DATA & FILTER SETTINGS   -->
         <!-- ========================================== -->
@@ -1419,12 +1507,21 @@
                 </button>
               </div>
 
-              <!-- TOMBOL JADIKAN SEBAGAI SAMPUL KARTU -->
-              <button type="button" class="btn btn-outline btn-sm" id="btn-studio-as-cover" onclick="setStudioCanvasAsCover()" style="width: 100%; margin-top: 2px; font-size: 0.82rem; color: #047857; border-color: #6ee7b7; background: #ecfdf5; border-radius: 10px; padding: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;">
-                <i class="fa-solid fa-panorama"></i> Jadikan Sebagai Sampul Kartu Lowongan
-              </button>
+              <!-- TOMBOL UPLOAD / GANTI FOTO SAMPUL KARTU (16:9) -->
+              <div style="display: flex; gap: 8px; margin-top: 4px;">
+                <button type="button" class="btn btn-outline btn-sm" id="btn-studio-upload-cover" onclick="document.getElementById('studio-cover-file-input').click()" style="flex: 1; font-size: 0.78rem; color: #1d4ed8; border-color: #93c5fd; background: #eff6ff; border-radius: 10px; padding: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;">
+                  <i class="fa-solid fa-cloud-arrow-up"></i> Upload Foto Sampul
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" id="btn-studio-as-cover" onclick="setStudioCanvasAsCover()" style="flex: 1; font-size: 0.78rem; color: #047857; border-color: #6ee7b7; background: #ecfdf5; border-radius: 10px; padding: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;">
+                  <i class="fa-solid fa-panorama"></i> Jadikan Flyer Sampul
+                </button>
+              </div>
+              <input type="file" id="studio-cover-file-input" accept="image/*" style="display: none;" onchange="handleStudioCoverUpload(event)">
+              <div id="studio-cover-status-badge" style="display: none; font-size: 0.72rem; color: #047857; font-weight: 700; text-align: center; margin-top: 4px; padding: 4px 8px; background: #ecfdf5; border-radius: 6px; border: 1px solid #a7f3d0;">
+                <i class="fa-solid fa-circle-check"></i> Sampul Terpasang: <span id="studio-cover-status-name">sampul.jpg</span>
+              </div>
 
-              <div style="display: flex; justify-content: center; margin-top: 2px;">
+              <div style="display: flex; justify-content: center; margin-top: 4px;">
                 <label style="font-size: 0.74rem; color: #475569; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
                   <input type="checkbox" id="studio-sync-cover-checkbox">
                   <span>Sertakan juga sebagai Foto Sampul Kartu Lowongan</span>
@@ -1436,34 +1533,31 @@
           <!-- RIGHT: CONTROLS & AUTO-EXTRACTED DATA -->
           <div class="poster-controls-col">
             
-            <!-- KELOMPOK TEMA LATAR BELAKANG / BACKGROUND FLYER (SUPER PROMINENT) -->
-            <div class="poster-control-card flyer-theme-master-card" id="flyer-theme-master-card">
-              <div class="theme-card-header">
-                <div class="theme-card-title-group">
-                  <span class="theme-card-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> 1. PILIH TEMA LATAR BELAKANG</span>
-                  <h4 style="margin: 3px 0 2px 0; font-size: 0.96rem; font-weight: 800; color: #1e1b4b;">Tema / Background Desain Poster</h4>
-                  <p style="margin: 0; font-size: 0.74rem; color: #4338ca;">
-                    Pilih latar belakang atau upload desain frame Anda sendiri. Teks lowongan akan otomatis digambar di atas latar ini!
-                  </p>
-                </div>
-                <button type="button" class="btn-upload-theme-action" onclick="document.getElementById('flyer-theme-bg-input').click()">
-                  <i class="fa-solid fa-cloud-arrow-up"></i> + Upload Tema / BG Baru
-                </button>
-                <input type="file" id="flyer-theme-bg-input" accept="image/*" multiple style="display: none;" onchange="handleFlyerThemeUpload(event)">
+            <!-- PILIH TEMA BACKGROUND FLYER (CLEAN & ELEGANT SELECTOR) -->
+            <div class="poster-control-card" style="border-left: 4px solid var(--admin-primary); background: #f8fafc; border-radius: 12px; padding: 14px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <label class="form-label" style="margin-bottom: 0; font-weight: 800; color: #0f172a; font-size: 0.88rem;">
+                  <i class="fa-solid fa-swatchbook" style="color: var(--admin-primary);"></i> Tema / Background Desain Poster:
+                </label>
+                <a href="#flyer-themes" onclick="closePosterStudioModal()" style="font-size: 0.74rem; font-weight: 700; color: var(--admin-primary); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                  <i class="fa-solid fa-gear"></i> Kelola / Upload Tema di Menu
+                </a>
+              </div>
+              
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <select id="studio-theme-select" class="form-select" onchange="onStudioThemeSelectChange(this.value)" style="flex: 1; font-weight: 700; color: #0f172a; padding: 10px 12px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #ffffff;">
+                  <option value="tpl_chocomory">Style Megafon Chocomory (Border Biru)</option>
+                  <option value="tpl_modern">Instagram Modern Feed</option>
+                  <option value="tpl_factory">Manufaktur & Pabrik</option>
+                  <option value="tpl_bumn">BUMN & Korporat Elegan</option>
+                </select>
               </div>
 
-              <!-- GALLERY GRID OF THEMES (BUILT-IN + UPLOADED) -->
-              <div id="flyer-theme-gallery" class="flyer-theme-gallery-grid">
-                <!-- Dynamically rendered -->
-              </div>
-
-              <!-- ACTIVE THEME INFO BAR & MASCOT CHECKBOX -->
-              <div class="theme-active-bar">
-                <div class="theme-active-info">
-                  <i class="fa-solid fa-circle-check"></i>
-                  <span>Latar Aktif: <strong id="theme-active-name">Style Megafon Chocomory (Border Biru)</strong></span>
-                </div>
-                <label class="theme-mascot-toggle">
+              <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0;">
+                <span id="studio-active-theme-pill" class="badge" style="background: #eff6ff; color: #1d4ed8; font-size: 0.74rem; font-weight: 700; border: 1px solid #bfdbfe;">
+                  <i class="fa-solid fa-circle-check"></i> Tema: <span id="studio-active-theme-text">Style Megafon Chocomory</span>
+                </span>
+                <label style="font-size: 0.74rem; color: #334155; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600;">
                   <input type="checkbox" id="custom-tpl-draw-mascot" checked onchange="renderPosterCanvas()">
                   <span>Sertakan Gambar Karakter Orang / Maskot</span>
                 </label>
@@ -1656,6 +1750,6 @@
     </div>
   </div>
 
-  <script src="./js/admin.js?v=20261031_04"></script>
+  <script src="./js/admin.js?v=20261031_05"></script>
 </body>
 </html>
