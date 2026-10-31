@@ -6048,6 +6048,9 @@ function renderPosterCanvas() {
     if (loadedCustomTemplateImg) {
       // Draw user's custom uploaded background theme
       ctx.drawImage(loadedCustomTemplateImg, 0, 0, width, height);
+      // Clean up any stray watermark/sticker at bottom left (around x: 60..250, y: 980..1150)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(60, 980, 220, 160);
     } else {
       // Royal blue outer canvas background
       ctx.fillStyle = '#0052cc';
@@ -6072,13 +6075,11 @@ function renderPosterCanvas() {
     ctx.fillRect((width - headerW) / 2 - 8, 126, headerW + 16, 5.5);
 
     // 3. COMPANY NAME (Uppercase, bold black, smart 2-line wrap if long)
-    ctx.font = '900 40px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillStyle = '#000000';
     let compText = (company || 'PT CHOCOMORY COKELAT PERSADA').trim().toUpperCase();
-
     let compLine1 = '';
     let compLine2 = '';
-    if (ctx.measureText(compText).width > 780 || compText.includes('CHOCOMORY')) {
+
+    if (compText.length > 26 || compText.includes('(') || compText.includes('MANUFACTURING') || compText.includes('CHOCOMORY')) {
       const words = compText.split(' ');
       if (words.length >= 2) {
         const mid = Math.ceil(words.length / 2);
@@ -6091,32 +6092,39 @@ function renderPosterCanvas() {
       compLine1 = compText;
     }
 
-    let badgeY = 252;
+    let compFontSize = compLine2 ? 36 : 40;
+    ctx.font = `900 ${compFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+    while ((ctx.measureText(compLine1).width > 860 || ctx.measureText(compLine2).width > 860) && compFontSize > 20) {
+      compFontSize -= 1;
+      ctx.font = `900 ${compFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+    }
+
+    let badgeY = 255;
     if (compLine2) {
-      ctx.fillText(compLine1, width / 2, 178);
-      ctx.fillText(compLine2, width / 2, 226);
-      badgeY = 262;
+      ctx.fillText(compLine1, width / 2, 172);
+      ctx.fillText(compLine2, width / 2, 214);
+      badgeY = 258;
     } else {
-      ctx.fillText(compLine1, width / 2, 190);
+      ctx.fillText(compLine1, width / 2, 185);
       badgeY = 248;
     }
 
     // 4. POSITION RIBBON CHEVRON BADGE
     const badgeX = 52;
-    const badgeH = 56;
+    const badgeH = 54;
     const displayTitle = (title || 'OPERATOR PRODUKSI').trim().toUpperCase();
-    const maxBadgeLimit = (drawMascotOnCustom && hasMascot) ? 550 : 960;
+    const maxBadgeLimit = (drawMascotOnCustom && hasMascot) ? 580 : 960;
 
     let roleFontSize = 26;
     ctx.font = `900 ${roleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-    while (ctx.measureText(displayTitle).width > (maxBadgeLimit - 76) && roleFontSize > 14) {
+    while (ctx.measureText(displayTitle).width > (maxBadgeLimit - 80) && roleFontSize > 13) {
       roleFontSize -= 1;
       ctx.font = `900 ${roleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
     }
 
     const titleTextW = ctx.measureText(displayTitle).width;
     const chevronIndent = 24;
-    const badgeW = Math.max(280, Math.min(maxBadgeLimit, titleTextW + 54 + chevronIndent));
+    const badgeW = Math.max(260, Math.min(maxBadgeLimit, titleTextW + 54 + chevronIndent));
 
     ctx.fillStyle = '#0052cc';
     ctx.beginPath();
@@ -6135,18 +6143,18 @@ function renderPosterCanvas() {
     // 5. EXACT REFERENCE MEGAPHONE MASCOT IMAGE (RIGHT)
     if (drawMascotOnCustom && hasMascot) {
       if (selectedMascot === 'corporate' && loadedMascotCache['corporate']) {
-        drawMascotOnCanvas(ctx, loadedMascotCache['corporate'], 640, 180, 390, 500);
+        drawMascotOnCanvas(ctx, loadedMascotCache['corporate'], 720, 235, 330, 480);
       } else {
-        const mascotW = 440;
-        const mascotH = Math.round(mascotW * (225 / 222)); // ~446
-        const mascotX = width - mascotW - 22; // Flush with inner card margin
-        const mascotY = 175;
+        const mascotW = 328;
+        const mascotH = Math.round(mascotW * (220 / 222)); // ~325px
+        const mascotX = width - mascotW - 22; // 730px
+        const mascotY = 245; // Starts comfortably BELOW the company name
         drawMegaphoneMascotIllustration(ctx, mascotX, mascotY, mascotW, mascotH);
       }
     }
 
     // 6. QUALIFICATIONS SECTION ("Kualifikasi")
-    const kualY = badgeY + badgeH + 42;
+    const kualY = badgeY + badgeH + 38;
     ctx.textAlign = 'left';
     ctx.fillStyle = '#000000';
     ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
@@ -6163,10 +6171,10 @@ function renderPosterCanvas() {
           'Bersedia ditempatkan di Cisarua, Kab Bogor'
         ]);
 
-    let curItemY = kualY + 40;
-    const maxKualW = (drawMascotOnCustom && hasMascot) ? 500 : 960;
-    const itemFontSize = activeList.length > 6 ? 20 : 21;
-    const itemLineH = activeList.length > 6 ? 30 : 33;
+    let curItemY = kualY + 38;
+    const maxKualW = (drawMascotOnCustom && hasMascot) ? 540 : 960;
+    const itemFontSize = activeList.length > 6 ? 19 : 21;
+    const itemLineH = activeList.length > 6 ? 29 : 33;
     ctx.font = `600 ${itemFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
 
     activeList.slice(0, 7).forEach((item) => {
@@ -6195,9 +6203,9 @@ function renderPosterCanvas() {
 
     // 7. BOTTOM-LEFT APPLICATION CARD (3D BLUE DROP SHADOW)
     const appBoxX = 52;
-    const appBoxY = 745;
-    const appBoxW = 590;
-    const appBoxH = 210;
+    const appBoxY = 780;
+    const appBoxW = 600;
+    const appBoxH = 220;
 
     // Solid blue 3D offset shadow underneath
     ctx.fillStyle = '#0052cc';
@@ -6214,26 +6222,26 @@ function renderPosterCanvas() {
     ctx.textAlign = 'left';
     ctx.fillStyle = '#000000';
     ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText('Kirim CV/Lamaran melalui Scan QR Code atau link', appBoxX + 22, appBoxY + 44);
+    ctx.fillText('Kirim CV/Lamaran melalui Scan QR Code atau link', appBoxX + 22, appBoxY + 46);
 
     const cleanEmail = (applyInfo.includes('@') ? applyInfo.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] : null) || 'recruitment2@chocomory.com';
     ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
     const emailPrefix = 'atau melalui email : ';
-    ctx.fillText(emailPrefix, appBoxX + 22, appBoxY + 82);
+    ctx.fillText(emailPrefix, appBoxX + 22, appBoxY + 86);
     const prefixW = ctx.measureText(emailPrefix).width;
 
     ctx.font = '800 20px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText(cleanEmail, appBoxX + 22 + prefixW, appBoxY + 82);
+    ctx.fillText(cleanEmail, appBoxX + 22 + prefixW, appBoxY + 86);
     const emailW = ctx.measureText(cleanEmail).width;
-    ctx.fillRect(appBoxX + 22 + prefixW, appBoxY + 86, emailW, 2);
+    ctx.fillRect(appBoxX + 22 + prefixW, appBoxY + 90, emailW, 2);
 
     ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText('Subject email: Lamaran_Posisi yang dilamar_Nama', appBoxX + 22, appBoxY + 126);
+    ctx.fillText('Subject email: Lamaran_Posisi yang dilamar_Nama', appBoxX + 22, appBoxY + 132);
 
     ctx.fillStyle = '#334155';
     ctx.font = '600 18px "Plus Jakarta Sans", Arial, sans-serif';
     const shortPos = (title || 'Operator Produksi').substring(0, 20);
-    ctx.fillText(`(Contoh: Lamaran_${shortPos}_Dimas)`, appBoxX + 22, appBoxY + 166);
+    ctx.fillText(`(Contoh: Lamaran_${shortPos}_Dimas)`, appBoxX + 22, appBoxY + 172);
 
     // 8. BOTTOM-LEFT FOOTER (TIKTOK & HASHTAG)
     const footLeftX = 52;
@@ -6262,8 +6270,8 @@ function renderPosterCanvas() {
 
     // 9. BOTTOM-RIGHT QR CODE SECTION
     const qrSize = 230;
-    const qrBoxX = 695;
-    const qrBoxY = 725;
+    const qrBoxX = 710;
+    const qrBoxY = 780;
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#000000';
