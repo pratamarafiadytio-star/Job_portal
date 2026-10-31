@@ -175,38 +175,107 @@
   border-radius: 4px;
 }
 
-/* Accordion Card */
+/* Accordion Toolbar (Open All / Close All) */
+.cv-accordion-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px 8px;
+  border-bottom: 1px dashed #1e293b;
+  margin-bottom: 4px;
+}
+
+.cv-acc-title {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-acc-ctrl {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-acc-ctrl:hover {
+  background: #334155;
+  color: #ffffff;
+}
+
+/* Accordion Box Card - High Contrast & Clearly Visible */
 .cv-accordion-box {
-  background: #0b1120;
-  border: 1px solid #1e293b;
-  border-radius: 14px;
+  background: #0f172a;
+  border: 1.5px solid #1e293b;
+  border-radius: 12px;
   overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.cv-accordion-box:hover {
+  border-color: #334155;
 }
 
 .cv-accordion-toggle {
   width: 100%;
   padding: 12px 14px;
-  background: #0b1120;
+  background: #1e293b;
   border: none;
-  color: #f1f5f9;
+  color: #ffffff;
   font-weight: 700;
-  font-size: 0.86rem;
+  font-size: 0.88rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
   outline: none;
 }
 
 .cv-accordion-toggle:hover {
-  background: #111827;
+  background: #273549;
+}
+
+.cv-accordion-toggle.active {
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+}
+
+.cv-status-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cv-status-pill.open {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.cv-status-pill.closed {
+  background: #334155;
+  color: #94a3b8;
+  border: 1px solid #475569;
 }
 
 .cv-accordion-content {
   padding: 14px;
-  border-top: 1px solid #1e293b;
-  background: #030712;
+  background: #090e17;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -409,6 +478,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .btn-zoom {
@@ -434,6 +504,31 @@
   text-align: center;
 }
 
+/* Status Badge: 1 Halaman Pas */
+.cv-page-fit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  user-select: none;
+}
+
+.cv-page-fit-badge.safe {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.cv-page-fit-badge.warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  cursor: pointer;
+}
+
 /* Canvas Viewport */
 .cv-canvas-viewport {
   flex: 1;
@@ -445,25 +540,29 @@
   box-sizing: border-box;
 }
 
-/* A4 Sheet Container */
+/* A4 Sheet Container - EXACT 210mm x 297mm Single Page */
 .cv-a4-sheet {
   width: 210mm;
-  min-height: 297mm;
+  height: 297mm;
+  max-height: 297mm;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
   transform-origin: top center;
   transition: transform 0.15s ease-out;
   box-sizing: border-box;
   background: #ffffff;
+  overflow: hidden;
+  position: relative;
 }
 
 /* ==============================================================
-   8 TEMPLATE SPECIFIC STYLES (MATCHING USER REACT CODE)
+   8 TEMPLATE SPECIFIC STYLES (CALIBRATED TO FIT 1 PAGE EXACTLY)
    ============================================================== */
 
 /* TEMPLATE 1: Coklat & Pita */
 .cv-tpl-1 {
   width: 210mm;
-  min-height: 297mm;
+  height: 297mm;
+  max-height: 297mm;
   background: #f2f2f2;
   display: flex;
   position: relative;
@@ -477,29 +576,32 @@
   width: 36%;
   background: #362f28;
   color: #ffffff;
-  padding: 36px 24px;
+  padding: 28px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
   z-index: 10;
   box-sizing: border-box;
+  height: 100%;
 }
 
 .cv-tpl-1-right {
   width: 64%;
-  padding: 48px 36px;
+  padding: 32px 28px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  height: 100%;
+  overflow: hidden;
 }
 
 .cv-tpl-1-ribbon-tr {
   position: absolute;
   top: 0;
   right: 0;
-  width: 140px;
-  height: 140px;
+  width: 120px;
+  height: 120px;
   pointer-events: none;
   overflow: hidden;
   z-index: 10;
@@ -508,8 +610,8 @@
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 140px;
-  height: 140px;
+  width: 120px;
+  height: 120px;
   pointer-events: none;
   overflow: hidden;
   z-index: 20;
@@ -520,58 +622,65 @@
   color: #5c4938;
   font-weight: 800;
   text-align: center;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 999px;
   letter-spacing: 0.05em;
-  font-size: 0.82rem;
-  margin-bottom: 14px;
+  font-size: 0.78rem;
+  margin-bottom: 10px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 /* TEMPLATE 2: Boxed 2 Kolom Klasik */
 .cv-tpl-2 {
   width: 210mm;
-  min-height: 297mm;
+  height: 297mm;
+  max-height: 297mm;
   background: #ffffff;
-  padding: 24px;
+  padding: 16px;
   font-family: 'Inter', sans-serif;
   color: #000000;
   box-sizing: border-box;
   display: flex;
+  overflow: hidden;
 }
 
 .cv-tpl-2-inner {
   width: 100%;
-  min-height: 100%;
-  border: 3.5px solid #000000;
+  height: 100%;
+  border: 3px solid #000000;
   display: flex;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .cv-tpl-2-left {
   width: 34%;
   background: #ececec;
-  border-right: 3px solid #000000;
+  border-right: 2.5px solid #000000;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  height: 100%;
 }
 
 .cv-tpl-2-right {
   width: 66%;
   background: #ffffff;
-  padding: 30px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* TEMPLATE 3: Modern Garis Biru & Wave */
 .cv-tpl-3 {
   width: 210mm;
-  min-height: 297mm;
+  height: 297mm;
+  max-height: 297mm;
   background: #ffffff;
-  padding: 40px;
+  padding: 26px 32px;
   font-family: 'Inter', sans-serif;
   color: #000000;
   position: relative;
@@ -582,7 +691,8 @@
 /* TEMPLATE 4: Sidebar Abu-Abu Melengkung */
 .cv-tpl-4 {
   width: 210mm;
-  min-height: 297mm;
+  height: 297mm;
+  max-height: 297mm;
   background: #e6e6e6;
   display: flex;
   position: relative;
@@ -594,134 +704,159 @@
 
 .cv-tpl-4-left {
   width: 37%;
-  padding: 20px 0;
+  padding: 14px 0;
   display: flex;
   flex-direction: column;
   position: relative;
   z-index: 10;
   box-sizing: border-box;
+  height: 100%;
 }
 
 .cv-tpl-4-right {
   width: 63%;
-  padding: 50px 42px 50px 32px;
+  padding: 32px 30px 24px 24px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* TEMPLATE 5: Biodata Klasik Indonesia */
 .cv-tpl-5 {
   width: 210mm;
-  min-height: 297mm;
+  height: 297mm;
+  max-height: 297mm;
   background: #ffffff;
-  padding: 24px;
+  padding: 16px;
   font-family: 'Inter', sans-serif;
   color: #000000;
   box-sizing: border-box;
   display: flex;
+  overflow: hidden;
 }
 
 .cv-tpl-5-inner {
   width: 100%;
-  min-height: 100%;
-  border: 3.5px solid #000000;
-  padding: 30px;
+  height: 100%;
+  border: 3px solid #000000;
+  padding: 22px;
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* TEMPLATE 6: ATS Bar Abu-Abu */
 .cv-tpl-6 {
   width: 210mm;
-  min-height: 297mm;
+  height: 297mm;
+  max-height: 297mm;
   background: #ffffff;
-  padding: 36px 42px;
+  padding: 24px 34px;
   font-family: 'Times New Roman', Times, serif;
   color: #000000;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .cv-tpl-6-bar {
   background: #bdbdbd;
   border-top: 1px solid #525252;
   border-bottom: 1px solid #525252;
-  padding: 3px 8px;
+  padding: 2px 8px;
   font-family: 'Inter', sans-serif;
   font-weight: 800;
-  font-size: 13px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 /* TEMPLATE 7: ATS Murni Tanpa Foto Rata Tengah */
 .cv-tpl-7 {
   width: 210mm;
-  min-height: 297mm;
+  height: 297mm;
+  max-height: 297mm;
   background: #ffffff;
-  padding: 40px 48px;
+  padding: 26px 36px;
   font-family: 'Times New Roman', Times, serif;
   color: #000000;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .cv-tpl-7-bar {
   border-top: 1.5px solid #000000;
   border-bottom: 1.5px solid #000000;
-  padding: 3px 0;
+  padding: 2px 0;
   text-align: center;
   font-family: 'Inter', sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #1e3a5f;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-weight: 700;
 }
 
 /* TEMPLATE 8: ATS Modern Garis Hitam & Foto Kiri */
 .cv-tpl-8 {
   width: 210mm;
-  min-height: 297mm;
+  height: 297mm;
+  max-height: 297mm;
   background: #ffffff;
-  padding: 36px 42px;
+  padding: 24px 34px;
   font-family: 'Times New Roman', Times, serif;
   color: #000000;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .cv-tpl-8-bar {
   font-family: 'Inter', sans-serif;
   font-weight: 800;
-  font-size: 14px;
+  font-size: 13px;
   text-transform: uppercase;
-  border-bottom: 2px solid #000000;
-  padding-bottom: 3px;
-  margin-bottom: 7px;
+  border-bottom: 1.5px solid #000000;
+  padding-bottom: 2px;
+  margin-bottom: 6px;
 }
 
 /* ==============================================================
-   PRINT-SPECIFIC STYLES
+   PRINT-SPECIFIC STYLES - STRICT 1 SINGLE PAGE GUARANTEE
    ============================================================== */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 0mm !important;
   }
 
-  body {
-    background: #ffffff !important;
+  *,
+  *::before,
+  *::after {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    box-sizing: border-box !important;
   }
 
-  /* Hide everything in admin except the CV print sheet */
+  html,
+  body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 210mm !important;
+    height: 296.8mm !important;
+    max-height: 296.8mm !important;
+    overflow: hidden !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Hide everything in admin UI */
   .admin-sidebar,
   .admin-header,
   .admin-top-actions,
@@ -730,7 +865,13 @@
   .cv-preview-toolbar,
   #header-autoload-pill,
   .autoload-live-banner,
-  .no-print {
+  .no-print,
+  #admin-login-modal,
+  #admin-confirm-modal,
+  #admin-toast-container,
+  #poster-qrcode-temp,
+  .cv-studio-toast,
+  .admin-section:not(#section-cv-builder) {
     display: none !important;
   }
 
@@ -748,10 +889,12 @@
     margin: 0 !important;
     padding: 0 !important;
     width: 210mm !important;
-    height: auto !important;
-    min-height: 297mm !important;
-    overflow: visible !important;
+    height: 296.8mm !important;
+    max-height: 296.8mm !important;
+    overflow: hidden !important;
     position: static !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
   .cv-a4-sheet {
@@ -760,8 +903,30 @@
     margin: 0 !important;
     padding: 0 !important;
     width: 210mm !important;
-    min-height: 297mm !important;
-    page-break-after: avoid;
-    break-after: avoid;
+    height: 296.8mm !important;
+    max-height: 296.8mm !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: avoid-page !important;
+    break-inside: avoid !important;
+  }
+
+  .cv-tpl-1,
+  .cv-tpl-2,
+  .cv-tpl-3,
+  .cv-tpl-4,
+  .cv-tpl-5,
+  .cv-tpl-6,
+  .cv-tpl-7,
+  .cv-tpl-8 {
+    width: 210mm !important;
+    height: 296.8mm !important;
+    max-height: 296.8mm !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    page-break-after: avoid !important;
+    break-after: avoid-page !important;
   }
 }
