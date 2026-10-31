@@ -2165,7 +2165,7 @@ function openJobDetail(jobId) {
   const bens = Array.isArray(job.benefits) ? job.benefits : (typeof job.benefits === 'string' && job.benefits.startsWith('[') ? JSON.parse(job.benefits || '[]') : []);
 
   // Pre-formatted intro template for job seekers
-  const waTemplate = `Halo Bapak/Ibu HRD ${job.company_name},\n\nPerkenalkan saya [Nama Anda]. Saya melihat poster informasi lowongan pekerjaan untuk posisi ${job.title} yang dipublikasikan melalui KerjaHub.\n\nSaya bermaksud mengajukan lamaran kerja untuk posisi tersebut. Bersama pesan ini, saya siap melampirkan berkas CV dan Portofolio terbaru saya.\n\nMohon informasi mengenai proses seleksi selanjutnya. Terima kasih atas perhatian dan kesempatannya.`;
+  const waTemplate = `Halo Bapak/Ibu HRD ${job.company_name},\n\nPerkenalkan saya [Nama Anda]. Saya bermaksud mengajukan lamaran kerja untuk posisi ${job.title}.\n\nBersama pesan ini, saya siap melampirkan berkas CV dan Portofolio terbaru saya sebagai bahan pertimbangan.\n\nMohon informasi mengenai tahapan proses seleksi selanjutnya. Terima kasih banyak atas perhatian dan kesempatannya.`;
 
   const safeTitle = (job.title || '').replace(/'/g, "\\'");
   const safeCompany = (job.company_name || '').replace(/'/g, "\\'");
@@ -2470,7 +2470,7 @@ window.updateMatchScore = function(totalReqs) {
 // Copy Application Template
 window.copyApplicationTemplate = function(title, company) {
   const box = document.getElementById('wa-template-box');
-  const text = box ? box.textContent : `Halo HRD ${company}, saya tertarik melamar posisi ${title} di KerjaHub.`;
+  const text = box ? box.textContent : `Halo HRD ${company}, saya bermaksud mengajukan lamaran kerja untuk posisi ${title}. Bersama pesan ini saya siap melampirkan berkas CV saya. Terima kasih.`;
   navigator.clipboard.writeText(text).then(() => {
     showToast('success', 'Template pesan lamaran berhasil disalin ke clipboard.');
   });
@@ -2796,7 +2796,7 @@ window.triggerWhatsAppChat = function(phone, companyName, jobTitle) {
   }
 
   const textMsg = encodeURIComponent(
-    `Halo Bapak/Ibu HRD ${companyName || 'Perusahaan'},\n\nPerkenalkan saya [Nama Anda]. Saya melihat poster informasi lowongan untuk posisi ${jobTitle || 'Pekerjaan'} yang dipublikasikan melalui KerjaHub.\n\nSaya bermaksud mengajukan lamaran kerja untuk posisi tersebut dan siap melampirkan berkas CV serta Portofolio terbaru saya. Mohon informasi mengenai tahapan seleksi selanjutnya.\n\nTerima kasih.`
+    `Halo Bapak/Ibu HRD ${companyName || 'Perusahaan'},\n\nPerkenalkan saya [Nama Anda]. Saya bermaksud mengajukan lamaran kerja untuk posisi ${jobTitle || 'Pekerjaan'}.\n\nBersama pesan ini, saya siap melampirkan berkas CV dan Portofolio terbaru saya sebagai bahan pertimbangan.\n\nMohon informasi mengenai tahapan proses seleksi selanjutnya. Terima kasih banyak atas perhatian dan kesempatannya.`
   );
 
   const waUrl = `https://api.whatsapp.com/send?phone=${clean}&text=${textMsg}`;
@@ -2815,7 +2815,7 @@ window.openWebmail = function(provider, email, companyName, jobTitle) {
   }
 
   const subject = `Lamaran Pekerjaan: ${jobTitle || 'Posisi'} - [Nama Anda]`;
-  const body = `Halo Tim HRD / Rekrutmen ${companyName || 'Perusahaan'},\n\nPerkenalkan saya [Nama Anda]. Saya melihat informasi poster lowongan pekerjaan untuk posisi ${jobTitle || 'Pekerjaan'} yang dipublikasikan melalui portal KerjaHub.\n\nSaya bermaksud mengajukan lamaran kerja untuk posisi tersebut. Bersama email ini saya melampirkan berkas Curriculum Vitae (CV) dan Portofolio terbaru saya untuk dijadikan bahan pertimbangan.\n\nBesar harapan saya untuk dapat mengikuti tahapan proses seleksi selanjutnya. Terima kasih atas waktu dan kesempatan yang diberikan.\n\nSalam hormat,\n[Nama Anda]\n[Nomor WhatsApp / Kontak]`;
+  const body = `Halo Tim HRD / Rekrutmen ${companyName || 'Perusahaan'},\n\nPerkenalkan saya [Nama Anda]. Saya bermaksud mengajukan lamaran kerja untuk posisi ${jobTitle || 'Pekerjaan'}.\n\nBersama email ini saya melampirkan berkas Curriculum Vitae (CV) dan Portofolio terbaru saya untuk dijadikan bahan pertimbangan.\n\nBesar harapan saya untuk dapat mengikuti tahapan proses seleksi selanjutnya. Terima kasih banyak atas waktu dan kesempatan yang diberikan.\n\nSalam hormat,\n[Nama Anda]\n[Nomor WhatsApp / Kontak]`;
 
   const encEmail = encodeURIComponent(email);
   const encSub = encodeURIComponent(subject);

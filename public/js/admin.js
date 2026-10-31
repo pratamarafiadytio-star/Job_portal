@@ -6173,9 +6173,19 @@ function renderPosterCanvas() {
     if (loadedCustomTemplateImg) {
       // Draw user's custom uploaded background theme
       ctx.drawImage(loadedCustomTemplateImg, 0, 0, width, height);
-      // Clean up any stray watermark/sticker at bottom left (around x: 60..250, y: 980..1150)
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(60, 980, 220, 160);
+      // Dynamically sample the card background color so clean-up patches blend seamlessly!
+      let cardBgColor = '#f2f2f2';
+      try {
+        const p = ctx.getImageData(540, 400, 1, 1).data;
+        if (p[3] > 50) cardBgColor = `rgb(${p[0]}, ${p[1]}, ${p[2]})`;
+      } catch (e) {
+        cardBgColor = '#f2f2f2';
+      }
+      ctx.fillStyle = cardBgColor;
+      // 1. Clean up stray "lap" text under the megaphone (x: 650..840, y: 460..580)
+      ctx.fillRect(650, 460, 190, 120);
+      // 2. Clean up stray watermark/sticker at bottom left (x: 25..310, y: 950..1160)
+      ctx.fillRect(25, 950, 285, 210);
     } else {
       // Royal blue outer canvas background
       ctx.fillStyle = '#0052cc';

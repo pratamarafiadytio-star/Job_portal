@@ -597,82 +597,96 @@ function renderMatchedJobs(jobs) {
   }
 
   // MATCHED JOBS FOUND
+  // MATCHED JOBS FOUND
   if (countEl) {
-    countEl.textContent = `Menemukan ${jobs.length} lowongan yang benar-benar cocok dengan kualifikasi CV Anda.`;
+    countEl.textContent = `Menemukan ${jobs.length} rekomendasi lowongan resmi yang paling cocok dengan kualifikasi CV Anda.`;
   }
 
-  container.innerHTML = jobs.map(job => {
-    let badgeClass = 'match-high';
+  container.innerHTML = jobs.map(rawJob => {
+    const job = typeof window.cleanJobData === 'function' ? window.cleanJobData(rawJob) : rawJob;
+    const coverSrc = getEffectiveJobCover(job);
+    const initial = job.company_name ? job.company_name.replace(/^(PT|CV)\s+/i, '').trim().charAt(0).toUpperCase() || 'C' : 'C';
+    const timeAgo = formatTimeAgo(job.created_at);
+
     let badgeLabel = 'Sangat Cocok';
+    let grad = 'linear-gradient(135deg, #10b981, #059669)';
     if (job.matchScore < 60) {
-      badgeClass = 'match-mod';
       badgeLabel = 'Cukup Relevan';
+      grad = 'linear-gradient(135deg, #f59e0b, #d97706)';
     } else if (job.matchScore < 80) {
-      badgeClass = 'match-mid';
       badgeLabel = 'Cocok';
+      grad = 'linear-gradient(135deg, #6366f1, #4f46e5)';
     }
 
-    const contacts = extractJobContacts(job);
-    const posterImg = job.poster_image ? (job.poster_image.startsWith('/uploads/') ? '.' + job.poster_image : job.poster_image) : '';
     const skillsToDisplay = (job.matchedSkills && job.matchedSkills.length > 0)
       ? job.matchedSkills
       : (job.matchedTitleWords || []);
 
+    const safeTitle = (job.title || '').replace(/'/g, "\\'");
+
     return `
-      <div class="job-card" style="position: relative;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-          <span class="match-percent-badge ${badgeClass}">
+      <div class="job-card" data-id="${job.id}">
+        <!-- Foto Sampul Kartu / Poster Preview with Lightbox trigger -->
+        <div class="job-poster-preview" onclick="openJobDetailModal(${job.id})" title="Klik untuk melihat postingan lengkap: ${escapeHtml(job.title)}">
+          <img src="${coverSrc}" alt="${escapeHtml(job.title)}" loading="lazy" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
+          <div class="badge-featured" style="background: ${grad};" title="Persentase kesesuaian AI">
             <i class="fa-solid fa-bolt"></i> ${job.matchScore}% ${badgeLabel}
-          </span>
-          <span class="job-type-pill">${escapeHtml(job.job_type || 'Full Time')}</span>
-        </div>
-
-        <div class="job-card-header">
-          ${posterImg ? `
-            <div class="job-thumbnail" onclick="openLightbox('${posterImg}')" title="Klik untuk memperbesar poster">
-              <img src="${posterImg}" alt="Poster ${escapeHtml(job.title)}" loading="lazy">
-              <span class="poster-zoom-badge"><i class="fa-solid fa-expand"></i></span>
-            </div>
-          ` : `
-            <div class="job-thumbnail-placeholder">
-              <i class="fa-solid fa-briefcase"></i>
-            </div>
-          `}
-          <div class="job-title-box">
-            <span class="badge" style="margin-bottom: 4px;">${escapeHtml(job.category || 'Lowongan')}</span>
-            <h3 class="job-title" onclick="openJobDetailModal(${job.id})">${escapeHtml(job.title)}</h3>
-            <div class="job-company"><i class="fa-solid fa-building"></i> ${escapeHtml(job.company_name)}</div>
+          </div>
+          <div class="badge-category">${escapeHtml(job.category || 'Lowongan Resmi')}</div>
+          <div class="poster-overlay">
+            <span class="poster-badge-btn"><i class="fa-solid fa-file-lines"></i> Lihat Postingan</span>
           </div>
         </div>
 
-        <div class="job-meta-row">
-          <div class="job-meta-item"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location || 'Indonesia')}</div>
-          <div class="job-meta-item"><i class="fa-solid fa-user-graduate"></i> ${escapeHtml(job.experience_level || 'Semua Pengalaman')}</div>
-          ${job.salary_display ? `<div class="job-meta-item salary"><i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(job.salary_display)}</div>` : ''}
-        </div>
+        <div class="job-card-body">
+          <div class="company-row">
+            <div class="company-avatar">${initial}</div>
+            <div class="company-meta">
+              <div class="company-name" title="${escapeHtml(job.company_name)}">${escapeHtml(job.company_name)}</div>
+              <div class="job-location"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location || 'Indonesia')}</div>
+            </div>
+          </div>
 
-        ${skillsToDisplay.length > 0 ? `
-          <div style="margin: 10px 0 14px; font-size: 0.78rem; color: var(--text-muted);">
-            <strong style="color: var(--primary);"><i class="fa-solid fa-circle-check"></i> Kualifikasi Cocok:</strong>
-            ${skillsToDisplay.slice(0, 5).map(s => `
-              <span style="background: rgba(99,102,241,0.1); color: var(--primary); font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 4px; display: inline-block; margin-top: 2px;">
-                ${escapeHtml(s)}
+          <h3 class="job-title" onclick="openJobDetailModal(${job.id})" title="Klik untuk melihat postingan lengkap">${escapeHtml(job.title)}</h3>
+
+          <div class="job-badges">
+            <span class="pill pill-platform pill-official"><i class="fa-solid fa-circle-check"></i> Rekrutmen Resmi</span>
+            <span class="pill pill-type"><i class="fa-regular fa-clock"></i> ${escapeHtml(job.job_type || 'Full Time')}</span>
+            ${job.salary_display ? `<span class="pill pill-salary"><i class="fa-solid fa-money-bill-wave"></i> ${escapeHtml(job.salary_display)}</span>` : ''}
+          </div>
+
+          <!-- CV Match Score & Detected Skills -->
+          <div style="margin-top: 4px; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <span class="cv-match-badge" style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; font-weight: 700; color: #047857; background: rgba(16, 185, 129, 0.12); padding: 3px 10px; border-radius: 999px;">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Kecocokan Profil: ${job.matchScore}%
               </span>
-            `).join('')}
+            </div>
+            ${skillsToDisplay && skillsToDisplay.length > 0 ? `
+              <div class="matched-skills-chips" style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
+                <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">Skill Terdeteksi:</span>
+                ${skillsToDisplay.slice(0, 5).map(s => `
+                  <span class="matched-skill-tag" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 3px;">
+                    <i class="fa-solid fa-check" style="font-size: 0.65rem;"></i> ${escapeHtml(s)}
+                  </span>
+                `).join('')}
+              </div>
+            ` : ''}
           </div>
-        ` : ''}
 
-        <p class="job-snippet">${escapeHtml(job.description ? job.description.slice(0, 140) + '...' : '')}</p>
+          <p class="job-excerpt">${escapeHtml(job.description ? job.description.slice(0, 140) + '...' : '')}</p>
 
-        <div class="job-card-actions" style="margin-top: 14px;">
-          <button type="button" class="btn btn-outline btn-sm" onclick="openJobDetailModal(${job.id})" style="flex: 1;">
-            <i class="fa-solid fa-eye"></i> Rincian Lowongan
-          </button>
-          ${contacts.whatsapp ? `
-            <button type="button" class="btn btn-primary btn-sm" onclick="triggerWhatsAppChat('${contacts.whatsapp}', '${escapeHtml(job.company_name).replace(/'/g, "\\'")}', '${escapeHtml(job.title).replace(/'/g, "\\'")}')" style="background: #25d366; border-color: #25d366; color: white;">
-              <i class="fa-brands fa-whatsapp"></i> Hubungi WA
-            </button>
-          ` : ''}
+          <div class="job-card-footer" style="margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+            <span class="posted-time" style="font-size: 0.78rem; color: var(--text-muted);"><i class="fa-regular fa-calendar"></i> ${timeAgo}</span>
+            <div class="card-actions" style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-outline btn-sm" onclick="openJobDetailModal(${job.id})" title="Lihat postingan lowongan lengkap">
+                <i class="fa-solid fa-file-lines"></i> Lihat Postingan
+              </button>
+              <button type="button" class="btn btn-primary btn-sm btn-apply-direct" onclick="directApplyFromCekCv(${job.id}, event)" title="Lamar sekarang langsung ke lowongan ini">
+                <i class="fa-solid fa-paper-plane"></i> Lamar Sekarang
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -714,11 +728,11 @@ function resetCvMatcher() {
   }
 }
 
-// Helpers
+// Helpers: Universal Contact Extractor
 function extractJobContacts(job) {
-  let wa = job.whatsapp || '';
-  let email = job.email || '';
-  let website = job.website_url || '';
+  let wa = (job.whatsapp || '').trim();
+  let email = (job.email || '').trim();
+  let website = (job.website_url || job.official_url || job.url || job.website || '').trim();
 
   if (job.contact_value) {
     const raw = String(job.contact_value).trim();
@@ -782,120 +796,248 @@ function extractJobContacts(job) {
   return { whatsapp: wa, email, website_url: website };
 }
 
+// Open Full Job Post Detail Modal
 window.openJobDetailModal = function(id) {
-  const rawJob = allJobs.find(j => j.id == id);
+  const rawJob = allJobs.find(j => String(j.id) === String(id));
   if (!rawJob) return;
   const job = typeof window.cleanJobData === 'function' ? window.cleanJobData(rawJob) : rawJob;
 
   const modal = document.getElementById('job-detail-modal');
-  const catEl = document.getElementById('modal-category');
-  const titleEl = document.getElementById('modal-title');
-  const compEl = document.getElementById('modal-company');
-  const contentEl = document.getElementById('modal-content');
+  const content = document.getElementById('job-detail-content');
+  if (!modal || !content) return;
 
-  if (catEl) catEl.textContent = job.category;
-  if (titleEl) titleEl.textContent = job.title;
-  if (compEl) compEl.innerHTML = `<i class="fa-solid fa-building"></i> ${escapeHtml(job.company_name)}`;
-
+  const heroCoverSrc = getEffectiveJobCover(job);
   const contacts = extractJobContacts(job);
-  const posterImg = job.poster_image ? (job.poster_image.startsWith('/uploads/') ? '.' + job.poster_image : job.poster_image) : '';
+  const safeTitle = (job.title || '').replace(/'/g, "\\'");
+  const safeCompany = (job.company_name || '').replace(/'/g, "\\'");
 
   const parseList = (val) => Array.isArray(val) ? val : (typeof val === 'string' && val.startsWith('[') ? JSON.parse(val || '[]') : [val || '']);
-  const reqs = parseList(job.requirements);
-  const resps = parseList(job.responsibilities);
-  const benefits = parseList(job.benefits);
+  const reqs = parseList(job.requirements).filter(r => r && String(r).trim());
+  const resps = parseList(job.responsibilities).filter(r => r && String(r).trim());
+  const benefits = parseList(job.benefits).filter(b => b && String(b).trim());
 
-  if (contentEl) {
-    contentEl.innerHTML = `
-      <div class="modal-detail-layout">
-        <div class="detail-main-content">
-          ${posterImg ? `
-            <div style="margin-bottom: 20px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); cursor: pointer;" onclick="openLightbox('${posterImg}')">
-              <img src="${posterImg}" alt="Poster" style="width: 100%; display: block;">
-            </div>
-          ` : ''}
+  // Clean candidate application message template without KerjaHub
+  const waTemplate = `Halo Bapak/Ibu HRD ${job.company_name},\n\nPerkenalkan saya [Nama Anda]. Saya bermaksud mengajukan lamaran kerja untuk posisi ${job.title}.\n\nBersama pesan ini, saya siap melampirkan berkas CV dan Portofolio terbaru saya sebagai bahan pertimbangan.\n\nMohon informasi mengenai tahapan proses seleksi selanjutnya. Terima kasih banyak atas perhatian dan kesempatannya.`;
 
+  content.innerHTML = `
+    <!-- Header Banner Sampul Lowongan (16:9 Landscape Corporate Cover) -->
+    <div class="modal-hero-banner" id="hero-banner-${job.id}">
+      <img src="${heroCoverSrc}" alt="${escapeHtml(job.title)}" onerror="window.handlePublicPosterError && window.handlePublicPosterError(this, ${job.id});">
+      <div class="modal-banner-overlay">
+        <div class="modal-header-info">
+          <h2>${escapeHtml(job.title)}</h2>
+          <div class="modal-header-meta">
+            <span><i class="fa-solid fa-building"></i> ${escapeHtml(job.company_name)}</span>
+            <span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location || 'Indonesia')}</span>
+            <span><i class="fa-solid fa-tag"></i> ${escapeHtml(job.category || 'Lowongan')}</span>
+            <span><i class="fa-regular fa-clock"></i> ${escapeHtml(job.job_type || 'Full Time')}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-body">
+      <div class="detail-grid-layout">
+        <div class="detail-main">
+          
+          <!-- Keterangan & Deskripsi Posisi -->
           <div class="detail-section">
-            <h4 class="detail-section-title"><i class="fa-solid fa-align-left"></i> Gambaran Pekerjaan</h4>
-            <p style="font-size: 0.9rem; line-height: 1.6; color: var(--text-main); white-space: pre-line;">${escapeHtml(job.description)}</p>
+            <h4><i class="fa-solid fa-file-lines"></i> Keterangan & Deskripsi Posisi</h4>
+            <div class="desc-meta-chips">
+              <div class="desc-meta-chip">
+                <i class="fa-solid fa-briefcase"></i>
+                <span><strong>Status:</strong> ${escapeHtml(job.job_type || 'Full Time')}</span>
+              </div>
+              <div class="desc-meta-chip">
+                <i class="fa-solid fa-graduation-cap"></i>
+                <span><strong>Pendidikan:</strong> ${escapeHtml(job.experience_level || 'Sesuai Kualifikasi')}</span>
+              </div>
+              <div class="desc-meta-chip">
+                <i class="fa-solid fa-location-dot"></i>
+                <span><strong>Penempatan:</strong> ${escapeHtml(job.location || 'Indonesia')}</span>
+              </div>
+            </div>
+            <div class="desc-body-box">
+              <p class="desc-body-text" style="white-space: pre-line;">${escapeHtml(job.description)}</p>
+            </div>
           </div>
 
-          ${reqs.length > 0 ? `
-            <div class="detail-section">
-              <h4 class="detail-section-title"><i class="fa-solid fa-list-check"></i> Kualifikasi & Persyaratan</h4>
-              <ul class="detail-bullet-list">
-                ${reqs.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
-              </ul>
-            </div>
-          ` : ''}
-
+          <!-- Tanggung Jawab -->
           ${resps.length > 0 ? `
             <div class="detail-section">
-              <h4 class="detail-section-title"><i class="fa-solid fa-briefcase"></i> Tanggung Jawab Utama</h4>
-              <ul class="detail-bullet-list">
+              <h4><i class="fa-solid fa-list-check"></i> Tanggung Jawab Pekerjaan</h4>
+              <ul class="detail-list" style="padding-left: 20px; line-height: 1.7; color: var(--text-muted);">
                 ${resps.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
               </ul>
             </div>
           ` : ''}
 
-          ${benefits.length > 0 ? `
+          <!-- Kualifikasi & Persyaratan -->
+          ${reqs.length > 0 ? `
             <div class="detail-section">
-              <h4 class="detail-section-title"><i class="fa-solid fa-gift"></i> Benefit & Keuntungan</h4>
-              <ul class="detail-bullet-list">
-                ${benefits.map(b => `<li>${escapeHtml(b)}</li>`).join('')}
+              <h4><i class="fa-solid fa-user-check"></i> Kualifikasi & Persyaratan</h4>
+              <ul class="detail-list" style="padding-left: 20px; line-height: 1.7; color: var(--text-muted);">
+                ${reqs.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
               </ul>
             </div>
           ` : ''}
+
+          <!-- Benefit -->
+          ${benefits.length > 0 ? `
+            <div class="detail-section">
+              <h4><i class="fa-solid fa-gift"></i> Benefit & Keuntungan</h4>
+              <div class="benefits-pills" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                ${benefits.map(b => `<div class="benefit-tag" style="background: rgba(16, 185, 129, 0.1); color: #059669; font-size: 0.82rem; font-weight: 700; padding: 4px 12px; border-radius: 20px;"><i class="fa-solid fa-check-circle"></i> ${escapeHtml(b)}</div>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Template Pesan Lamaran ke HRD -->
+          <div class="chat-template-card" style="background: var(--bg-surface-alt); border: 1px dashed var(--border-color); border-radius: 12px; padding: 18px;">
+            <div class="chat-template-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <span style="font-size: 0.84rem; font-weight: 800; color: var(--text-main);">
+                <i class="fa-solid fa-comment-dots" style="color: var(--primary);"></i> Template Pesan Pengajuan Lamaran:
+              </span>
+              <button type="button" class="btn btn-outline btn-sm" onclick="copyApplicationTemplate('${safeTitle}', '${safeCompany}')">
+                <i class="fa-regular fa-copy"></i> Salin Pesan
+              </button>
+            </div>
+            <div class="chat-template-text" id="wa-template-box" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; font-size: 0.85rem; line-height: 1.6; color: var(--text-main); white-space: pre-wrap;">${escapeHtml(waTemplate)}</div>
+            <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 6px;">
+              * Salin pesan di atas dan ganti <code>[Nama Anda]</code> sebelum mengirim ke kontak perekrut resmi.
+            </div>
+          </div>
+
         </div>
 
-        <div class="detail-sidebar">
-          <div class="sidebar-card">
-            <div class="sidebar-card-title"><i class="fa-solid fa-address-book"></i> Hubungi Rekruter Resmi</div>
-            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
+        <!-- Sidebar Info -->
+        <div class="detail-sidebar" style="display: flex; flex-direction: column; gap: 18px;">
+          
+          <!-- Primary Application Action Channels -->
+          <div class="sidebar-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 14px; padding: 20px;">
+            <div class="sidebar-card-title" style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); margin-bottom: 12px;">
+              <i class="fa-solid fa-paper-plane" style="color: var(--primary);"></i> Lamar Posisi Ini
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              ${contacts.website_url ? `
+                <a href="${contacts.website_url.startsWith('http') ? contacts.website_url : 'https://' + contacts.website_url}" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; text-decoration: none;">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i> Lamar di Portal Resmi
+                </a>
+              ` : ''}
               ${contacts.whatsapp ? `
-                <button type="button" class="btn btn-primary" onclick="triggerWhatsAppChat('${contacts.whatsapp}', '${escapeHtml(job.company_name).replace(/'/g, "\\'")}', '${escapeHtml(job.title).replace(/'/g, "\\'")}')" style="background: #25d366; border-color: #25d366;">
-                  <i class="fa-brands fa-whatsapp"></i> Chat WhatsApp (${escapeHtml(contacts.whatsapp)})
+                <button type="button" class="btn btn-primary" onclick="triggerWhatsAppChat('${contacts.whatsapp}', '${safeCompany}', '${safeTitle}')" style="background: #25d366; border-color: #25d366; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px;">
+                  <i class="fa-brands fa-whatsapp"></i> Chat WhatsApp HRD
                 </button>
               ` : ''}
               ${contacts.email ? `
-                <a href="mailto:${contacts.email}?subject=Lamaran Pekerjaan: ${encodeURIComponent(job.title)}" class="btn btn-outline" style="text-align: center;">
-                  <i class="fa-solid fa-envelope"></i> Kirim Email
-                </a>
+                <button type="button" class="btn btn-outline" onclick="triggerEmailApplication('${contacts.email}', '${safeCompany}', '${safeTitle}')" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px;">
+                  <i class="fa-solid fa-envelope"></i> Kirim Lamaran via Email
+                </button>
               ` : ''}
-              ${contacts.website_url ? `
-                <a href="${contacts.website_url.startsWith('http') ? contacts.website_url : 'https://' + contacts.website_url}" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="text-align: center;">
-                  <i class="fa-solid fa-arrow-up-right-from-square"></i> Portal Resmi
-                </a>
+              ${!contacts.website_url && !contacts.whatsapp && !contacts.email ? `
+                <div style="font-size: 0.85rem; color: var(--text-muted); text-align: center; padding: 10px;">
+                  Kontak langsung belum disertakan. Silakan cek informasi pada deskripsi postingan di atas.
+                </div>
               ` : ''}
             </div>
           </div>
+
+          <!-- Ringkasan Lowongan -->
+          <div class="sidebar-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 14px; padding: 20px;">
+            <div class="sidebar-card-title" style="font-weight: 800; font-size: 0.95rem; color: var(--text-main); margin-bottom: 14px;">Ringkasan Lowongan</div>
+            
+            <div style="margin-bottom: 12px; font-size: 0.88rem;">
+              <span style="color: var(--text-muted); display: block; font-size: 0.76rem;">Gaji Ditawarkan</span>
+              <strong style="color: #059669; font-size: 1rem;">${escapeHtml(job.salary_display || 'Kompetitif')}</strong>
+            </div>
+
+            <div style="margin-bottom: 12px; font-size: 0.88rem;">
+              <span style="color: var(--text-muted); display: block; font-size: 0.76rem;">Tipe Pekerjaan</span>
+              <strong style="color: var(--text-main);">${escapeHtml(job.job_type || 'Full Time')}</strong>
+            </div>
+
+            <div style="margin-bottom: 12px; font-size: 0.88rem;">
+              <span style="color: var(--text-muted); display: block; font-size: 0.76rem;">Lokasi Penempatan</span>
+              <strong style="color: var(--text-main);">${escapeHtml(job.location || 'Indonesia')}</strong>
+            </div>
+
+            <div style="font-size: 0.88rem;">
+              <span style="color: var(--text-muted); display: block; font-size: 0.76rem;">Pendidikan Minimal</span>
+              <strong style="color: var(--text-main);">${escapeHtml(job.experience_level || 'Sesuai Kualifikasi')}</strong>
+            </div>
+          </div>
+
         </div>
       </div>
-    `;
-  }
+    </div>
+  `;
 
-  if (modal) modal.classList.add('active');
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
 };
 
 window.closeJobDetailModal = function() {
   const modal = document.getElementById('job-detail-modal');
   if (modal) modal.classList.remove('active');
+  document.body.style.overflow = '';
 };
 
-window.openLightbox = function(src) {
+// Direct Apply from Card
+window.directApplyFromCekCv = function(jobId, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const rawJob = allJobs.find(j => String(j.id) === String(jobId));
+  if (!rawJob) {
+    showToast('error', 'Data lowongan tidak ditemukan.');
+    return;
+  }
+  const job = typeof window.cleanJobData === 'function' ? window.cleanJobData(rawJob) : rawJob;
+  const contacts = extractJobContacts(job);
+  const comp = job.company_name || 'Perusahaan';
+  const title = job.title || 'Posisi';
+
+  if (contacts.website_url) {
+    showToast('info', `Membuka portal pendaftaran resmi ${comp}...`);
+    window.open(contacts.website_url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  if (contacts.whatsapp) {
+    showToast('info', `Menghubungkan langsung ke WhatsApp HRD ${comp}...`);
+    triggerWhatsAppChat(contacts.whatsapp, comp, title);
+    return;
+  }
+  if (contacts.email) {
+    showToast('info', `Membuka draf lamaran email HRD ${comp}...`);
+    triggerEmailApplication(contacts.email, comp, title);
+    return;
+  }
+  openJobDetailModal(jobId);
+};
+
+// Lightbox
+window.openLightbox = function(src, title) {
   const lb = document.getElementById('poster-lightbox');
   const img = document.getElementById('lightbox-img');
+  const titleEl = document.getElementById('lightbox-title');
+  const dl = document.getElementById('lightbox-download');
   if (lb && img) {
     img.src = src;
+    if (titleEl && title) titleEl.textContent = title;
+    if (dl) dl.href = src;
     lb.classList.add('active');
+    document.body.style.overflow = 'hidden';
   }
 };
 
 window.closeLightbox = function() {
   const lb = document.getElementById('poster-lightbox');
   if (lb) lb.classList.remove('active');
+  document.body.style.overflow = '';
 };
 
+// WhatsApp Launcher with Clean Candidate Template (Without KerjaHub)
 window.triggerWhatsAppChat = function(phone, comp, title) {
   if (!phone) return;
   let clean = phone.replace(/[^0-9]/g, '');
@@ -903,8 +1045,294 @@ window.triggerWhatsAppChat = function(phone, comp, title) {
   else if (clean.startsWith('8')) clean = '62' + clean;
   else if (!clean.startsWith('62')) clean = '62' + clean;
 
-  const msg = encodeURIComponent(`Halo Bapak/Ibu HRD ${comp},\n\nPerkenalkan saya [Nama Pelamar]. Saya melihat lowongan untuk posisi ${title} di KerjaHub dan bermaksud mengajukan lamaran kerja serta melampirkan berkas CV saya.\n\nTerima kasih.`);
+  const msg = encodeURIComponent(`Halo Bapak/Ibu HRD ${comp || 'Perusahaan'},\n\nPerkenalkan saya [Nama Anda]. Saya bermaksud mengajukan lamaran kerja untuk posisi ${title || 'Pekerjaan'}.\n\nBersama pesan ini, saya siap melampirkan berkas CV dan Portofolio terbaru saya sebagai bahan pertimbangan.\n\nMohon informasi mengenai tahapan proses seleksi selanjutnya. Terima kasih banyak atas perhatian dan kesempatannya.`);
   window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${msg}`, '_blank');
+};
+
+// Email Launcher with Clean Candidate Template (Without KerjaHub)
+window.openWebmail = function(provider, email, companyName, jobTitle) {
+  if (!email) {
+    showToast('error', 'Alamat email rekruter tidak tersedia.');
+    return;
+  }
+  const subject = `Lamaran Pekerjaan: ${jobTitle || 'Posisi'} - [Nama Anda]`;
+  const body = `Halo Tim HRD / Rekrutmen ${companyName || 'Perusahaan'},\n\nPerkenalkan saya [Nama Anda]. Saya bermaksud mengajukan lamaran kerja untuk posisi ${jobTitle || 'Pekerjaan'}.\n\nBersama email ini saya melampirkan berkas Curriculum Vitae (CV) dan Portofolio terbaru saya untuk dijadikan bahan pertimbangan.\n\nBesar harapan saya untuk dapat mengikuti tahapan proses seleksi selanjutnya. Terima kasih banyak atas waktu dan kesempatan yang diberikan.\n\nSalam hormat,\n[Nama Anda]\n[Nomor WhatsApp / Kontak]`;
+
+  const encEmail = encodeURIComponent(email);
+  const encSub = encodeURIComponent(subject);
+  const encBody = encodeURIComponent(body);
+
+  if (provider === 'gmail') {
+    const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encEmail}&su=${encSub}&body=${encBody}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  } else {
+    window.location.href = `mailto:${encEmail}?subject=${encSub}&body=${encBody}`;
+  }
+};
+
+window.triggerEmailApplication = function(email, companyName, jobTitle) {
+  window.openWebmail('gmail', email, companyName, jobTitle);
+};
+
+window.copyApplicationTemplate = function(title, company) {
+  const box = document.getElementById('wa-template-box');
+  const text = box ? box.textContent : `Halo HRD ${company}, saya bermaksud mengajukan lamaran kerja untuk posisi ${title}. Bersama pesan ini saya siap melampirkan berkas CV saya. Terima kasih.`;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('success', 'Template pesan lamaran berhasil disalin ke clipboard.');
+  });
+};
+
+// Dynamic Cover & Banner Generator
+function hashStr(str) {
+  let hash = 0;
+  if (!str) return 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+const corporateBannerPalettes = [
+  { bg1: '#0f172a', bg2: '#1e1b4b', bg3: '#312e81', accent: '#6366f1', textAccent: '#a5b4fc', border: 'rgba(99,102,241,0.3)' },
+  { bg1: '#022c22', bg2: '#064e3b', bg3: '#065f46', accent: '#10b981', textAccent: '#6ee7b7', border: 'rgba(160,185,129,0.3)' },
+  { bg1: '#082f49', bg2: '#0c4a6e', bg3: '#075985', accent: '#0284c7', textAccent: '#7dd3fc', border: 'rgba(2,132,199,0.3)' },
+  { bg1: '#1e1035', bg2: '#2e1065', bg3: '#581c87', accent: '#a855f7', textAccent: '#d8b4fe', border: 'rgba(168,85,247,0.3)' },
+  { bg1: '#1c1917', bg2: '#292524', bg3: '#44403c', accent: '#f59e0b', textAccent: '#fde68a', border: 'rgba(245,158,11,0.3)' },
+  { bg1: '#090d16', bg2: '#1e293b', bg3: '#334155', accent: '#38bdf8', textAccent: '#bae6fd', border: 'rgba(56,189,248,0.3)' }
+];
+
+function escapeSvgText(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function getEffectiveCompanyName(job) {
+  if (!job) return 'Perusahaan Terverifikasi';
+  const comp = (job.company_name || '').trim();
+  const title = (job.title || '').trim();
+  const isGeneric = /^(bukajobs|linkedin|instagram|facebook|portal|web|loker|official|resmi)/i.test(comp);
+  const ptMatch = title.match(/(?:(?:Lowongan|Rekrutmen|Karir|Loker)\s+(?:di\s+|pada\s+)?)?((?:PT|CV|Bank|Yayasan|RSUD|RS)\s+[^–\-|:]+)/i);
+  if (ptMatch && ptMatch[1] && (isGeneric || comp.length < 5)) {
+    return ptMatch[1].trim();
+  }
+  if (/^(PT|CV|Bank|Yayasan)\s+/i.test(title) && isGeneric) {
+    return title;
+  }
+  return comp || title || 'Perusahaan Terverifikasi';
+}
+
+function isManualJobFlyer(job) {
+  if (!job || !job.poster_image) return false;
+  const p = String(job.poster_image).trim();
+  if (!p) return false;
+  if (p.includes('unsplash.com')) return false;
+  if (p.includes('placeholder')) return false;
+  if (p.includes('sample_')) return false;
+  if (p.includes('corporate_worker_mascot') || p.includes('factory_operator_mascot')) {
+    return false;
+  }
+  if (p.startsWith('/uploads/') || p.startsWith('./uploads/') || p.startsWith('uploads/') || p.startsWith('data:image/')) {
+    return true;
+  }
+  if (p.startsWith('http://') || p.startsWith('https://')) {
+    return true;
+  }
+  return false;
+}
+
+function generateCompanyBannerDataUrl(job) {
+  const compName = getEffectiveCompanyName(job);
+  const title = (job.title || '').trim();
+  const cat = (job.category || 'Lowongan Resmi').toUpperCase();
+  const initial = compName ? compName.replace(/^(PT|CV)\s+/i, '').trim().charAt(0).toUpperCase() || 'C' : 'C';
+
+  const hash = hashStr(compName);
+  const palette = corporateBannerPalettes[hash % corporateBannerPalettes.length];
+
+  const displayComp = escapeSvgText(compName);
+  const displayTitle = escapeSvgText(title);
+  const displayCat = escapeSvgText(cat);
+
+  let compFontSize = 32;
+  if (displayComp.length > 35) compFontSize = 22;
+  else if (displayComp.length > 25) compFontSize = 26;
+  else if (displayComp.length > 18) compFontSize = 29;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="100%" height="100%">
+    <defs>
+      <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${palette.bg1}"/>
+        <stop offset="50%" stop-color="${palette.bg2}"/>
+        <stop offset="100%" stop-color="${palette.bg3}"/>
+      </linearGradient>
+      <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
+        <stop offset="100%" stop-color="rgba(255,255,255,0.04)"/>
+      </linearGradient>
+      <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+        <path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+      </pattern>
+      <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+        <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.45"/>
+      </filter>
+    </defs>
+    <rect width="800" height="420" fill="url(#bgGrad)"/>
+    <rect width="800" height="420" fill="url(#grid)"/>
+    <circle cx="720" cy="80" r="140" fill="${palette.accent}" opacity="0.18"/>
+    <circle cx="80" cy="340" r="160" fill="${palette.textAccent}" opacity="0.12"/>
+    <g transform="translate(40, 36)">
+      <rect width="170" height="30" rx="15" fill="rgba(255,255,255,0.12)" stroke="${palette.border}" stroke-width="1"/>
+      <circle cx="16" cy="15" r="4.5" fill="#10b981"/>
+      <text x="30" y="19" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="11" font-weight="700" fill="#ffffff" letter-spacing="1">REKRUTMEN RESMI</text>
+    </g>
+    <g transform="translate(560, 36)">
+      <rect width="200" height="30" rx="15" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+      <text x="100" y="19" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="11" font-weight="700" fill="${palette.textAccent}">${displayCat}</text>
+    </g>
+    <g transform="translate(400, 160)" text-anchor="middle">
+      <circle cx="0" cy="0" r="42" fill="url(#badgeGrad)" stroke="${palette.accent}" stroke-width="2.5" filter="url(#shadow)"/>
+      <text x="0" y="12" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="32" font-weight="800" fill="#ffffff">${initial}</text>
+    </g>
+    <text x="400" y="248" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="${compFontSize}" font-weight="800" fill="#ffffff" filter="url(#shadow)">
+      ${displayComp}
+    </text>
+    <text x="400" y="286" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="15" font-weight="600" fill="${palette.textAccent}">
+      ${displayTitle.length > 55 ? displayTitle.substring(0, 52) + '...' : displayTitle}
+    </text>
+    <line x1="40" y1="350" x2="760" y2="350" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+    <g transform="translate(40, 376)">
+      <text x="0" y="12" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="12" font-weight="600" fill="rgba(255,255,255,0.7)">
+        🛡️ TERVERIFIKASI RESMI
+      </text>
+      <text x="720" y="12" text-anchor="end" font-family="system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif" font-size="12" font-weight="600" fill="#34d399">
+        ✓ 100% BEBAS BIAYA SELEKSI
+      </text>
+    </g>
+  </svg>`;
+
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+function getEffectiveJobCover(job) {
+  if (!job) return '';
+  let cover = job.cover_image;
+  if (!cover && job.contact_value) {
+    try {
+      const cv = typeof job.contact_value === 'string' ? JSON.parse(job.contact_value) : job.contact_value;
+      if (cv && cv.cover_image) cover = cv.cover_image;
+    } catch (e) {}
+  }
+  if (cover && typeof cover === 'string' && cover.trim()) {
+    let p = cover.trim();
+    if (p.startsWith('/uploads/')) p = '.' + p;
+    return p;
+  }
+  if (job.company_image && !job.company_image.includes('unsplash.com')) {
+    return job.company_image;
+  }
+  if (isManualJobFlyer(job)) {
+    let p = String(job.poster_image).trim();
+    if (p.startsWith('/uploads/')) p = '.' + p;
+    return p;
+  }
+  return generateCompanyBannerDataUrl(job);
+}
+
+window.handlePublicPosterError = function(imgEl, jobId) {
+  if (!imgEl) return;
+  imgEl.onerror = null;
+  const job = (allJobs || []).find(j => Number(j.id) === Number(jobId));
+  imgEl.src = generateCompanyBannerDataUrl(job || { company_name: 'Perusahaan', title: 'Lowongan Kerja' });
+};
+
+function formatTimeAgo(dateString) {
+  if (!dateString) return 'Baru saja';
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffInSec = Math.floor((now - date) / 1000);
+
+  if (diffInSec < 60) return 'Baru saja';
+  const diffInMin = Math.floor(diffInSec / 60);
+  if (diffInMin < 60) return `${diffInMin} mnt lalu`;
+  const diffInHour = Math.floor(diffInSec / 60);
+  if (diffInHour < 24) return `${diffInHour} jam lalu`;
+  const diffInDays = Math.floor(diffInHour / 24);
+  if (diffInDays === 1) return 'Kemarin';
+  if (diffInDays < 30) return `${diffInDays} hari lalu`;
+  return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// Global Normalizer: Cleans social media copy, emoji spam, extracts real company and structured metadata
+window.cleanJobData = function(job) {
+  if (!job) return job;
+  const copy = { ...job };
+
+  let rawTitle = (copy.title || '').trim();
+  let comp = (copy.company_name || '').trim();
+  let desc = (copy.description || '').trim();
+
+  const hasEmoji = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u.test(rawTitle + ' ' + comp);
+  const isMessyTitle = hasEmoji || /^(untuk\s+|lowongan\s+bumn|loker\s+terbaru)/i.test(rawTitle) || rawTitle.includes('🏢') || rawTitle.includes('💼') || rawTitle.endsWith('..');
+  const isGenericComp = /^(instagram|facebook|twitter|linkedin|web|portal|loker|google|bing|website)$/i.test(comp);
+
+  const searchTexts = [desc, rawTitle];
+
+  if (isGenericComp || comp.length < 5 || comp.includes('🏢')) {
+    for (const text of searchTexts) {
+      const ptMatch = text.match(/(?:🏢\s*)?((?:PT|CV|Bank|Yayasan|RSUD|RS|Universitas|Politeknik)\s+[^💼📢🕒🕐🎓\n\r,]+?)(?=\s+(?:membuka|buka|posisi|career|recruitment|💼|📢|🕒|🕐|🎓|$))/i);
+      if (ptMatch && ptMatch[1]) {
+        const extractedComp = ptMatch[1].replace(/^[🏢\s]+/, '').replace(/[\.\s]+$/, '').trim();
+        if (extractedComp.length > 3) {
+          comp = extractedComp;
+          break;
+        }
+      }
+    }
+  }
+
+  let cleanTitle = rawTitle;
+  if (isMessyTitle) {
+    let candidateTitle = '';
+    for (const text of searchTexts) {
+      const posMatch = text.match(/(?:💼\s*Posisi:?|Posisi\s*:?)\s*([^🕒🕐🎓📢🏢\n\r]+?)(?=\s*(?:🕒|🕐|🎓|📢|🏢|Status:|Jenjang:|Pendidikan:|PT |CV |membuka|$))/i);
+      if (posMatch && posMatch[1]) {
+        const cand = posMatch[1].replace(/[\.\s]+$/, '').trim();
+        if (!cand.endsWith('..') && cand.length > candidateTitle.length && !cand.toLowerCase().includes('informasi dipublikasikan')) {
+          candidateTitle = cand;
+        }
+      }
+    }
+
+    if (candidateTitle) {
+      cleanTitle = candidateTitle;
+    } else {
+      cleanTitle = cleanTitle.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, ' ');
+      cleanTitle = cleanTitle.replace(/\b(LOWONGAN\s+(?:BUMN\s+)?(?:TERBARU\s+)?|LOKER\s+TERBARU\s+|WE ARE HIRING\s+|DIBUTUHKAN\s+SEGERA\s+)\b/gi, ' ');
+      if (comp && cleanTitle.includes(comp)) {
+        cleanTitle = cleanTitle.replace(comp, ' ');
+      }
+      cleanTitle = cleanTitle.replace(/\s+-\s+[^-]+$/, '').trim();
+      cleanTitle = cleanTitle.replace(/\s+/g, ' ').replace(/[\.\s]+$/, '').trim();
+    }
+
+    if (/^untuk\s+/i.test(cleanTitle)) {
+      cleanTitle = 'Program Rekrutmen ' + cleanTitle;
+    }
+  }
+
+  cleanTitle = cleanTitle.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').replace(/\s+/g, ' ').trim();
+  comp = comp.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').replace(/\s+/g, ' ').trim();
+
+  copy.title = cleanTitle || copy.title;
+  copy.company_name = comp || copy.company_name;
+
+  return copy;
 };
 
 function escapeHtml(str) {
@@ -922,7 +1350,17 @@ function showToast(type, msg) {
   if (!c) return;
   const t = document.createElement('div');
   t.className = `toast ${type}`;
-  t.innerHTML = `<span>${escapeHtml(msg)}</span>`;
+  let icon = 'fa-circle-check';
+  if (type === 'error') icon = 'fa-circle-exclamation';
+  if (type === 'info') icon = 'fa-circle-info';
+  t.innerHTML = `
+    <i class="fa-solid ${icon}" style="font-size: 1.2rem;"></i>
+    <span>${escapeHtml(msg)}</span>
+  `;
   c.appendChild(t);
-  setTimeout(() => t.remove(), 3500);
+  setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(100%)';
+    setTimeout(() => t.remove(), 300);
+  }, 3500);
 }
