@@ -1642,19 +1642,187 @@ window.setStudioQuickScheduleTomorrow = function(targetHour) {
 };
 
 // -------------------------------------------------------------
-// DASHBOARD METRICS & RECENT JOBS TABLE
+// DASHBOARD METRICS, QUEUE TABLE & INTERACTIVE CHARTS
 // -------------------------------------------------------------
+function formatTimeRemaining(targetIso) {
+  if (!targetIso) return 'Waktu tidak ditentukan';
+  try {
+    const target = new Date(targetIso).getTime();
+    const now = Date.now();
+    const diff = target - now;
+    if (diff <= 0) return '⏰ Siap terbit sekarang';
+    const hours = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    if (hours > 24) {
+      const days = Math.floor(hours / 24);
+      return `⏳ ${days} hari lagi (${hours % 24} jam)`;
+    }
+    if (hours > 0) {
+      return `⏳ ${hours} jam ${mins} mnt lagi`;
+    }
+    return `⏳ ${mins} menit lagi`;
+  } catch (e) {
+    return targetIso;
+  }
+}
+
+function renderDashboardCharts(jobsList, activeCount, scheduledCount, expiredCount) {
+  if (typeof window.Chart === 'undefined') {
+    return;
+  }
+
+  // 1. Status Donut Chart
+  const statusCtx = document.getElementById('dashboard-status-chart');
+  if (statusCtx) {
+    if (window.dashboardStatusChartInstance) {
+      window.dashboardStatusChartInstance.destroy();
+    }
+
+    const dataVals = [activeCount || 0, scheduledCount || 0, expiredCount || 0];
+    const total = dataVals.reduce((a, b) => a + b, 0);
+
+    window.dashboardStatusChartInstance = new window.Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Aktif (Terbuka)', 'Terjadwal (Antrean)', 'Expired (Terkunci)'],
+        datasets: [{
+          data: total === 0 ? [1] : dataVals,
+          backgroundColor: total === 0 ? ['#e2e8f0'] : ['#10b981', '#f59e0b', '#ef4444'],
+          borderWidth: 2,
+          borderColor: '#ffffff',
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '72%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                if (total === 0) return 'Belum ada data';
+                const val = context.raw || 0;
+                const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                return ` ${context.label}: ${val} (${pct}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const legendEl = document.getElementById('dashboard-status-legend');
+    if (legendEl) {
+      legendEl.innerHTML = `
+        <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:50%; background:#10b981;"></span> Aktif: <strong>${activeCount || 0}</strong></span>
+        <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:50%; background:#f59e0b;"></span> Terjadwal: <strong>${scheduledCount || 0}</strong></span>
+        <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:50%; background:#ef4444;"></span> Expired: <strong>${expiredCount || 0}</strong></span>
+      `;
+    }
+  }
+
+  // 2. Category Distribution Bar Chart
+  const categoryCtx = document.getElementById('dashboard-category-chart');
+  if (categoryCtx) {
+    if (window.dashboardCategoryChartInstance) {
+      window.dashboardCategoryChartInstance.destroy();
+    }
+
+    const catCounts = {};
+    (jobsList || []).forEach(j => {
+      const cat = (j.category || 'Lainnya').trim();
+      catCounts[cat] = (catCounts[cat] || 0) + 1;
+    });
+
+    const sortedCats = Object.keys(catCounts).sort((a, b) => catCounts[b] - catCounts[a]).slice(0, 7);
+    const catLabels = sortedCats.length > 0 ? sortedCats : ['Belum Ada Kategori'];
+    const catData = sortedCats.length > 0 ? sortedCats.map(c => catCounts[c]) : [0];
+
+    window.dashboardCategoryChartInstance = new window.Chart(categoryCtx, {
+      type: 'bar',
+      data: {
+        labels: catLabels,
+        datasets: [{
+          label: 'Jumlah Lowongan',
+          data: catData,
+          backgroundColor: '#2563eb',
+          borderRadius: 8,
+          borderSkipped: false,
+          maxBarThickness: 32
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return ` ${context.raw} Lowongan Kerja`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              font: { size: 11, family: 'Inter, sans-serif' },
+              color: '#64748b',
+              maxRotation: 30,
+              minRotation: 0
+            }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1,
+              precision: 0,
+              font: { size: 11, family: 'Inter, sans-serif' },
+              color: '#64748b'
+            },
+            grid: {
+              color: '#f1f5f9'
+            }
+          }
+        }
+      }
+    });
+  }
+}
+
 function renderDashboardStats(jobsList) {
   const realJobs = (jobsList || []).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+  const now = new Date();
+
+  // Lowongan terjadwal (antrean yang belum terbit)
+  const scheduledJobs = realJobs.filter(j => {
+    if (j.status === 'scheduled') return true;
+    if (j.scheduled_at && new Date(j.scheduled_at) > now && j.status !== 'expired' && j.status !== 'closed') return true;
+    return false;
+  });
+
+  // Lowongan aktif (terbuka untuk umum)
+  const activeJobs = realJobs.filter(j => {
+    if (j.status === 'expired' || j.status === 'closed') return false;
+    if (j.status === 'scheduled') return false;
+    if (j.scheduled_at && new Date(j.scheduled_at) > now) return false;
+    return j.status === 'active';
+  });
+
+  const closedJobs = realJobs.filter(j => j.status === 'closed' || j.status === 'expired');
   const totalJobs = realJobs.length;
-  const activeJobs = realJobs.filter(j => j.status === 'active').length;
-  const closedJobs = realJobs.filter(j => j.status === 'closed' || j.status === 'expired').length;
   const totalViews = realJobs.reduce((acc, j) => acc + (j.views_count || 0), 0);
   const recentJobs = realJobs.slice(0, 5);
 
   document.getElementById('stat-total-jobs') && (document.getElementById('stat-total-jobs').textContent = totalJobs);
-  document.getElementById('stat-active-jobs') && (document.getElementById('stat-active-jobs').textContent = activeJobs);
-  document.getElementById('stat-closed-jobs') && (document.getElementById('stat-closed-jobs').textContent = closedJobs);
+  document.getElementById('stat-active-jobs') && (document.getElementById('stat-active-jobs').textContent = activeJobs.length);
+  document.getElementById('stat-scheduled-jobs') && (document.getElementById('stat-scheduled-jobs').textContent = scheduledJobs.length);
+  document.getElementById('badge-scheduled-count') && (document.getElementById('badge-scheduled-count').textContent = `${scheduledJobs.length} Mengantre`);
+  document.getElementById('stat-closed-jobs') && (document.getElementById('stat-closed-jobs').textContent = closedJobs.length);
   document.getElementById('stat-total-views') && (document.getElementById('stat-total-views').textContent = totalViews);
 
   // Render recent table in dashboard
@@ -1665,8 +1833,16 @@ function renderDashboardStats(jobsList) {
     } else {
       recentTbody.innerHTML = recentJobs.map(job => {
         const isLocked = job.status === 'expired' || job.status === 'closed';
-        const badgeClass = isLocked ? 'badge-expired' : 'badge-active';
-        const badgeLabel = isLocked ? '<i class="fa-solid fa-lock"></i> Expired' : '<i class="fa-solid fa-circle-check"></i> Aktif';
+        const isSched = job.status === 'scheduled' || (job.scheduled_at && new Date(job.scheduled_at) > now);
+        let badgeClass = 'badge-active';
+        let badgeLabel = '<i class="fa-solid fa-circle-check"></i> Aktif';
+        if (isLocked) {
+          badgeClass = 'badge-expired';
+          badgeLabel = '<i class="fa-solid fa-lock"></i> Expired';
+        } else if (isSched) {
+          badgeClass = 'badge-amber';
+          badgeLabel = '<i class="fa-solid fa-clock"></i> Terjadwal';
+        }
 
         return `
           <tr>
@@ -1688,6 +1864,75 @@ function renderDashboardStats(jobsList) {
       }).join('');
     }
   }
+
+  // Render dedicated Scheduled Queue Table in Dashboard
+  const scheduledTbody = document.getElementById('dashboard-scheduled-tbody');
+  if (scheduledTbody) {
+    if (scheduledJobs.length === 0) {
+      scheduledTbody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align:center; padding: 26px 16px; color: #15803d; background: #f0fdf4;">
+            <i class="fa-solid fa-circle-check" style="font-size: 1.5rem; margin-bottom: 6px; display: inline-block;"></i>
+            <div style="font-weight: 700; font-size: 0.92rem;">Tidak ada lowongan dalam antrean terjadwal</div>
+            <small style="color: #166534;">Semua lowongan sudah aktif/terbit ke publik atau berstatus expired.</small>
+          </td>
+        </tr>
+      `;
+    } else {
+      const sortedSched = [...scheduledJobs].sort((a, b) => {
+        const timeA = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
+        const timeB = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
+        return timeA - timeB;
+      });
+
+      scheduledTbody.innerHTML = sortedSched.map(job => {
+        let schedDisplay = '-';
+        if (job.scheduled_at) {
+          try {
+            const dt = new Date(job.scheduled_at);
+            schedDisplay = dt.toLocaleString('id-ID', {
+              day: '2-digit', month: 'short', year: 'numeric',
+              hour: '2-digit', minute: '2-digit'
+            }) + ' WIB';
+          } catch(e) {
+            schedDisplay = job.scheduled_at;
+          }
+        }
+        const countdown = formatTimeRemaining(job.scheduled_at);
+
+        return `
+          <tr>
+            <td>
+              <strong style="color: #1e3a8a;">${escapeHtml(job.title)}</strong><br>
+              <small style="color: var(--text-muted);">${escapeHtml(job.company_name)} &bull; ${escapeHtml(job.location || '-')}</small>
+            </td>
+            <td><span class="badge" style="background: #eff6ff; color: #1d4ed8; font-weight: 600;">${escapeHtml(job.category || 'Umum')}</span></td>
+            <td>
+              <div style="font-weight: 700; color: #1e293b; font-size: 0.85rem;"><i class="fa-regular fa-calendar-check" style="color: #2563eb; margin-right: 4px;"></i>${escapeHtml(schedDisplay)}</div>
+            </td>
+            <td>
+              <span class="badge" style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-weight: 700; font-size: 0.78rem;">
+                ${escapeHtml(countdown)}
+              </span>
+            </td>
+            <td>
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="btn btn-sm btn-primary" onclick="publishScheduledJobNow(${job.id})" title="Terbitkan sekarang tanpa menunggu jadwal" style="padding: 5px 10px; font-size: 0.75rem; background: linear-gradient(135deg, #059669, #10b981); border: none; font-weight: 700; color: #ffffff; cursor: pointer;">
+                  <i class="fa-solid fa-paper-plane"></i> Terbitkan Sekarang
+                </button>
+                <button type="button" class="btn btn-sm btn-outline" onclick="openEditJobModal(${job.id})" title="Ubah tanggal/jam terbit" style="padding: 5px 10px; font-size: 0.75rem; font-weight: 700; border-color: #3b82f6; color: #1d4ed8; background: #ffffff; cursor: pointer;">
+                  <i class="fa-solid fa-pen-to-square"></i> Ubah Jadwal
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  // Render modern interactive charts
+  renderDashboardCharts(realJobs, activeJobs.length, scheduledJobs.length, closedJobs.length);
 }
 
 async function loadDashboardData() {
@@ -1883,20 +2128,132 @@ window.getEffectiveJobCover = getEffectiveJobCover;
 window.getEffectiveJobPoster = getEffectiveJobPoster;
 
 // -------------------------------------------------------------
-// RENDER ADMIN JOBS TABLE (WITH LOCK SYSTEM & MULTI-CONTACTS)
+// ADMIN JOBS LIVE SEARCH & FILTERS STATE
+// -------------------------------------------------------------
+let adminJobsSearchQuery = '';
+let adminJobsStatusFilter = 'all';
+let adminJobsCategoryFilter = '';
+
+window.handleAdminJobsSearch = function(val) {
+  adminJobsSearchQuery = (val || '').trim();
+  const clearBtn = document.getElementById('admin-jobs-clear-search');
+  if (clearBtn) clearBtn.style.display = adminJobsSearchQuery ? 'block' : 'none';
+  renderAdminJobsTable();
+};
+
+window.clearAdminJobsSearch = function() {
+  adminJobsSearchQuery = '';
+  const input = document.getElementById('admin-jobs-search-input');
+  if (input) input.value = '';
+  const clearBtn = document.getElementById('admin-jobs-clear-search');
+  if (clearBtn) clearBtn.style.display = 'none';
+  renderAdminJobsTable();
+};
+
+window.setAdminJobsStatusFilter = function(status) {
+  adminJobsStatusFilter = status || 'all';
+  const pills = document.querySelectorAll('.admin-filter-status-group .btn-filter-pill');
+  pills.forEach(p => {
+    const isTarget = p.getAttribute('data-filter') === adminJobsStatusFilter;
+    if (isTarget) {
+      p.classList.add('active');
+      p.style.background = '#2563eb';
+      p.style.color = '#ffffff';
+      p.style.fontWeight = '700';
+    } else {
+      p.classList.remove('active');
+      p.style.background = 'transparent';
+      p.style.color = '#475569';
+      p.style.fontWeight = '600';
+    }
+  });
+  renderAdminJobsTable();
+};
+
+window.setAdminJobsCategoryFilter = function(cat) {
+  adminJobsCategoryFilter = (cat || '').trim();
+  renderAdminJobsTable();
+};
+
+function populateAdminJobsCategoryDropdown(jobs) {
+  const select = document.getElementById('admin-jobs-category-filter');
+  if (!select) return;
+  const currentVal = select.value;
+  const categories = Array.from(new Set((jobs || []).map(j => (j.category || '').trim()).filter(Boolean))).sort();
+  select.innerHTML = '<option value="">Semua Kategori</option>' + categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
+  if (currentVal && categories.includes(currentVal)) {
+    select.value = currentVal;
+  }
+}
+
+// -------------------------------------------------------------
+// RENDER ADMIN JOBS TABLE (WITH LIVE SEARCH, FILTER & LOCK SYSTEM)
 // -------------------------------------------------------------
 function renderAdminJobsTable() {
   const tbody = document.getElementById('admin-jobs-tbody');
   if (!tbody) return;
 
   const validJobs = (adminJobs || []).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+  populateAdminJobsCategoryDropdown(validJobs);
+
+  let filteredJobs = validJobs;
+
+  // 1. Status Filter
+  if (adminJobsStatusFilter === 'active') {
+    filteredJobs = filteredJobs.filter(j => j.status === 'active');
+  } else if (adminJobsStatusFilter === 'scheduled') {
+    filteredJobs = filteredJobs.filter(j => j.status === 'scheduled');
+  } else if (adminJobsStatusFilter === 'expired') {
+    filteredJobs = filteredJobs.filter(j => j.status === 'expired' || j.status === 'closed');
+  }
+
+  // 2. Category Filter
+  if (adminJobsCategoryFilter) {
+    filteredJobs = filteredJobs.filter(j => (j.category || '').toLowerCase() === adminJobsCategoryFilter.toLowerCase());
+  }
+
+  // 3. Live Search Query
+  if (adminJobsSearchQuery) {
+    const q = adminJobsSearchQuery.toLowerCase();
+    filteredJobs = filteredJobs.filter(j => {
+      const title = (j.title || '').toLowerCase();
+      const comp = (j.company_name || '').toLowerCase();
+      const loc = (j.location || '').toLowerCase();
+      const cat = (j.category || '').toLowerCase();
+      const desc = (j.description || '').toLowerCase();
+      return title.includes(q) || comp.includes(q) || loc.includes(q) || cat.includes(q) || desc.includes(q);
+    });
+  }
+
+  const countBadge = document.getElementById('admin-jobs-count-badge');
+  if (countBadge) {
+    countBadge.textContent = `Menampilkan: ${filteredJobs.length} dari ${validJobs.length} lowongan`;
+  }
 
   if (validJobs.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 40px; color:#94a3b8;">Belum ada lowongan terdaftar. Klik menu "Upload Poster Baru"!</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = validJobs.map(job => {
+  if (filteredJobs.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" style="text-align:center; padding: 36px 20px; color:#64748b;">
+          <div style="font-size: 1.8rem; color:#94a3b8; margin-bottom: 8px;"><i class="fa-solid fa-magnifying-glass"></i></div>
+          <strong style="color: #1e293b; font-size: 0.95rem;">Tidak ada lowongan yang cocok</strong><br>
+          <span style="font-size: 0.82rem;">Tidak ditemukan lowongan untuk kata kunci "${escapeHtml(adminJobsSearchQuery)}" atau filter yang dipilih.</span>
+          <div style="margin-top: 12px;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="clearAdminJobsSearch(); setAdminJobsStatusFilter('all'); document.getElementById('admin-jobs-category-filter').value=''; setAdminJobsCategoryFilter('');" style="font-size: 0.78rem;">
+              <i class="fa-solid fa-rotate-left"></i> Reset Pencarian & Filter
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filteredJobs.map(job => {
     const posterSrc = getEffectiveJobPoster(job);
 
     const contacts = extractJobContacts(job);
@@ -2231,7 +2588,35 @@ window.openEditJobModal = function(jobId) {
   form.querySelector('[name="location"]').value = job.location || '';
   form.querySelector('[name="salary_display"]').value = job.salary_display || '';
   form.querySelector('[name="experience_level"]').value = job.experience_level || '';
-  form.querySelector('[name="status"]').value = (job.status === 'closed' || job.status === 'expired') ? 'expired' : 'active';
+  const statusSelect = form.querySelector('[name="status"]');
+  if (statusSelect) {
+    if (job.status === 'scheduled') {
+      statusSelect.value = 'scheduled';
+    } else if (job.status === 'closed' || job.status === 'expired') {
+      statusSelect.value = 'expired';
+    } else {
+      statusSelect.value = 'active';
+    }
+  }
+
+  // Populate scheduled datetime
+  const schedContainer = document.getElementById('edit-schedule-datetime-container');
+  const schedInput = document.getElementById('edit-job-schedule-datetime');
+  if (schedInput) {
+    if (job.scheduled_at) {
+      try {
+        const d = new Date(job.scheduled_at);
+        schedInput.value = formatDateTimeLocal(d);
+      } catch (e) {
+        schedInput.value = '';
+      }
+    } else {
+      schedInput.value = '';
+    }
+  }
+  if (schedContainer) {
+    schedContainer.style.display = (job.status === 'scheduled' || (job.scheduled_at && new Date(job.scheduled_at) > new Date())) ? 'block' : 'none';
+  }
 
   // 3 Distinct contact inputs
   form.querySelector('[name="whatsapp"]').value = contacts.whatsapp || '';
@@ -2276,6 +2661,42 @@ window.openEditJobModal = function(jobId) {
   modal.classList.add('active');
 };
 
+window.onEditJobStatusChange = function(status) {
+  const schedContainer = document.getElementById('edit-schedule-datetime-container');
+  const schedInput = document.getElementById('edit-job-schedule-datetime');
+  if (schedContainer) {
+    if (status === 'scheduled') {
+      schedContainer.style.display = 'block';
+      if (schedInput && !schedInput.value) {
+        const d = new Date(Date.now() + 3600000);
+        schedInput.value = formatDateTimeLocal(d);
+      }
+    } else {
+      schedContainer.style.display = 'none';
+    }
+  }
+};
+
+window.setEditQuickSchedule = function(hoursAhead) {
+  const dtInput = document.getElementById('edit-job-schedule-datetime');
+  const statusSel = document.getElementById('edit-job-status');
+  if (!dtInput) return;
+  const d = new Date(Date.now() + (hoursAhead || 1) * 3600000);
+  dtInput.value = formatDateTimeLocal(d);
+  if (statusSel) statusSel.value = 'scheduled';
+};
+
+window.setEditQuickScheduleTomorrow = function(targetHour) {
+  const dtInput = document.getElementById('edit-job-schedule-datetime');
+  const statusSel = document.getElementById('edit-job-status');
+  if (!dtInput) return;
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(targetHour || 8, 0, 0, 0);
+  dtInput.value = formatDateTimeLocal(d);
+  if (statusSel) statusSel.value = 'scheduled';
+};
+
 window.closeEditModal = function() {
   const modal = document.getElementById('edit-job-modal');
   if (modal) modal.classList.remove('active');
@@ -2311,6 +2732,23 @@ function setupEditFormSubmit() {
     const primaryContactType = whatsapp ? 'whatsapp' : (email ? 'email' : 'link');
     const contactValueJSON = JSON.stringify(contactsObj);
 
+    // Parse status and scheduled_at
+    const statusVal = form.querySelector('[name="status"]').value;
+    const schedInput = document.getElementById('edit-job-schedule-datetime');
+    let scheduledAtVal = (schedInput && schedInput.value) ? schedInput.value.trim() : '';
+    let finalStatus = statusVal;
+
+    if (finalStatus === 'scheduled') {
+      if (!scheduledAtVal) {
+        const d = new Date(Date.now() + 3600000);
+        scheduledAtVal = d.toISOString();
+      }
+    } else if (scheduledAtVal && finalStatus !== 'expired') {
+      finalStatus = 'scheduled';
+    } else {
+      scheduledAtVal = null;
+    }
+
     const updatePayload = {
       title: form.querySelector('[name="title"]').value.trim(),
       company_name: form.querySelector('[name="company_name"]').value.trim(),
@@ -2319,7 +2757,8 @@ function setupEditFormSubmit() {
       location: form.querySelector('[name="location"]').value,
       salary_display: form.querySelector('[name="salary_display"]').value || 'Kompetitif',
       experience_level: form.querySelector('[name="experience_level"]').value,
-      status: form.querySelector('[name="status"]').value,
+      status: finalStatus,
+      scheduled_at: scheduledAtVal,
       contact_type: primaryContactType,
       contact_value: contactValueJSON,
       cover_image: currentEditCoverBase64 || '',
@@ -2340,6 +2779,8 @@ function setupEditFormSubmit() {
     // 1. Try server backend update first (syncs database and local cache)
     try {
       const formData = new FormData(form);
+      formData.set('status', finalStatus);
+      formData.set('scheduled_at', scheduledAtVal || '');
       formData.set('contact_type', primaryContactType);
       formData.set('contact_value', contactValueJSON);
       formData.set('whatsapp', whatsapp);
@@ -2381,7 +2822,7 @@ function setupEditFormSubmit() {
     submitBtn.innerHTML = origText;
     closeEditModal();
     loadAdminJobs(true);
-    alert('Perubahan lowongan & saluran kontak berhasil disimpan!');
+    alert(finalStatus === 'scheduled' ? `Lowongan berhasil dijadwalkan untuk terbit otomatis pada ${scheduledAtVal}!` : 'Perubahan lowongan & saluran kontak berhasil disimpan!');
   });
 }
 

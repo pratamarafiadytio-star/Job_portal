@@ -214,7 +214,13 @@ const localStore = {
   updateJob(id, updateData) {
     const jobs = readLocalJobs();
     const index = jobs.findIndex(j => Number(j.id) === Number(id));
-    if (index === -1) return null;
+    if (index === -1) {
+      const created = { id: Number(id), ...updateData, updated_at: new Date().toISOString() };
+      enrichJobPlatform(created);
+      jobs.push(created);
+      writeLocalJobs(jobs);
+      return created;
+    }
     jobs[index] = {
       ...jobs[index],
       ...updateData,
@@ -380,9 +386,24 @@ const db = {
           return localStore.getJobs(filters);
         }
 
+        const localList = readLocalJobs();
+        const localSchedMap = {};
+        localList.forEach(lj => {
+          if (lj.scheduled_at) {
+            localSchedMap[String(lj.id)] = lj.scheduled_at;
+            localSchedMap[Number(lj.id)] = lj.scheduled_at;
+          }
+        });
+
         allRawJobs = (data || [])
           .filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data')
-          .map(enrichJobPlatform);
+          .map(j => {
+            const localSched = localSchedMap[j.id] || localSchedMap[String(j.id)];
+            if (!j.scheduled_at && localSched) {
+              j.scheduled_at = localSched;
+            }
+            return enrichJobPlatform(j);
+          });
 
         cache.jobs = { timestamp: now, data: allRawJobs };
       }
@@ -573,7 +594,7 @@ const db = {
       }
 
       localStore.updateJob(id, updateData);
-      return data;
+      return { ...data, scheduled_at: updateData.scheduled_at !== undefined ? updateData.scheduled_at : (data ? data.scheduled_at : null) };
     } catch (err) {
       console.warn('⚠️ Supabase update exception:', err.message);
       return localStore.updateJob(id, updateData);

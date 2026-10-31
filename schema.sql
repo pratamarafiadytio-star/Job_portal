@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS public.jobs (
     contact_value TEXT DEFAULT '',
     deadline TEXT DEFAULT '',
     status TEXT DEFAULT 'active',
+    scheduled_at TIMESTAMPTZ DEFAULT NULL,
     is_featured BOOLEAN DEFAULT false,
     views_count INT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -42,11 +43,13 @@ ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS source_platform TEXT DEFAULT 'o
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS source_label TEXT DEFAULT 'Resmi BUMN & Swasta';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS flyer_images JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS cover_image TEXT DEFAULT '';
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ DEFAULT NULL;
 
 -- 2. Buat Index untuk pencarian dan filter cepat
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON public.jobs (status);
 CREATE INDEX IF NOT EXISTS idx_jobs_category ON public.jobs (category);
 CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON public.jobs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_jobs_scheduled_at ON public.jobs (scheduled_at);
 
 -- 3. Aktifkan Row Level Security (RLS)
 ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
@@ -231,7 +234,8 @@ DROP POLICY IF EXISTS "Public Read Flyer Themes" ON public.flyer_themes;
 CREATE POLICY "Public Read Flyer Themes" ON public.flyer_themes FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Full Access Flyer Themes" ON public.flyer_themes;
 CREATE POLICY "Full Access Flyer Themes" ON public.flyer_themes FOR ALL USING (true) WITH CHECK (true);
-
--- Pastikan kolom sampul & multi-flyer ada di tabel jobs
+-- Pastikan kolom sampul, multi-flyer, dan scheduled_at ada di tabel jobs
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS cover_image TEXT DEFAULT '';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS flyer_images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_jobs_scheduled_at ON public.jobs (scheduled_at);

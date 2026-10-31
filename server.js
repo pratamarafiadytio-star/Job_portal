@@ -717,6 +717,7 @@ app.put('/api/jobs/:id', requireAdminAuth, upload.any(), async (req, res) => {
       contact_value,
       deadline,
       status,
+      scheduled_at,
       is_featured,
       cover_image: bodyCoverImage
     } = req.body;
@@ -769,6 +770,21 @@ app.put('/api/jobs/:id', requireAdminAuth, upload.any(), async (req, res) => {
     if (flyer_images !== undefined && Array.isArray(flyer_images)) contactParsed.flyer_images = flyer_images;
     finalContactVal = JSON.stringify(contactParsed);
 
+    // Handle scheduled_at and status logic
+    let finalStatus = status || existing.status;
+    let finalScheduledAt = existing.scheduled_at || null;
+    if (scheduled_at !== undefined) {
+      const cleanSched = (scheduled_at || '').trim();
+      finalScheduledAt = cleanSched || null;
+      if (finalScheduledAt) {
+        if (!status || status === 'scheduled') {
+          finalStatus = 'scheduled';
+        }
+      } else if (finalStatus === 'scheduled') {
+        finalStatus = 'active';
+      }
+    }
+
     const updated = await db.updateJob(id, {
       title: title ? title.trim() : existing.title,
       company_name: company_name ? company_name.trim() : existing.company_name,
@@ -790,7 +806,8 @@ app.put('/api/jobs/:id', requireAdminAuth, upload.any(), async (req, res) => {
       contact_type: contact_type || existing.contact_type || (wa ? 'whatsapp' : (em ? 'email' : 'link')),
       contact_value: finalContactVal,
       deadline: deadline !== undefined ? deadline : existing.deadline,
-      status: status || existing.status,
+      status: finalStatus,
+      scheduled_at: finalScheduledAt,
       is_featured: is_featured !== undefined ? (is_featured === '1' || is_featured === 1 || is_featured === true || is_featured === 'true' ? 1 : 0) : existing.is_featured
     });
 
