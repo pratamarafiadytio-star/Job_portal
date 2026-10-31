@@ -739,7 +739,7 @@ function setupNavigation() {
 }
 
 function switchSection(sectionName) {
-  const sections = ['dashboard', 'upload-job', 'manage-jobs', 'sosmed-generator', 'flyer-themes', 'settings-master', 'settings-cv'];
+  const sections = ['dashboard', 'upload-job', 'manage-jobs', 'sosmed-generator', 'flyer-themes', 'settings-master', 'settings-cv', 'cv-builder'];
   sections.forEach(sec => {
     const el = document.getElementById(`section-${sec}`);
     if (el) el.style.display = (sec === sectionName) ? 'block' : 'none';
@@ -776,6 +776,10 @@ function switchSection(sectionName) {
     if (titleEl) titleEl.textContent = 'Pengaturan Layanan Pesan CV WhatsApp';
     if (subEl) subEl.textContent = 'Atur nomor WhatsApp resmi yang akan dihubungi pelamar saat memesan CV.';
     loadCvSettings();
+  } else if (sectionName === 'cv-builder') {
+    if (titleEl) titleEl.textContent = 'Studio Pembuat & Desain CV (8 Template ATS)';
+    if (subEl) subEl.textContent = 'Buat, sesuaikan dan cetak CV profesional standar ATS & Modern siap print A4 atau simpan PDF.';
+    if (window.initCvStudio) window.initCvStudio();
   }
 }
 
