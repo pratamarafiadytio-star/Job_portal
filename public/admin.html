@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
   
-  <link rel="stylesheet" href="./css/admin.css?v=20261031_12">
+  <link rel="stylesheet" href="./css/admin.css?v=20261031_13">
   <!-- Supabase JS Client (Self-Hosted Local Vendor Asset) -->
   <script src="./vendor/supabase/supabase.min.js"></script>
   <!-- QRCode.js (Self-Hosted Local Vendor Asset) -->
@@ -156,11 +156,11 @@
         </div>
 
         <div class="admin-top-actions">
-          <!-- Autoload Status Indicator Pill -->
-          <div class="header-autoload-pill" id="header-autoload-pill" title="Autoload lowongan web aktif otomatis">
+          <!-- Autoload Status Indicator Pill (Toggleable ON/OFF) -->
+          <button type="button" class="header-autoload-pill" id="header-autoload-pill" onclick="toggleAutoloadEngine()" title="Klik untuk mengaktifkan atau mematikan Autoload Live">
             <span class="live-dot-pulse"></span>
-            <span id="header-autoload-label">Autoload Live ON</span>
-          </div>
+            <span id="header-autoload-label">Autoload Live (30s)</span>
+          </button>
 
           <a href="#sosmed-generator" class="btn-header-action scout-btn" onclick="document.querySelector('a[href=\'#sosmed-generator\']').click()" style="background: linear-gradient(135deg, #0284c7, #06b6d4);">
             <i class="fa-solid fa-globe"></i> Scout Loker Web
@@ -1261,16 +1261,16 @@
             </div>
 
             <div class="panel-body">
-              <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; align-items: start;">
+              <div class="cv-settings-grid">
                 
                 <!-- FORM SETTING -->
-                <form id="form-settings-cv" style="background: var(--bg-surface-alt); padding: 24px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                <form id="form-settings-cv" class="cv-settings-form-box">
                   <div class="form-group" style="margin-bottom: 18px;">
                     <label class="form-label" for="setting-cv-whatsapp" style="font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
                       <i class="fa-brands fa-whatsapp" style="color: #25d366; font-size: 1.1rem;"></i> Nomor WhatsApp Resmi Pemesanan CV
                     </label>
                     <div style="position: relative;">
-                      <input type="text" id="setting-cv-whatsapp" class="form-input" placeholder="Contoh: 081234567890 atau 6281234567890" style="padding-left: 42px; font-weight: 700; font-size: 1rem; color: var(--text-main);" required>
+                      <input type="text" id="setting-cv-whatsapp" class="form-input" placeholder="Contoh: 081234567890 atau 6281234567890" style="padding-left: 42px; font-weight: 700; font-size: 1rem; color: var(--text-main); width: 100%; box-sizing: border-box;" required>
                       <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #25d366; font-size: 1.2rem;">
                         <i class="fa-brands fa-whatsapp"></i>
                       </span>
@@ -1284,7 +1284,7 @@
                     <label class="form-label" for="setting-cv-message" style="font-weight: 700; color: var(--text-main);">
                       <i class="fa-solid fa-message" style="color: var(--primary);"></i> Template Pesan Otomatis (Saat Pelamar Chat)
                     </label>
-                    <textarea id="setting-cv-message" class="form-textarea" rows="4" placeholder="Tuliskan draf pesan pembuka..." style="font-size: 0.9rem; line-height: 1.5;"></textarea>
+                    <textarea id="setting-cv-message" class="form-textarea" rows="4" placeholder="Tuliskan draf pesan pembuka..." style="font-size: 0.9rem; line-height: 1.5; width: 100%; box-sizing: border-box;"></textarea>
                     <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 6px;">
                       Pesan ini akan otomatis terisi di kolom chat WhatsApp pelamar saat mengklik tombol pesan CV.
                     </span>
@@ -1301,7 +1301,7 @@
                 </form>
 
                 <!-- LIVE PREVIEW CARD -->
-                <div style="background: #0b141a; color: #e9edef; padding: 22px; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 25px rgba(0,0,0,0.25);">
+                <div class="cv-settings-preview-card">
                   <div style="display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 14px; margin-bottom: 16px;">
                     <div style="width: 44px; height: 44px; border-radius: 50%; background: #25d366; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
                       <i class="fa-brands fa-whatsapp"></i>
@@ -1312,10 +1312,10 @@
                     </div>
                   </div>
 
-                  <div style="background: #202c33; border-radius: 8px; padding: 14px; margin-bottom: 16px; position: relative;">
+                  <div style="background: #202c33; border-radius: 8px; padding: 14px; margin-bottom: 16px; position: relative; word-break: break-word;">
                     <div style="font-size: 0.76rem; color: #8696a0; margin-bottom: 6px; font-weight: 600;">Pesan Masuk dari Website:</div>
                     <p id="preview-cv-wa-msg" style="font-size: 0.88rem; line-height: 1.5; color: #e9edef; margin: 0; white-space: pre-wrap; font-style: italic;">
-                      Halo Admin KerjaHub, saya ingin memesan layanan pembuatan / review CV profesional...
+                      Halo Admin, saya ingin memesan layanan pembuatan / review CV profesional berstandar ATS agar lolos seleksi kerja. Mohon informasi tarif dan prosedurnya. Terima kasih.
                     </p>
                   </div>
 
@@ -1890,6 +1890,6 @@
     </div>
   </div>
 
-  <script src="./js/admin.js?v=20261031_12"></script>
+  <script src="./js/admin.js?v=20261031_13"></script>
 </body>
 </html>

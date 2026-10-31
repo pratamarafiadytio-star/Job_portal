@@ -2457,13 +2457,49 @@ function renderAdminJobsTable() {
     const nextStatus = isLocked ? 'active' : 'expired';
 
     return `
-      <tr>
+      <tr class="admin-job-row" onclick="handleAdminRowClick(event, ${job.id})">
         <td>
           <div class="job-cell">
-            <img src="${posterSrc}" alt="Poster" class="job-cell-poster" onerror="window.handleAdminPosterError && window.handleAdminPosterError(this, ${job.id});">
+            <img src="${posterSrc}" alt="Poster" class="job-cell-poster" onerror="window.handleAdminPosterError && window.handleAdminPosterError(this, ${job.id});" onclick="openEditJobModal(${job.id}); event.stopPropagation();" title="Klik untuk Edit Lowongan">
             <div class="job-cell-info">
-              <a href="${job.website_url ? escapeHtml(job.website_url) : `./?job=${job.id}`}" target="_blank" rel="noopener noreferrer" class="job-cell-title" title="${job.website_url ? 'Buka Postingan Asli di Web' : 'Lihat di Web Publik'}">${escapeHtml(job.title)} ${job.website_url ? '<i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.75rem; margin-left:4px; color:#0284c7;"></i>' : ''}</a>
-              <span class="job-cell-company">${escapeHtml(job.company_name)}</span>
+              <div class="job-cell-title" onclick="openEditJobModal(${job.id}); event.stopPropagation();" title="Klik untuk Edit Lowongan">
+                ${escapeHtml(job.title)}
+                <span class="badge-edit-hint"><i class="fa-solid fa-pen-to-square"></i> Edit</span>
+              </div>
+              <span class="job-cell-company">${escapeHtml(job.company_name || 'Perusahaan')}</span>
+
+              <!-- Mobile Only Meta Row -->
+              <div class="mobile-job-meta-row">
+                <span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.75rem;">${escapeHtml(job.category || 'Umum')}</span>
+                ${statusBadge}
+                <span style="font-size:0.75rem; color:#64748b; font-weight:600;"><i class="fa-solid fa-eye"></i> ${job.views_count || 0}</span>
+              </div>
+
+              <!-- Mobile Only Quick Action Bar -->
+              <div class="mobile-job-actions">
+                <button type="button" class="btn-m-action edit" onclick="openEditJobModal(${job.id}); event.stopPropagation();" title="Edit Lowongan">
+                  <i class="fa-solid fa-pen-to-square"></i> Edit
+                </button>
+                ${isScheduled ? `
+                  <button type="button" class="btn-m-action pub" onclick="publishScheduledJobNow(${job.id}); event.stopPropagation();" title="Terbitkan Sekarang">
+                    <i class="fa-solid fa-paper-plane"></i> Terbitkan
+                  </button>
+                ` : ''}
+                <button type="button" class="btn-m-action lock ${isLocked ? 'locked' : ''}" onclick="toggleJobLock(${job.id}, '${nextStatus}'); event.stopPropagation();" title="${lockTooltip}">
+                  <i class="fa-solid ${lockIcon}"></i> ${isLocked ? 'Buka Kunci' : 'Kunci'}
+                </button>
+                <a href="./?job=${job.id}" target="_blank" class="btn-m-action pub" onclick="event.stopPropagation();" title="Lihat di Web Publik">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i> Publik
+                </a>
+                ${job.website_url ? `
+                  <a href="${escapeHtml(job.website_url)}" target="_blank" rel="noopener noreferrer" class="btn-m-action web" onclick="event.stopPropagation();" title="Buka Postingan Asli di Web">
+                    <i class="fa-solid fa-globe"></i> Web
+                  </a>
+                ` : ''}
+                <button type="button" class="btn-m-action delete" onclick="deleteJob(${job.id}, '${escapeHtml(job.title)}'); event.stopPropagation();" title="Hapus Lowongan">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
             </div>
           </div>
         </td>
@@ -2494,6 +2530,15 @@ function renderAdminJobsTable() {
     `;
   }).join('');
 }
+
+window.handleAdminRowClick = function(event, jobId) {
+  if (event.target.closest('button, a, input, select, textarea, .action-buttons, .mobile-job-actions')) {
+    return;
+  }
+  if (typeof openEditJobModal === 'function') {
+    openEditJobModal(jobId);
+  }
+};
 
 // -------------------------------------------------------------
 // LOAD ADMIN JOBS (High-Speed Parallel Fetch & SWR Local Cache)
@@ -4184,9 +4229,27 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
 // -------------------------------------------------------------
 // AUTOLOAD ENGINE CONTROLLERS
 // -------------------------------------------------------------
-function startAdminAutoloadEngine() {
+function shouldRunAutoload() {
+  try {
+    return localStorage.getItem('admin_autoload_disabled') !== 'true';
+  } catch (e) {
+    return true;
+  }
+}
+
+function startAdminAutoloadEngine(force = false) {
   if (autoloadInterval) clearInterval(autoloadInterval);
   if (autoloadCountdownTicker) clearInterval(autoloadCountdownTicker);
+
+  if (!force && !shouldRunAutoload()) {
+    isAutoloadActive = false;
+    updateAutoloadStatusUi();
+    return;
+  }
+
+  if (force) {
+    try { localStorage.removeItem('admin_autoload_disabled'); } catch(e) {}
+  }
 
   isAutoloadActive = true;
   autoloadCountdown = 30;
@@ -4205,23 +4268,26 @@ function startAdminAutoloadEngine() {
   }, 1000);
 }
 
-function stopAdminAutoloadEngine() {
+function stopAdminAutoloadEngine(persist = true) {
   if (autoloadInterval) clearInterval(autoloadInterval);
   if (autoloadCountdownTicker) clearInterval(autoloadCountdownTicker);
   autoloadInterval = null;
   autoloadCountdownTicker = null;
   isAutoloadActive = false;
+  if (persist) {
+    try { localStorage.setItem('admin_autoload_disabled', 'true'); } catch(e) {}
+  }
   updateAutoloadStatusUi();
 }
 
 function toggleAutoloadEngine() {
   if (isAutoloadActive) {
-    stopAdminAutoloadEngine();
-    showAutoloadToast('Autoload dijeda sementara.');
+    stopAdminAutoloadEngine(true);
+    showAutoloadToast('⏸️ Autoload telah DIMATIKAN. Tidak akan memuat otomatis.');
   } else {
-    startAdminAutoloadEngine();
+    startAdminAutoloadEngine(true);
     triggerManualWebSync();
-    showAutoloadToast('Autoload diaktifkan kembali (Interval 30 detik).');
+    showAutoloadToast('⚡ Autoload DIAKTIFKAN. Update lowongan baru setiap 30 detik.');
   }
 }
 
@@ -4243,7 +4309,7 @@ async function triggerManualWebSync() {
 }
 
 async function triggerBackgroundAutoload() {
-  if (isAutoloadFetching) return;
+  if (!isAutoloadActive || isAutoloadFetching) return;
   isAutoloadFetching = true;
   try {
     const kwInput = document.getElementById('official-keyword');
@@ -4260,9 +4326,14 @@ async function triggerBackgroundAutoload() {
 function updateAutoloadCountdownUi() {
   const badge = document.getElementById('autoload-status-badge');
   const headerLabel = document.getElementById('header-autoload-label');
+  const pill = document.getElementById('header-autoload-pill');
   if (isAutoloadActive) {
     if (badge) badge.innerHTML = `<i class="fa-solid fa-bolt"></i> AKTIF (${autoloadCountdown}s)`;
     if (headerLabel) headerLabel.textContent = `Autoload Live (${autoloadCountdown}s)`;
+    if (pill) pill.setAttribute('title', `Autoload Live Aktif (${autoloadCountdown}s). Klik untuk Mematikan.`);
+  } else {
+    if (headerLabel) headerLabel.textContent = '⏸️ Autoload Mati (Klik)';
+    if (pill) pill.setAttribute('title', 'Autoload sedang Mati. Klik untuk Mengaktifkan kembali.');
   }
 }
 
@@ -4277,7 +4348,10 @@ function updateAutoloadStatusUi() {
   const timeStr = lastAutoloadTime ? lastAutoloadTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Baru saja';
 
   if (isAutoloadActive) {
-    if (pill) pill.classList.remove('paused');
+    if (pill) {
+      pill.classList.remove('paused');
+      pill.setAttribute('title', `Autoload Live Aktif (${autoloadCountdown}s). Klik untuk Mematikan.`);
+    }
     if (banner) banner.classList.remove('paused');
     if (badge) {
       badge.style.background = '#059669';
@@ -4287,27 +4361,30 @@ function updateAutoloadStatusUi() {
       desc.textContent = `Autoload aktif. Terakhir disinkronkan pukul ${timeStr} WIB. Otomatis memuat update lowongan terbitan terbaru setiap 30 detik.`;
     }
     if (toggleBtn) {
-      toggleBtn.innerHTML = '<i class="fa-solid fa-pause"></i> Jeda Autoload';
+      toggleBtn.innerHTML = '<i class="fa-solid fa-pause"></i> Matikan Autoload';
       toggleBtn.style.color = '#047857';
       toggleBtn.style.borderColor = '#059669';
     }
     if (headerLabel) headerLabel.textContent = `Autoload Live (${autoloadCountdown}s)`;
   } else {
-    if (pill) pill.classList.add('paused');
+    if (pill) {
+      pill.classList.add('paused');
+      pill.setAttribute('title', 'Autoload sedang Mati. Klik untuk Mengaktifkan kembali.');
+    }
     if (banner) banner.classList.add('paused');
     if (badge) {
       badge.style.background = '#64748b';
-      badge.innerHTML = `<i class="fa-solid fa-circle-pause"></i> DIJEDA`;
+      badge.innerHTML = `<i class="fa-solid fa-circle-pause"></i> MATI / DIJEDA`;
     }
     if (desc) {
-      desc.textContent = `Autoload sedang dijeda. Klik "Lanjutkan Autoload" atau "Sync Sekarang" untuk memperbarui lowongan web terbaru.`;
+      desc.textContent = `Autoload sedang dimatikan. Klik tombol di header atas atau banner ini untuk mengaktifkan kembali pembaruan otomatis.`;
     }
     if (toggleBtn) {
-      toggleBtn.innerHTML = '<i class="fa-solid fa-play"></i> Lanjutkan Autoload';
+      toggleBtn.innerHTML = '<i class="fa-solid fa-play"></i> Aktifkan Autoload';
       toggleBtn.style.color = '#0284c7';
       toggleBtn.style.borderColor = '#0284c7';
     }
-    if (headerLabel) headerLabel.textContent = 'Autoload Dijeda';
+    if (headerLabel) headerLabel.textContent = '⏸️ Autoload Mati (Klik)';
   }
 }
 
@@ -4328,6 +4405,7 @@ function showAutoloadToast(message) {
   }, 4000);
 }
 
+window.shouldRunAutoload = shouldRunAutoload;
 window.startAdminAutoloadEngine = startAdminAutoloadEngine;
 window.stopAdminAutoloadEngine = stopAdminAutoloadEngine;
 window.toggleAutoloadEngine = toggleAutoloadEngine;
@@ -7968,7 +8046,7 @@ function updateCvSettingsPreview(wa, msg) {
     previewNum.textContent = '+' + clean;
   }
   if (previewMsg) {
-    previewMsg.textContent = msg || 'Halo Admin KerjaHub, saya ingin memesan layanan pembuatan / review CV profesional...';
+    previewMsg.textContent = msg || 'Halo Admin, saya ingin memesan layanan pembuatan / review CV profesional berstandar ATS agar lolos seleksi kerja. Mohon informasi tarif dan prosedurnya. Terima kasih.';
   }
 }
 
@@ -7998,7 +8076,7 @@ function setupCvSettings() {
       else if (clean.startsWith('8')) clean = '62' + clean;
       else if (!clean.startsWith('62')) clean = '62' + clean;
 
-      const text = encodeURIComponent(inputMsg?.value.trim() || 'Halo Admin KerjaHub, saya ingin memesan layanan pembuatan CV.');
+      const text = encodeURIComponent(inputMsg?.value.trim() || 'Halo Admin, saya ingin memesan layanan pembuatan / review CV profesional berstandar ATS.');
       window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${text}`, '_blank');
     });
   }
