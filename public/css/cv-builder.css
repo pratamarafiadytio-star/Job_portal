@@ -1,5 +1,6 @@
 /* ==============================================================
    CV STUDIO (8 TEMPLATE ATS & KREATIF) STYLES
+   KerjaHub Theme Integration (Plus Jakarta Sans & Inter)
    ============================================================== */
 
 /* Top Studio Navigation & Menu Bar */
@@ -8,13 +9,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  background: linear-gradient(135deg, #0b1120 0%, #171f38 50%, #0b1120 100%);
-  border: 1px solid #2e3b56;
+  background: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #0f172a 100%);
+  border: 1px solid #1e293b;
   border-radius: 16px;
   padding: 10px 18px;
-  margin-bottom: 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  margin-bottom: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   flex-wrap: wrap;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
 .cv-top-brand-box {
@@ -28,13 +30,13 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1rem;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 14px rgba(29, 78, 216, 0.4);
 }
 
 .cv-brand-name {
@@ -44,12 +46,27 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  letter-spacing: -0.01em;
+}
+
+.cv-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  background: rgba(29, 78, 216, 0.18);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 700;
 }
 
 .cv-brand-hint {
   font-size: 0.72rem;
-  color: #a5b4fc;
+  color: #93c5fd;
   font-weight: 600;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 /* Horizontal Section Menu Tabs */
@@ -64,13 +81,14 @@
 }
 
 .cv-menu-btn {
-  background: #1e293b;
+  background: #111827;
   color: #94a3b8;
-  border: 1px solid #334155;
+  border: 1px solid #1e293b;
   padding: 7px 12px;
   border-radius: 10px;
   font-size: 0.78rem;
   font-weight: 700;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -80,17 +98,17 @@
 }
 
 .cv-menu-btn:hover {
-  background: #334155;
-  color: #f1f5f9;
-  border-color: #475569;
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: #334155;
   transform: translateY(-1px);
 }
 
 .cv-menu-btn.active {
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
   color: #ffffff;
-  border-color: #818cf8;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+  border-color: #3b82f6;
+  box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
 }
 
 .cv-menu-btn-all {
@@ -125,9 +143,10 @@
   border-radius: 8px;
   font-size: 0.75rem;
   font-weight: 700;
-  background: #1e293b;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: #111827;
   color: #cbd5e1;
-  border: 1px solid #334155;
+  border: 1px solid #1e293b;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -136,8 +155,9 @@
 }
 
 .btn-cv-top-action:hover {
-  background: #334155;
+  background: #1e293b;
   color: #fff;
+  border-color: #334155;
 }
 
 .btn-cv-top-print {
@@ -145,6 +165,7 @@
   border-radius: 8px;
   font-size: 0.78rem;
   font-weight: 800;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   background: linear-gradient(135deg, #059669, #10b981);
   color: #ffffff;
   border: 1px solid #34d399;
@@ -161,15 +182,58 @@
   transform: translateY(-1px);
 }
 
+/* Mobile View Switcher (Segmented Control on Screens <= 900px) */
+.cv-mobile-view-tabs {
+  display: none;
+  background: #0b0f19;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 4px;
+  gap: 6px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cv-m-tab-btn {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.cv-m-tab-btn:hover {
+  color: #f8fafc;
+}
+
+.cv-m-tab-btn.active {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.4);
+}
+
 /* Tab Card & Header Styles (Active Section in Editor Panel) */
 .cv-tab-card {
-  background: #0b1120;
+  background: #0b0f19;
   border: 1px solid #1e293b;
   border-radius: 14px;
   padding: 18px 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 .cv-tab-header {
@@ -184,6 +248,7 @@
 .cv-tab-title {
   font-size: 0.95rem;
   font-weight: 800;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -194,6 +259,7 @@
   font-size: 0.72rem;
   color: #94a3b8;
   margin-top: 2px;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 .cv-tab-nav-footer {
@@ -211,9 +277,10 @@
   border-radius: 10px;
   font-size: 0.76rem;
   font-weight: 700;
-  background: #1e293b;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: #111827;
   color: #e2e8f0;
-  border: 1px solid #334155;
+  border: 1px solid #1e293b;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -222,14 +289,16 @@
 }
 
 .btn-tab-step:hover {
-  background: #334155;
+  background: #1e293b;
   color: #ffffff;
+  border-color: #334155;
 }
 
 .btn-tab-step.primary {
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
   color: #ffffff;
-  border-color: #818cf8;
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.35);
 }
 
 .btn-tab-step.primary:hover {
@@ -396,9 +465,9 @@
 }
 
 .cv-template-pill-btn.active {
-  background: rgba(99, 102, 241, 0.18);
-  border-color: #6366f1;
-  box-shadow: 0 0 0 1.5px rgba(99, 102, 241, 0.4);
+  background: rgba(29, 78, 216, 0.2);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.4);
   color: #ffffff;
 }
 
@@ -543,7 +612,7 @@
 .cv-input-text:focus,
 .cv-input-textarea:focus,
 .cv-input-select:focus {
-  border-color: #6366f1;
+  border-color: #3b82f6;
 }
 
 /* Repeater Item Box (Pendidikan, Pengalaman, etc.) */
@@ -629,23 +698,70 @@
   width: 100%;
   padding: 12px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #4f46e5, #2563eb);
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
   border: none;
   color: #ffffff;
   font-weight: 800;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 0.92rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+  box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
   transition: all 0.2s ease;
 }
 
 .btn-print-cv-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+  box-shadow: 0 6px 20px rgba(29, 78, 216, 0.5);
+}
+
+.btn-mobile-preview-trigger {
+  display: none;
+  width: 100%;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(29, 78, 216, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #93c5fd;
+  font-weight: 700;
+  font-size: 0.82rem;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-mobile-preview-trigger:hover {
+  background: rgba(29, 78, 216, 0.25);
+  color: #ffffff;
+}
+
+.btn-mobile-back-form {
+  display: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #111827;
+  border: 1px solid #1e293b;
+  color: #cbd5e1;
+  font-size: 0.76rem;
+  font-weight: 700;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  cursor: pointer;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-mobile-back-form:hover {
+  background: #1e293b;
+  color: #ffffff;
+  border-color: #334155;
 }
 
 /* ==============================================================
@@ -703,8 +819,8 @@
 }
 
 .btn-quick-tpl.active {
-  background: #4f46e5;
-  border-color: #6366f1;
+  background: #1d4ed8;
+  border-color: #3b82f6;
   color: #ffffff;
 }
 
@@ -1061,6 +1177,212 @@
 }
 
 /* ==============================================================
+   MOBILE & TABLET RESPONSIVE STYLES (MATCHING KERJAHUB THEME)
+   ============================================================== */
+@media (max-width: 900px) {
+  /* Show Mobile View Switcher */
+  .cv-mobile-view-tabs {
+    display: flex !important;
+  }
+
+  .btn-mobile-preview-trigger {
+    display: flex !important;
+  }
+
+  .btn-mobile-back-form {
+    display: inline-flex !important;
+  }
+
+  /* Studio Root Switches between Form and Preview on Mobile */
+  .cv-studio-root {
+    flex-direction: column !important;
+    min-height: auto !important;
+    border-radius: 14px !important;
+    background: #0b0f19 !important;
+    border: 1px solid #1e293b !important;
+  }
+
+  /* Default is Form mode */
+  .cv-studio-root:not(.mobile-show-preview) .cv-editor-panel {
+    display: flex !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    position: static !important;
+    border-right: none !important;
+    background: #0b0f19 !important;
+  }
+  .cv-studio-root:not(.mobile-show-preview) .cv-preview-area {
+    display: none !important;
+  }
+
+  /* Preview mode */
+  .cv-studio-root.mobile-show-preview .cv-editor-panel {
+    display: none !important;
+  }
+  .cv-studio-root.mobile-show-preview .cv-preview-area {
+    display: flex !important;
+    width: 100% !important;
+    min-height: 75vh !important;
+    background: #0b0f19 !important;
+  }
+
+  /* Top Studio Menu Bar Mobile Styling */
+  .cv-studio-top-bar {
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+    margin-bottom: 10px !important;
+    gap: 8px !important;
+    background: #0b0f19 !important;
+    border: 1px solid #1e293b !important;
+  }
+
+  .cv-top-brand-box {
+    gap: 8px !important;
+  }
+
+  .cv-brand-icon {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.9rem !important;
+  }
+
+  .cv-brand-name {
+    font-size: 0.88rem !important;
+  }
+
+  .cv-brand-hint {
+    font-size: 0.68rem !important;
+  }
+
+  .cv-top-action-group {
+    gap: 6px !important;
+  }
+
+  .btn-cv-top-action {
+    padding: 5px 8px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .btn-cv-top-print {
+    padding: 6px 10px !important;
+    font-size: 0.74rem !important;
+  }
+
+  .cv-top-menu-nav {
+    width: 100% !important;
+    overflow-x: auto !important;
+    padding: 2px 0 4px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+  .cv-top-menu-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .cv-menu-btn {
+    padding: 6px 10px !important;
+    font-size: 0.74rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Form Scroll & Inputs */
+  .cv-editor-scroll {
+    padding: 12px !important;
+    max-height: none !important;
+  }
+
+  .cv-tab-card {
+    padding: 14px 12px !important;
+    border-radius: 12px !important;
+    gap: 12px !important;
+    background: #111827 !important;
+    border: 1px solid #1e293b !important;
+  }
+
+  .cv-tab-title {
+    font-size: 0.88rem !important;
+  }
+
+  .cv-tab-subtitle {
+    font-size: 0.7rem !important;
+  }
+
+  .cv-input-group label {
+    font-size: 0.72rem !important;
+  }
+
+  .cv-input-text,
+  .cv-input-textarea,
+  .cv-input-select {
+    padding: 9px 10px !important;
+    font-size: 0.82rem !important;
+    background: #0b0f19 !important;
+    border: 1px solid #1e293b !important;
+  }
+
+  /* Preview Toolbar Mobile Styling */
+  .cv-preview-toolbar {
+    padding: 8px 12px !important;
+    gap: 8px !important;
+    background: #0b0f19 !important;
+    border-bottom: 1px solid #1e293b !important;
+  }
+
+  .cv-quick-template-pills {
+    width: 100% !important;
+    padding-bottom: 4px !important;
+    scrollbar-width: none !important;
+  }
+  .cv-quick-template-pills::-webkit-scrollbar {
+    display: none;
+  }
+
+  .btn-quick-tpl {
+    padding: 4px 8px !important;
+    font-size: 0.7rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .cv-preview-zoom-group {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  .cv-page-fit-badge {
+    font-size: 0.7rem !important;
+    padding: 3px 8px !important;
+  }
+
+  /* Canvas Viewport on Mobile */
+  .cv-canvas-viewport {
+    padding: 16px 8px 32px !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    background: #0b0f19 !important;
+  }
+}
+
+@media (max-width: 540px) {
+  /* On small phones, convert 2-col form grids to single column */
+  .cv-tab-card div[style*="grid-template-columns: 1fr 1fr"],
+  .cv-tab-card div[style*="grid-template-columns: repeat(2, 1fr)"] {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .cv-template-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .btn-print-cv-primary {
+    font-size: 0.84rem !important;
+    padding: 10px !important;
+  }
+}
+
+/* ==============================================================
    PRINT-SPECIFIC STYLES - STRICT 1 SINGLE PAGE GUARANTEE
    ============================================================== */
 @media print {
@@ -1096,8 +1418,11 @@
   .admin-top-actions,
   .sidebar-backdrop,
   .cv-studio-top-bar,
+  .cv-mobile-view-tabs,
   .cv-editor-panel,
   .cv-preview-toolbar,
+  .btn-mobile-preview-trigger,
+  .btn-mobile-back-form,
   #header-autoload-pill,
   .autoload-live-banner,
   .no-print,

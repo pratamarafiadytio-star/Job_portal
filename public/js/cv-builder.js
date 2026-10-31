@@ -1216,18 +1216,71 @@ function showCvNotification(msg) {
   toast.style.position = 'fixed';
   toast.style.bottom = '24px';
   toast.style.right = '24px';
-  toast.style.background = '#1e1b4b';
+  toast.style.background = '#0f172a';
   toast.style.color = '#ffffff';
   toast.style.padding = '10px 16px';
   toast.style.borderRadius = '10px';
-  toast.style.border = '1px solid #6366f1';
+  toast.style.border = '1px solid #1d4ed8';
   toast.style.boxShadow = '0 8px 24px rgba(0,0,0,0.5)';
   toast.style.zIndex = '9999';
   toast.style.fontSize = '0.82rem';
   toast.style.fontWeight = '700';
+  toast.style.fontFamily = "'Plus Jakarta Sans', system-ui, sans-serif";
   toast.innerHTML = `<i class="fa-solid fa-circle-check" style="color: #34d399; margin-right: 6px;"></i> ${msg}`;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3500);
+}
+
+// -------------------------------------------------------------
+// MOBILE VIEW CONTROLLER & AUTO-FIT (SEGMENTED SWITCHER)
+// -------------------------------------------------------------
+let mobileCvView = 'form'; // 'form' | 'preview'
+
+function setMobileCvView(mode) {
+  mobileCvView = mode === 'preview' ? 'preview' : 'form';
+  const container = document.getElementById('cv-studio-root-container');
+  const btnForm = document.getElementById('btn-mview-form');
+  const btnPreview = document.getElementById('btn-mview-preview');
+
+  if (container) {
+    if (mobileCvView === 'preview') {
+      container.classList.add('mobile-show-preview');
+    } else {
+      container.classList.remove('mobile-show-preview');
+    }
+  }
+
+  if (btnForm) {
+    if (mobileCvView === 'form') {
+      btnForm.classList.add('active');
+    } else {
+      btnForm.classList.remove('active');
+    }
+  }
+
+  if (btnPreview) {
+    if (mobileCvView === 'preview') {
+      btnPreview.classList.add('active');
+    } else {
+      btnPreview.classList.remove('active');
+    }
+  }
+
+  // Auto-fit A4 zoom when switching to preview on mobile devices
+  if (mobileCvView === 'preview') {
+    autoFitMobileZoom();
+  }
+}
+
+function autoFitMobileZoom() {
+  if (window.innerWidth <= 900) {
+    const viewportWidth = window.innerWidth;
+    const padding = viewportWidth <= 540 ? 24 : 48;
+    const availableWidth = Math.max(260, viewportWidth - padding);
+    let scale = availableWidth / 794;
+    scale = Math.min(0.85, Math.max(0.35, +scale.toFixed(2)));
+    setCvZoom(scale);
+  }
 }
 
 // -------------------------------------------------------------
@@ -1240,6 +1293,11 @@ let cvActiveMenuTab = 'pribadi';
 
 function switchCvTab(tabName) {
   cvActiveMenuTab = tabName;
+
+  // On mobile screen, if user taps a form tab while in preview, switch back to form smoothly
+  if (window.innerWidth <= 900 && mobileCvView === 'preview') {
+    setMobileCvView('form');
+  }
 
   // Update top menu nav buttons
   const nav = document.getElementById('cv-top-menu-nav');
@@ -1282,7 +1340,7 @@ function renderSectionPribadi(showNavFooter = true) {
       <div class="cv-tab-header">
         <div>
           <div class="cv-tab-title">
-            <span style="background: rgba(99,102,241,0.25); color: #a5b4fc; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+            <span style="background: rgba(29, 78, 216, 0.25); color: #93c5fd; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
               <i class="fa-solid fa-user"></i>
             </span>
             1. Foto & Data Pribadi
@@ -1299,7 +1357,7 @@ function renderSectionPribadi(showNavFooter = true) {
           <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
             <input type="file" id="cv-file-upload-input" accept="image/*" style="display: none;" onchange="handleCvPhotoUpload(event)">
             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-              <button type="button" class="btn btn-sm" onclick="document.getElementById('cv-file-upload-input').click()" style="background: #4f46e5; color: #fff; font-size: 0.72rem; padding: 5px 10px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer;">
+              <button type="button" class="btn btn-sm" onclick="document.getElementById('cv-file-upload-input').click()" style="background: #1d4ed8; color: #fff; font-size: 0.72rem; padding: 5px 10px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer;">
                 <i class="fa-solid fa-cloud-arrow-up"></i> Upload Foto
               </button>
               <button type="button" class="btn btn-sm" onclick="setCvAvatar()" style="background: #1e293b; color: #cbd5e1; font-size: 0.72rem; padding: 5px 10px; border-radius: 8px; border: 1px solid #334155; cursor: pointer;">
@@ -1420,7 +1478,7 @@ function renderSectionTentang(showNavFooter = true) {
         <span style="display: block; font-size: 0.72rem; color: #94a3b8; margin-bottom: 6px;">Pilih Cepat Contoh Preset:</span>
         <div style="display: flex; flex-wrap: wrap; gap: 6px;">
           ${CV_SUMMARY_PRESETS.map((preset, i) => `
-            <button type="button" onclick="applyCvPreset(${i})" style="background: rgba(30, 27, 75, 0.8); border: 1px solid rgba(99, 102, 241, 0.4); color: #c7d2fe; font-size: 0.72rem; padding: 4px 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+            <button type="button" onclick="applyCvPreset(${i})" style="background: rgba(17, 24, 39, 0.9); border: 1px solid rgba(59, 130, 246, 0.35); color: #93c5fd; font-size: 0.72rem; padding: 4px 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
               + ${esc(preset.label)}
             </button>
           `).join('')}
@@ -1461,7 +1519,7 @@ function renderSectionPendidikan(showNavFooter = true) {
       ${(cvData.educations || []).map((edu, idx) => `
         <div class="cv-repeater-card">
           <div class="cv-repeater-card-header">
-            <span style="font-size: 0.75rem; font-weight: 800; color: #818cf8; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 0.75rem; font-weight: 800; color: #60a5fa; display: flex; align-items: center; gap: 6px;">
               <span class="cv-badge-count">${idx + 1}</span> Pendidikan #${idx + 1}
             </span>
             <button type="button" class="btn-remove-item" onclick="removeCvEducation('${edu.id}')" title="Hapus pendidikan ini">
@@ -1527,7 +1585,7 @@ function renderSectionPengalaman(showNavFooter = true) {
         return `
           <div class="cv-repeater-card">
             <div class="cv-repeater-card-header">
-              <span style="font-size: 0.75rem; font-weight: 800; color: #818cf8; display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 0.75rem; font-weight: 800; color: #60a5fa; display: flex; align-items: center; gap: 6px;">
                 <span class="cv-badge-count">${idx + 1}</span> Pengalaman #${idx + 1}
               </span>
               <button type="button" class="btn-remove-item" onclick="removeCvExperience('${exp.id}')">
@@ -1609,7 +1667,7 @@ function renderSectionSkill(showNavFooter = true) {
 
       <!-- 1. SOFT SKILL -->
       <div class="cv-repeater-card">
-        <label style="font-size: 0.74rem; font-weight: 800; color: #818cf8;">
+        <label style="font-size: 0.74rem; font-weight: 800; color: #60a5fa;">
           Soft Skill (${(cvData.softSkills || []).length} Poin)
         </label>
         ${(cvData.softSkills || []).map((item, idx) => `
@@ -1684,7 +1742,7 @@ function renderSectionTemplate(showNavFooter = true) {
       <div class="cv-tab-header">
         <div>
           <div class="cv-tab-title">
-            <span style="background: rgba(99,102,241,0.25); color: #a5b4fc; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+            <span style="background: rgba(29, 78, 216, 0.25); color: #93c5fd; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
               <i class="fa-solid fa-wand-magic-sparkles"></i>
             </span>
             6. Pilih Desain Template (1 - 8)
@@ -1692,7 +1750,7 @@ function renderSectionTemplate(showNavFooter = true) {
           <div class="cv-tab-subtitle">Klik template untuk melihat pratinjau live secara langsung.</div>
         </div>
         <span style="font-size: 0.75rem; color: #cbd5e1;">
-          Aktif: <strong id="cv-active-tpl-num" style="color: #818cf8;">#${cvSelectedTemplate}</strong>
+          Aktif: <strong id="cv-active-tpl-num" style="color: #60a5fa;">#${cvSelectedTemplate}</strong>
         </span>
       </div>
 
@@ -1701,15 +1759,19 @@ function renderSectionTemplate(showNavFooter = true) {
           <button type="button" class="cv-template-pill-btn ${cvSelectedTemplate === tpl.id ? 'active' : ''}" data-tpl="${tpl.id}" onclick="setCvTemplate(${tpl.id})">
             <div>
               <div style="display: flex; align-items: center; gap: 6px;">
-                <span class="tpl-num-badge" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.4);">#${tpl.id}</span>
+                <span class="tpl-num-badge" style="background: rgba(29, 78, 216, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4);">#${tpl.id}</span>
                 <span style="font-weight: 700; font-size: 0.78rem;">${esc(tpl.badge)}</span>
               </div>
               <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 3px;">${esc(tpl.subtitle)}</div>
             </div>
-            ${cvSelectedTemplate === tpl.id ? '<i class="fa-solid fa-circle-check" style="color: #818cf8; font-size: 0.85rem; margin-top: 3px;"></i>' : ''}
+            ${cvSelectedTemplate === tpl.id ? '<i class="fa-solid fa-circle-check" style="color: #60a5fa; font-size: 0.85rem; margin-top: 3px;"></i>' : ''}
           </button>
         `).join('')}
       </div>
+
+      <button type="button" class="btn-mobile-preview-trigger" onclick="setMobileCvView('preview')" style="margin-top: 10px;">
+        <i class="fa-solid fa-eye"></i> Lihat Pratinjau Desain Ini di Lembar A4
+      </button>
 
       ${showNavFooter ? `
         <div class="cv-tab-nav-footer">
@@ -1769,7 +1831,7 @@ function setCvTemplate(id) {
 }
 
 function setCvZoom(z) {
-  cvZoom = Math.min(1.2, Math.max(0.5, +z.toFixed(2)));
+  cvZoom = Math.min(1.3, Math.max(0.35, +z.toFixed(2)));
   const sheet = document.getElementById('cv-live-a4-sheet');
   if (sheet) sheet.style.transform = `scale(${cvZoom})`;
   const zoomText = document.getElementById('cv-zoom-level-text');
@@ -1993,14 +2055,31 @@ function initCvStudio() {
   if (!isCvStudioInitialized) {
     isCvStudioInitialized = true;
     switchCvTab(cvActiveMenuTab || 'pribadi');
-    updateCvPreview();
+    if (window.innerWidth <= 900) {
+      setMobileCvView('form');
+      autoFitMobileZoom();
+    } else {
+      updateCvPreview();
+    }
+
+    // Attach resize listener for mobile screen orientation/size changes
+    window.addEventListener('resize', () => {
+      if (window.innerWidth <= 900 && mobileCvView === 'preview') {
+        autoFitMobileZoom();
+      }
+    });
   } else {
+    if (window.innerWidth <= 900 && mobileCvView === 'preview') {
+      autoFitMobileZoom();
+    }
     updateCvPreview();
   }
 }
 
 // Expose globals for HTML onclick bindings
 window.initCvStudio = initCvStudio;
+window.setMobileCvView = setMobileCvView;
+window.autoFitMobileZoom = autoFitMobileZoom;
 window.switchCvTab = switchCvTab;
 window.setCvTemplate = setCvTemplate;
 window.setCvZoom = setCvZoom;

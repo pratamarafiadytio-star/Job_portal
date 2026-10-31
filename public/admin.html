@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
   
   <link rel="stylesheet" href="./css/admin.css?v=20261031_13">
-  <link rel="stylesheet" href="./css/cv-builder.css?v=20261031_16">
+  <link rel="stylesheet" href="./css/cv-builder.css?v=20261031_17">
   <!-- Supabase JS Client (Self-Hosted Local Vendor Asset) -->
   <script src="./vendor/supabase/supabase.min.js"></script>
   <!-- QRCode.js (Self-Hosted Local Vendor Asset) -->
@@ -1350,7 +1350,7 @@
               <div>
                 <div class="cv-brand-name">
                   Ravenza CV Studio
-                  <span class="cv-brand-badge" style="background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.4); padding: 1px 7px; border-radius: 20px; font-size: 0.7rem; font-weight: 700;">Input Per-Poin</span>
+                  <span class="cv-brand-badge">Input Per-Poin</span>
                 </div>
                 <div class="cv-brand-hint" id="cv-top-active-hint">Form Aktif: 1. Foto & Data Pribadi</div>
               </div>
@@ -1395,7 +1395,17 @@
             </div>
           </div>
 
-          <div class="cv-studio-root">
+          <!-- MOBILE VIEW SWITCHER (Segmented control on screens <= 900px) -->
+          <div class="cv-mobile-view-tabs" id="cv-mobile-view-tabs">
+            <button type="button" class="cv-m-tab-btn active" id="btn-mview-form" onclick="setMobileCvView('form')">
+              <i class="fa-solid fa-pen-to-square"></i> 1. Formulir Isian
+            </button>
+            <button type="button" class="cv-m-tab-btn" id="btn-mview-preview" onclick="setMobileCvView('preview')">
+              <i class="fa-solid fa-file-pdf"></i> 2. Pratinjau CV (A4)
+            </button>
+          </div>
+
+          <div class="cv-studio-root" id="cv-studio-root-container">
             <!-- LEFT: Editor Sidebar Panel -->
             <div class="cv-editor-panel">
               <!-- Form Body (Dynamic via JS based on Active Tab) -->
@@ -1408,12 +1418,18 @@
                 <button type="button" class="btn-print-cv-primary" onclick="printCv()">
                   <i class="fa-solid fa-print"></i> Download PDF / Cetak CV Sekarang
                 </button>
+                <button type="button" class="btn-mobile-preview-trigger" onclick="setMobileCvView('preview')">
+                  <i class="fa-solid fa-eye"></i> Lihat Pratinjau Lembar A4
+                </button>
               </div>
             </div>
 
             <!-- RIGHT: Live A4 Preview Canvas -->
             <div class="cv-preview-area">
               <div class="cv-preview-toolbar">
+                <button type="button" class="btn-mobile-back-form" onclick="setMobileCvView('form')">
+                  <i class="fa-solid fa-arrow-left"></i> Kembali ke Form
+                </button>
                 <div class="cv-quick-template-pills">
                   <button type="button" class="btn-quick-tpl" data-tpl="1" onclick="setCvTemplate(1)">#1 Coklat</button>
                   <button type="button" class="btn-quick-tpl" data-tpl="2" onclick="setCvTemplate(2)">#2 Boxed</button>
@@ -2014,6 +2030,6 @@
   </div>
 
   <script src="./js/admin.js?v=20261031_13"></script>
-  <script src="./js/cv-builder.js?v=20261031_16"></script>
+  <script src="./js/cv-builder.js?v=20261031_17"></script>
 </body>
 </html>
