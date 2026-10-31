@@ -546,13 +546,21 @@ app.post('/api/jobs', requireAdminAuth, upload.any(), async (req, res) => {
       });
     }
 
-    const scheduled_at = (bodyScheduledAt || (req.body && req.body.scheduled_at) || '').trim();
+    const rawSched = (bodyScheduledAt || (req.body && req.body.scheduled_at) || '').trim();
     let finalStatus = (status || 'active').trim();
-    if (scheduled_at) {
-      const schedTime = new Date(scheduled_at).getTime();
+    let finalScheduledAt = null;
+    if (rawSched) {
+      const schedTime = new Date(rawSched).getTime();
       if (!isNaN(schedTime) && schedTime > Date.now()) {
         finalStatus = 'scheduled';
+        finalScheduledAt = new Date(schedTime).toISOString();
+      } else {
+        // If scheduled time was in the past or invalid, publish immediately as active
+        finalStatus = 'active';
+        finalScheduledAt = null;
       }
+    } else if (finalStatus === 'scheduled') {
+      finalScheduledAt = new Date(Date.now() + 3600000).toISOString();
     }
 
     // Deduplication check: Prevent duplicate jobs created within 20 seconds
@@ -652,7 +660,7 @@ app.post('/api/jobs', requireAdminAuth, upload.any(), async (req, res) => {
       contact_value: finalContactVal,
       deadline: deadline || '',
       status: finalStatus,
-      scheduled_at: scheduled_at || null,
+      scheduled_at: finalScheduledAt,
       is_featured: is_featured === '1' || is_featured === 1 || is_featured === true || is_featured === 'true',
       source_platform: req.body.source_platform || (wb.includes('linkedin.com') ? 'linkedin' : (wb.includes('instagram.com') ? 'instagram' : (wb.includes('facebook.com') ? 'facebook' : 'official'))),
       source_label: req.body.source_label || ''
@@ -662,7 +670,7 @@ app.post('/api/jobs', requireAdminAuth, upload.any(), async (req, res) => {
     res.status(201).json({
       success: true,
       message: isSched
-        ? `Lowongan berhasil dijadwalkan! Akan otomatis terbit pada ${scheduled_at}.`
+        ? `Lowongan berhasil dijadwalkan! Akan otomatis terbit pada ${finalScheduledAt}.`
         : 'Poster lowongan berhasil diunggah & dipublikasikan ke Supabase!',
       data: newJob
     });
@@ -678,7 +686,7 @@ app.post('/api/jobs', requireAdminAuth, upload.any(), async (req, res) => {
 app.post('/api/jobs/:id/publish-now', requireAdminAuth, async (req, res) => {
   try {
     const id = req.params.id;
-    const job = await db.updateJob(id, { status: 'active', updated_at: new Date().toISOString() });
+    const job = await db.updateJob(id, { status: 'active', scheduled_at: null, updated_at: new Date().toISOString() });
     if (!job) return res.status(404).json({ success: false, message: 'Lowongan tidak ditemukan' });
     res.json({ success: true, message: 'Lowongan berhasil diterbitkan sekarang (Langsung Aktif)!', data: job });
   } catch (err) {
@@ -770,19 +778,25 @@ app.put('/api/jobs/:id', requireAdminAuth, upload.any(), async (req, res) => {
     if (flyer_images !== undefined && Array.isArray(flyer_images)) contactParsed.flyer_images = flyer_images;
     finalContactVal = JSON.stringify(contactParsed);
 
-    // Handle scheduled_at and status logic
-    let finalStatus = status || existing.status;
-    let finalScheduledAt = existing.scheduled_at || null;
-    if (scheduled_at !== undefined) {
-      const cleanSched = (scheduled_at || '').trim();
-      finalScheduledAt = cleanSched || null;
-      if (finalScheduledAt) {
-        if (!status || status === 'scheduled') {
-          finalStatus = 'scheduled';
+    // Handle scheduled_at and status logic strictly
+    let finalStatus = (status || existing.status || 'active').trim();
+    let finalScheduledAt = null;
+
+    if (finalStatus === 'scheduled') {
+      const rawSched = (scheduled_at !== undefined ? scheduled_at : (existing.scheduled_at || '')).trim();
+      if (rawSched) {
+        const schedTime = new Date(rawSched).getTime();
+        if (!isNaN(schedTime)) {
+          finalScheduledAt = new Date(schedTime).toISOString();
+        } else {
+          finalScheduledAt = new Date(Date.now() + 3600000).toISOString();
         }
-      } else if (finalStatus === 'scheduled') {
-        finalStatus = 'active';
+      } else {
+        finalScheduledAt = new Date(Date.now() + 3600000).toISOString();
       }
+    } else {
+      // For active, closed, or expired jobs, clear scheduled_at so no stale timestamps remain
+      finalScheduledAt = null;
     }
 
     const updated = await db.updateJob(id, {

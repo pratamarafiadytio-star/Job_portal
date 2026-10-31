@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
   
-  <link rel="stylesheet" href="./css/admin.css?v=20261031_07">
+  <link rel="stylesheet" href="./css/admin.css?v=20261031_08">
   <!-- Supabase JS Client (Self-Hosted Local Vendor Asset) -->
   <script src="./vendor/supabase/supabase.min.js"></script>
   <!-- QRCode.js (Self-Hosted Local Vendor Asset) -->
@@ -228,37 +228,42 @@
         <section id="section-dashboard">
           <!-- STATS CARDS (5 METRICS) -->
           <div class="stats-grid">
-            <div class="stat-card">
+            <div class="stat-card card-total">
               <div class="stat-icon indigo"><i class="fa-solid fa-briefcase"></i></div>
               <div>
+                <span class="stat-badge-mini indigo">Database Cloud</span>
                 <div class="stat-value" id="stat-total-jobs">0</div>
                 <div class="stat-label">Total Lowongan Terunggah</div>
               </div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card card-active">
               <div class="stat-icon green"><i class="fa-solid fa-circle-check"></i></div>
               <div>
+                <span class="stat-badge-mini green">Tayang Publik</span>
                 <div class="stat-value" id="stat-active-jobs">0</div>
                 <div class="stat-label">Lowongan Aktif (Terbuka)</div>
               </div>
             </div>
-            <div class="stat-card" style="border-left: 4px solid #f59e0b;">
-              <div class="stat-icon" style="background: rgba(245, 158, 11, 0.15); color: #d97706;"><i class="fa-solid fa-clock"></i></div>
+            <div class="stat-card card-scheduled">
+              <div class="stat-icon amber"><i class="fa-solid fa-business-time"></i></div>
               <div>
+                <span class="stat-badge-mini amber">Auto-Publish</span>
                 <div class="stat-value" id="stat-scheduled-jobs">0</div>
                 <div class="stat-label">Terjadwal (Belum Terbit)</div>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon amber"><i class="fa-solid fa-lock"></i></div>
+            <div class="stat-card card-closed">
+              <div class="stat-icon red" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.16), rgba(185, 28, 28, 0.28)); color: #b91c1c; box-shadow: 0 6px 16px rgba(239, 68, 68, 0.18);"><i class="fa-solid fa-lock"></i></div>
               <div>
+                <span class="stat-badge-mini red">Tutup Lamaran</span>
                 <div class="stat-value" id="stat-closed-jobs">0</div>
                 <div class="stat-label">Lowongan Expired / Dikunci</div>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon blue"><i class="fa-solid fa-eye"></i></div>
+            <div class="stat-card card-views">
+              <div class="stat-icon blue"><i class="fa-solid fa-chart-line"></i></div>
               <div>
+                <span class="stat-badge-mini blue">Live Traffic</span>
                 <div class="stat-value" id="stat-total-views">0</div>
                 <div class="stat-label">Total Kunjungan / Views</div>
               </div>
@@ -1915,6 +1920,6 @@
     </div>
   </div>
 
-  <script src="./js/admin.js?v=20261031_07"></script>
+  <script src="./js/admin.js?v=20261031_08"></script>
 </body>
 </html>

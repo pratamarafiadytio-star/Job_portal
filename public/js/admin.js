@@ -1465,8 +1465,29 @@ function setupJobFormSubmit() {
     const benValues = window.getDynamicListValues('upload-ben-items');
 
     const publishMode = form.querySelector('input[name="publish_mode"]:checked')?.value || 'now';
-    const scheduledAtVal = (publishMode === 'scheduled') ? (document.getElementById('job-schedule-datetime')?.value || '').trim() : '';
-    const jobStatus = (publishMode === 'scheduled' && scheduledAtVal) ? 'scheduled' : 'active';
+    let scheduledAtVal = null;
+    let jobStatus = 'active';
+
+    if (publishMode === 'scheduled') {
+      const rawDt = (document.getElementById('job-schedule-datetime')?.value || '').trim();
+      if (!rawDt) {
+        alert('Silakan tentukan jam dan tanggal untuk jadwal upload otomatis.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origText;
+        return;
+      }
+      scheduledAtVal = toIsoScheduleString(rawDt);
+      if (!scheduledAtVal || new Date(scheduledAtVal).getTime() <= Date.now() + 10000) {
+        alert('Jadwal upload tidak boleh di masa lalu. Silakan pilih waktu ke depan.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origText;
+        return;
+      }
+      jobStatus = 'scheduled';
+    } else {
+      scheduledAtVal = null;
+      jobStatus = 'active';
+    }
 
     const cleanPayload = {
       title,
@@ -1508,7 +1529,7 @@ function setupJobFormSubmit() {
       formData.set('responsibilities', respValues.join('\n'));
       formData.set('benefits', benValues.join('\n'));
       formData.set('status', jobStatus);
-      formData.set('scheduled_at', scheduledAtVal);
+      formData.set('scheduled_at', scheduledAtVal || '');
 
       const token = sessionStorage.getItem('kerja_admin_token') || '';
       const res = await fetch(getApiEndpoint('/api/jobs'), {
@@ -1545,7 +1566,7 @@ function setupJobFormSubmit() {
 
     if (saved) {
       if (jobStatus === 'scheduled') {
-        alert(`Berhasil! Lowongan telah dijadwalkan dan akan otomatis terbit aktif ke publik pada ${scheduledAtVal}.`);
+        alert(`Berhasil! Lowongan telah dijadwalkan dan akan otomatis terbit aktif ke publik pada ${formatScheduleDisplay(scheduledAtVal)}.`);
       } else {
         alert('Berhasil! Poster lowongan dan saluran kontak telah tersimpan ke Supabase Cloud.');
       }
@@ -1567,13 +1588,37 @@ function setupJobFormSubmit() {
 // ==============================================================
 // SCHEDULED PUBLISHING HELPERS (AUTO-UPLOAD BY TIME & DATE)
 // ==============================================================
+function toIsoScheduleString(val) {
+  if (!val) return null;
+  const d = (val instanceof Date) ? val : new Date(val);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function formatScheduleDisplay(isoStr) {
+  if (!isoStr) return '-';
+  try {
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return isoStr;
+    return d.toLocaleString('id-ID', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    }) + ' WIB';
+  } catch (e) {
+    return isoStr;
+  }
+}
+
 function formatDateTimeLocal(date) {
+  if (!date) return '';
+  const d = (date instanceof Date) ? date : new Date(date);
+  if (isNaN(d.getTime())) return '';
   const pad = (n) => String(n).padStart(2, '0');
-  const yr = date.getFullYear();
-  const mo = pad(date.getMonth() + 1);
-  const da = pad(date.getDate());
-  const hr = pad(date.getHours());
-  const mi = pad(date.getMinutes());
+  const yr = d.getFullYear();
+  const mo = pad(d.getMonth() + 1);
+  const da = pad(d.getDate());
+  const hr = pad(d.getHours());
+  const mi = pad(d.getMinutes());
   return `${yr}-${mo}-${da}T${hr}:${mi}`;
 }
 
@@ -1584,8 +1629,11 @@ window.toggleScheduleInput = function(isScheduled) {
 
   if (isScheduled) {
     container.style.display = 'block';
-    if (dtInput && !dtInput.value) {
-      window.setQuickSchedule(1);
+    if (dtInput) {
+      dtInput.min = formatDateTimeLocal(new Date());
+      if (!dtInput.value || new Date(dtInput.value).getTime() <= Date.now()) {
+        window.setQuickSchedule(1);
+      }
     }
   } else {
     container.style.display = 'none';
@@ -1616,8 +1664,11 @@ window.toggleStudioSchedule = function(isScheduled) {
 
   if (isScheduled) {
     wrap.style.display = 'block';
-    if (dtInput && !dtInput.value) {
-      window.setStudioQuickSchedule(1);
+    if (dtInput) {
+      dtInput.min = formatDateTimeLocal(new Date());
+      if (!dtInput.value || new Date(dtInput.value).getTime() <= Date.now()) {
+        window.setStudioQuickSchedule(1);
+      }
     }
   } else {
     wrap.style.display = 'none';
@@ -2603,19 +2654,24 @@ window.openEditJobModal = function(jobId) {
   const schedContainer = document.getElementById('edit-schedule-datetime-container');
   const schedInput = document.getElementById('edit-job-schedule-datetime');
   if (schedInput) {
-    if (job.scheduled_at) {
+    schedInput.min = formatDateTimeLocal(new Date());
+    if (job.status === 'scheduled' && job.scheduled_at) {
       try {
         const d = new Date(job.scheduled_at);
-        schedInput.value = formatDateTimeLocal(d);
+        if (!isNaN(d.getTime()) && d.getTime() > Date.now()) {
+          schedInput.value = formatDateTimeLocal(d);
+        } else {
+          schedInput.value = formatDateTimeLocal(new Date(Date.now() + 3600000));
+        }
       } catch (e) {
-        schedInput.value = '';
+        schedInput.value = formatDateTimeLocal(new Date(Date.now() + 3600000));
       }
     } else {
-      schedInput.value = '';
+      schedInput.value = formatDateTimeLocal(new Date(Date.now() + 3600000));
     }
   }
   if (schedContainer) {
-    schedContainer.style.display = (job.status === 'scheduled' || (job.scheduled_at && new Date(job.scheduled_at) > new Date())) ? 'block' : 'none';
+    schedContainer.style.display = (job.status === 'scheduled') ? 'block' : 'none';
   }
 
   // 3 Distinct contact inputs
@@ -2667,12 +2723,17 @@ window.onEditJobStatusChange = function(status) {
   if (schedContainer) {
     if (status === 'scheduled') {
       schedContainer.style.display = 'block';
-      if (schedInput && !schedInput.value) {
-        const d = new Date(Date.now() + 3600000);
-        schedInput.value = formatDateTimeLocal(d);
+      if (schedInput) {
+        schedInput.min = formatDateTimeLocal(new Date());
+        if (!schedInput.value || new Date(schedInput.value).getTime() <= Date.now()) {
+          schedInput.value = formatDateTimeLocal(new Date(Date.now() + 3600000));
+        }
       }
     } else {
       schedContainer.style.display = 'none';
+      if (schedInput) {
+        schedInput.value = '';
+      }
     }
   }
 };
@@ -2732,19 +2793,27 @@ function setupEditFormSubmit() {
     const primaryContactType = whatsapp ? 'whatsapp' : (email ? 'email' : 'link');
     const contactValueJSON = JSON.stringify(contactsObj);
 
-    // Parse status and scheduled_at
+    // Parse status and scheduled_at strictly
     const statusVal = form.querySelector('[name="status"]').value;
     const schedInput = document.getElementById('edit-job-schedule-datetime');
-    let scheduledAtVal = (schedInput && schedInput.value) ? schedInput.value.trim() : '';
     let finalStatus = statusVal;
+    let scheduledAtVal = null;
 
     if (finalStatus === 'scheduled') {
-      if (!scheduledAtVal) {
-        const d = new Date(Date.now() + 3600000);
-        scheduledAtVal = d.toISOString();
+      const rawSched = (schedInput && schedInput.value) ? schedInput.value.trim() : '';
+      if (!rawSched) {
+        alert('Silakan tentukan tanggal dan jam terbit untuk lowongan terjadwal.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origText;
+        return;
       }
-    } else if (scheduledAtVal && finalStatus !== 'expired') {
-      finalStatus = 'scheduled';
+      scheduledAtVal = toIsoScheduleString(rawSched);
+      if (!scheduledAtVal || new Date(scheduledAtVal).getTime() <= Date.now() + 10000) {
+        alert('Jadwal terbit tidak boleh di masa lalu. Silakan pilih waktu ke depan.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origText;
+        return;
+      }
     } else {
       scheduledAtVal = null;
     }
@@ -2822,7 +2891,7 @@ function setupEditFormSubmit() {
     submitBtn.innerHTML = origText;
     closeEditModal();
     loadAdminJobs(true);
-    alert(finalStatus === 'scheduled' ? `Lowongan berhasil dijadwalkan untuk terbit otomatis pada ${scheduledAtVal}!` : 'Perubahan lowongan & saluran kontak berhasil disimpan!');
+    alert(finalStatus === 'scheduled' ? `Lowongan berhasil dijadwalkan untuk terbit otomatis pada ${formatScheduleDisplay(scheduledAtVal)}!` : 'Perubahan lowongan & saluran kontak berhasil disimpan!');
   });
 }
 
@@ -6835,8 +6904,16 @@ window.publishJobFromStudio = async function() {
     const dMeta = getDeadlineMeta(updatedDead, 30);
 
     const isStudioSched = document.getElementById('studio-enable-schedule-cb')?.checked;
-    const studioSchedVal = (document.getElementById('studio-schedule-datetime')?.value || '').trim();
-    const studioStatus = (isStudioSched && studioSchedVal) ? 'scheduled' : 'active';
+    const rawStudioSched = (document.getElementById('studio-schedule-datetime')?.value || '').trim();
+    let studioSchedIso = null;
+    let studioStatus = 'active';
+
+    if (isStudioSched && rawStudioSched) {
+      studioSchedIso = toIsoScheduleString(rawStudioSched);
+      if (studioSchedIso && new Date(studioSchedIso).getTime() > Date.now()) {
+        studioStatus = 'scheduled';
+      }
+    }
 
     const payload = {
       title: updatedTitle,
@@ -6860,7 +6937,7 @@ window.publishJobFromStudio = async function() {
       contact_value: contactsJson,
       deadline: dMeta.isoDate || toIsoDate(new Date(Date.now() + 30 * 86400000)),
       status: studioStatus,
-      scheduled_at: (isStudioSched && studioSchedVal) ? studioSchedVal : null,
+      scheduled_at: (studioStatus === 'scheduled') ? studioSchedIso : null,
       is_featured: true,
       views_count: currentPosterJobData.views_count || 0
     };

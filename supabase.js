@@ -977,15 +977,42 @@ const db = {
         if (!isNaN(schedTime) && schedTime <= now) {
           console.log(`[Scheduler] 🕒 Auto-publishing scheduled job ID ${job.id} ("${job.title}") at ${new Date().toLocaleString()}`);
           job.status = 'active';
+          job.scheduled_at = null; // Clear scheduled_at so it is permanently active
           job.updated_at = new Date().toISOString();
           changed = true;
           if (supabase) {
             try {
-              await supabase.from('jobs').update({ status: 'active', updated_at: job.updated_at }).eq('id', Number(job.id));
+              await supabase.from('jobs').update({ status: 'active', scheduled_at: null, updated_at: job.updated_at }).eq('id', Number(job.id));
             } catch (e) {}
           }
         }
       }
+    }
+
+    // Also check Supabase Cloud for remote scheduled jobs whose scheduled_at has arrived
+    if (supabase) {
+      try {
+        const { data: remoteSched, error: rErr } = await supabase
+          .from('jobs')
+          .select('id, title, scheduled_at')
+          .eq('status', 'scheduled')
+          .lte('scheduled_at', new Date().toISOString());
+
+        if (!rErr && Array.isArray(remoteSched) && remoteSched.length > 0) {
+          for (const rj of remoteSched) {
+            console.log(`[Scheduler] 🕒 Auto-publishing Cloud job ID ${rj.id} ("${rj.title}")`);
+            await supabase.from('jobs').update({ status: 'active', scheduled_at: null, updated_at: new Date().toISOString() }).eq('id', Number(rj.id));
+            // Also sync local job if exists
+            const localMatch = jobs.find(j => Number(j.id) === Number(rj.id));
+            if (localMatch) {
+              localMatch.status = 'active';
+              localMatch.scheduled_at = null;
+              localMatch.updated_at = new Date().toISOString();
+            }
+            changed = true;
+          }
+        }
+      } catch (e) {}
     }
 
     if (changed) {
