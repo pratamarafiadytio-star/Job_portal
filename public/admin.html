@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
   
   <link rel="stylesheet" href="./css/admin.css?v=20261031_13">
-  <link rel="stylesheet" href="./css/cv-builder.css?v=20261031_15">
+  <link rel="stylesheet" href="./css/cv-builder.css?v=20261031_16">
   <!-- Supabase JS Client (Self-Hosted Local Vendor Asset) -->
   <script src="./vendor/supabase/supabase.min.js"></script>
   <!-- QRCode.js (Self-Hosted Local Vendor Asset) -->
@@ -1340,36 +1340,65 @@
         <!-- STUDIO PEMBUAT & DESAIN CV (8 TEMPLATE ATS & KREATIF)         -->
         <!-- ============================================================== -->
         <section id="section-cv-builder" class="admin-section" style="display: none;">
+          <!-- TOP STUDIO MENU BAR -->
+          <div class="cv-studio-top-bar" id="cv-studio-top-bar">
+            <!-- Brand & Current Section Status -->
+            <div class="cv-top-brand-box">
+              <div class="cv-brand-icon">
+                <i class="fa-solid fa-file-invoice"></i>
+              </div>
+              <div>
+                <div class="cv-brand-name">
+                  Ravenza CV Studio
+                  <span class="cv-brand-badge" style="background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.4); padding: 1px 7px; border-radius: 20px; font-size: 0.7rem; font-weight: 700;">Input Per-Poin</span>
+                </div>
+                <div class="cv-brand-hint" id="cv-top-active-hint">Form Aktif: 1. Foto & Data Pribadi</div>
+              </div>
+            </div>
+
+            <!-- Horizontal Section Menu Tabs -->
+            <div class="cv-top-menu-nav" id="cv-top-menu-nav">
+              <button type="button" class="cv-menu-btn active" data-tab="pribadi" onclick="switchCvTab('pribadi')">
+                <i class="fa-solid fa-user"></i> 1. Foto & Pribadi
+              </button>
+              <button type="button" class="cv-menu-btn" data-tab="tentang" onclick="switchCvTab('tentang')">
+                <i class="fa-solid fa-file-lines"></i> 2. Tentang Saya
+              </button>
+              <button type="button" class="cv-menu-btn" data-tab="pendidikan" onclick="switchCvTab('pendidikan')">
+                <i class="fa-solid fa-graduation-cap"></i> 3. Pendidikan
+              </button>
+              <button type="button" class="cv-menu-btn" data-tab="pengalaman" onclick="switchCvTab('pengalaman')">
+                <i class="fa-solid fa-briefcase"></i> 4. Pengalaman Kerja
+              </button>
+              <button type="button" class="cv-menu-btn" data-tab="skill" onclick="switchCvTab('skill')">
+                <i class="fa-solid fa-award"></i> 5. Keahlian & Sertifikat
+              </button>
+              <button type="button" class="cv-menu-btn" data-tab="template" onclick="switchCvTab('template')">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> 6. Desain Template
+              </button>
+              <button type="button" class="cv-menu-btn cv-menu-btn-all" data-tab="semua" onclick="switchCvTab('semua')" title="Buka seluruh formulir berurutan tanpa sekat">
+                <i class="fa-solid fa-layer-group"></i> Tampilkan Semua
+              </button>
+            </div>
+
+            <!-- Right Quick Actions -->
+            <div class="cv-top-action-group">
+              <button type="button" class="btn-cv-top-action" onclick="clearCvToSinglePoint()" title="Mulai dari 1 poin kosong baru">
+                <i class="fa-solid fa-eraser"></i> 1 Poin Baru
+              </button>
+              <button type="button" class="btn-cv-top-action" onclick="resetCvToInitial()" title="Muat ulang data contoh">
+                <i class="fa-solid fa-rotate-left"></i> Data Contoh
+              </button>
+              <button type="button" class="btn-cv-top-print" onclick="printCv()">
+                <i class="fa-solid fa-print"></i> Cetak PDF
+              </button>
+            </div>
+          </div>
+
           <div class="cv-studio-root">
             <!-- LEFT: Editor Sidebar Panel -->
             <div class="cv-editor-panel">
-              <div class="cv-editor-header">
-                <div class="cv-editor-title-row">
-                  <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 36px; height: 36px; border-radius: 10px; background: #6366f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1rem; box-shadow: 0 4px 12px rgba(99,102,241,0.4);">
-                      <i class="fa-solid fa-file-invoice"></i>
-                    </div>
-                    <div>
-                      <div style="font-weight: 800; font-size: 0.95rem; color: #ffffff; display: flex; align-items: center; gap: 8px;">
-                        Ravenza CV Studio
-                        <span class="cv-brand-badge">Input Per-Poin</span>
-                      </div>
-                      <div style="font-size: 0.72rem; color: #94a3b8;">Cuma 1 poin? Isi 1 aja. Banyak? Klik tombol (+)</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="cv-editor-quick-modes">
-                  <button type="button" class="btn-cv-mode clear" onclick="clearCvToSinglePoint()">
-                    <i class="fa-solid fa-eraser"></i> Mulai 1 Poin Kosong
-                  </button>
-                  <button type="button" class="btn-cv-mode sample" onclick="resetCvToInitial()">
-                    <i class="fa-solid fa-rotate-left"></i> Isi Data Contoh
-                  </button>
-                </div>
-              </div>
-
-              <!-- Form Body (Dynamic via JS) -->
+              <!-- Form Body (Dynamic via JS based on Active Tab) -->
               <div class="cv-editor-scroll" id="cv-editor-form-root">
                 <!-- Populated by cv-builder.js -->
               </div>
@@ -1985,6 +2014,6 @@
   </div>
 
   <script src="./js/admin.js?v=20261031_13"></script>
-  <script src="./js/cv-builder.js?v=20261031_15"></script>
+  <script src="./js/cv-builder.js?v=20261031_16"></script>
 </body>
 </html>

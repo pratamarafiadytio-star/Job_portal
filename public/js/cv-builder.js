@@ -1233,19 +1233,466 @@ function showCvNotification(msg) {
 // -------------------------------------------------------------
 // EDITOR FORM BUILDER & SYNCHRONIZATION
 // -------------------------------------------------------------
-function renderCvStudioForm() {
-  const container = document.getElementById('cv-editor-form-root');
-  if (!container) return;
+// -------------------------------------------------------------
+// TOP MENU BAR & TABBED FORM BUILDER (NO COLLAPSE / NO HIDE)
+// -------------------------------------------------------------
+let cvActiveMenuTab = 'pribadi';
 
-  container.innerHTML = `
-    <!-- 1. PILIH TEMPLATE (1 - 8) -->
-    <div class="cv-template-selector-box">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-        <span style="font-size: 0.76rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #818cf8; display: flex; align-items: center; gap: 6px;">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> Pilih Desain Template (1 - 8)
-        </span>
-        <span style="font-size: 0.74rem; color: #94a3b8;">
-          Aktif: <strong id="cv-active-tpl-num" style="color: #ffffff;">#${cvSelectedTemplate}</strong>
+function switchCvTab(tabName) {
+  cvActiveMenuTab = tabName;
+
+  // Update top menu nav buttons
+  const nav = document.getElementById('cv-top-menu-nav');
+  if (nav) {
+    nav.querySelectorAll('.cv-menu-btn').forEach(btn => {
+      if (btn.getAttribute('data-tab') === tabName) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+
+  // Update top hint
+  const hintEl = document.getElementById('cv-top-active-hint');
+  if (hintEl) {
+    const titles = {
+      pribadi: 'Form Aktif: 1. Foto & Data Pribadi',
+      tentang: 'Form Aktif: 2. Tentang Saya (Profil Singkat)',
+      pendidikan: 'Form Aktif: 3. Riwayat Pendidikan',
+      pengalaman: 'Form Aktif: 4. Pengalaman Kerja & Jobdesk',
+      skill: 'Form Aktif: 5. Keahlian & Sertifikat',
+      template: 'Pilih Desain Template (1 - 8)',
+      semua: 'Menampilkan Semua Formulir (Lengkap)'
+    };
+    hintEl.textContent = titles[tabName] || 'Formulir CV';
+  }
+
+  renderCvStudioForm();
+
+  const scrollRoot = document.getElementById('cv-editor-form-root');
+  if (scrollRoot) {
+    scrollRoot.scrollTop = 0;
+  }
+}
+
+function renderSectionPribadi(showNavFooter = true) {
+  return `
+    <div class="cv-tab-card">
+      <div class="cv-tab-header">
+        <div>
+          <div class="cv-tab-title">
+            <span style="background: rgba(99,102,241,0.25); color: #a5b4fc; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+              <i class="fa-solid fa-user"></i>
+            </span>
+            1. Foto & Data Pribadi
+          </div>
+          <div class="cv-tab-subtitle">Lengkapi pas foto formal, kontak WhatsApp, email, dan alamat domisili.</div>
+        </div>
+      </div>
+
+      ${cvSelectedTemplate !== 7 ? `
+        <div style="display: flex; align-items: center; gap: 14px; background: #0b1120; padding: 12px; border-radius: 12px; border: 1px solid #1e293b;">
+          <div style="width: 60px; height: 76px; border-radius: 8px; overflow: hidden; border: 1.5px solid #334155; flex-shrink: 0; background-color: ${esc(cvData.photoBg)};">
+            <img id="cv-editor-photo-preview" src="${cvData.photo}" alt="Preview" style="width: 100%; height: 100%; object-fit: cover;">
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+            <input type="file" id="cv-file-upload-input" accept="image/*" style="display: none;" onchange="handleCvPhotoUpload(event)">
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-sm" onclick="document.getElementById('cv-file-upload-input').click()" style="background: #4f46e5; color: #fff; font-size: 0.72rem; padding: 5px 10px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer;">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Upload Foto
+              </button>
+              <button type="button" class="btn btn-sm" onclick="setCvAvatar()" style="background: #1e293b; color: #cbd5e1; font-size: 0.72rem; padding: 5px 10px; border-radius: 8px; border: 1px solid #334155; cursor: pointer;">
+                Pakai Avatar
+              </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: #94a3b8;">
+              <span>Latar:</span>
+              ${[
+                { label: 'Merah', color: '#dc2626' },
+                { label: 'Biru', color: '#1d4ed8' },
+                { label: 'Abu', color: '#cbd5e1' },
+                { label: 'Gelap', color: '#0f172a' }
+              ].map(bg => `
+                <button type="button" onclick="setCvPhotoBg('${bg.color}')" style="background: ${bg.color}; color: #fff; border: ${cvData.photoBg === bg.color ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.2)'}; padding: 2px 7px; border-radius: 6px; font-size: 0.68rem; font-weight: 700; cursor: pointer;">
+                  ${bg.label}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      ` : `
+        <div style="font-size: 0.75rem; background: rgba(30, 58, 138, 0.4); border: 1px solid rgba(59, 130, 246, 0.4); color: #bfdbfe; padding: 10px; border-radius: 10px;">
+          <i class="fa-solid fa-circle-info"></i> Template #7 adalah format <strong>ATS Murni Tanpa Foto</strong>.
+        </div>
+      `}
+
+      <div class="cv-input-group">
+        <label>Nama Lengkap</label>
+        <input type="text" class="cv-input-text" value="${esc(cvData.fullName)}" placeholder="Contoh: RAVENZA CREATIVE" oninput="updateCvField('fullName', this.value)">
+      </div>
+
+      <div class="cv-input-group">
+        <label>Posisi / Jabatan yang Dilamar</label>
+        <input type="text" class="cv-input-text" value="${esc(cvData.jobTitle)}" placeholder="Contoh: OPERATOR WAREHOUSE | PICKER" oninput="updateCvField('jobTitle', this.value)">
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="cv-input-group">
+          <label>No. HP / WhatsApp</label>
+          <input type="text" class="cv-input-text" value="${esc(cvData.phone)}" placeholder="0877xxxxxxxx" oninput="updateCvField('phone', this.value)">
+        </div>
+        <div class="cv-input-group">
+          <label>Email</label>
+          <input type="text" class="cv-input-text" value="${esc(cvData.email)}" placeholder="nama@gmail.com" oninput="updateCvField('email', this.value)">
+        </div>
+      </div>
+
+      <div class="cv-input-group">
+        <label>Alamat / Domisili</label>
+        <input type="text" class="cv-input-text" value="${esc(cvData.address)}" placeholder="Cikarang, Kabupaten Bekasi, Jawa Barat" oninput="updateCvField('address', this.value)">
+      </div>
+
+      <!-- Biodata Lengkap (Khusus Template 5) -->
+      <div style="border-top: 1px solid #1e293b; padding-top: 10px; margin-top: 4px;">
+        <div style="font-size: 0.74rem; font-weight: 700; color: #fbbf24; margin-bottom: 8px;">
+          <i class="fa-solid fa-id-card"></i> Detail Biodata Lengkap (Tampil di Template #5)
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="cv-input-group" style="grid-column: span 2;">
+            <label>Tempat, Tanggal Lahir</label>
+            <input type="text" class="cv-input-text" value="${esc(cvData.birthPlaceDate)}" placeholder="Cikarang, 12 Desember 2001" oninput="updateCvField('birthPlaceDate', this.value)">
+          </div>
+          <div class="cv-input-group">
+            <label>Jenis Kelamin</label>
+            <input type="text" class="cv-input-text" value="${esc(cvData.gender)}" placeholder="Laki-Laki" oninput="updateCvField('gender', this.value)">
+          </div>
+          <div class="cv-input-group">
+            <label>Agama</label>
+            <input type="text" class="cv-input-text" value="${esc(cvData.religion)}" placeholder="Islam" oninput="updateCvField('religion', this.value)">
+          </div>
+          <div class="cv-input-group">
+            <label>Status Pernikahan</label>
+            <input type="text" class="cv-input-text" value="${esc(cvData.maritalStatus)}" placeholder="Belum Menikah / Menikah" oninput="updateCvField('maritalStatus', this.value)">
+          </div>
+          <div class="cv-input-group">
+            <label>Kewarganegaraan</label>
+            <input type="text" class="cv-input-text" value="${esc(cvData.nationality)}" placeholder="Indonesia" oninput="updateCvField('nationality', this.value)">
+          </div>
+          <div class="cv-input-group">
+            <label>Tinggi Badan</label>
+            <input type="text" class="cv-input-text" value="${esc(cvData.height)}" placeholder="167 cm" oninput="updateCvField('height', this.value)">
+          </div>
+          <div class="cv-input-group">
+            <label>Berat Badan</label>
+            <input type="text" class="cv-input-text" value="${esc(cvData.weight)}" placeholder="60 kg" oninput="updateCvField('weight', this.value)">
+          </div>
+        </div>
+      </div>
+
+      ${showNavFooter ? `
+        <div class="cv-tab-nav-footer" style="justify-content: flex-end;">
+          <button type="button" class="btn-tab-step primary" onclick="switchCvTab('tentang')">
+            Lanjut: 2. Tentang Saya <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function renderSectionTentang(showNavFooter = true) {
+  return `
+    <div class="cv-tab-card">
+      <div class="cv-tab-header">
+        <div>
+          <div class="cv-tab-title">
+            <span style="background: rgba(59,130,246,0.25); color: #93c5fd; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+              <i class="fa-solid fa-file-lines"></i>
+            </span>
+            2. Tentang Saya (Profil Singkat)
+          </div>
+          <div class="cv-tab-subtitle">Deskripsi ringkas latar belakang, keahlian utama, dan etos kerja.</div>
+        </div>
+      </div>
+
+      <div>
+        <span style="display: block; font-size: 0.72rem; color: #94a3b8; margin-bottom: 6px;">Pilih Cepat Contoh Preset:</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          ${CV_SUMMARY_PRESETS.map((preset, i) => `
+            <button type="button" onclick="applyCvPreset(${i})" style="background: rgba(30, 27, 75, 0.8); border: 1px solid rgba(99, 102, 241, 0.4); color: #c7d2fe; font-size: 0.72rem; padding: 4px 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+              + ${esc(preset.label)}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <textarea class="cv-input-textarea" rows="5" placeholder="Tuliskan ringkasan profil singkat..." oninput="updateCvField('aboutMe', this.value)">${esc(cvData.aboutMe)}</textarea>
+
+      ${showNavFooter ? `
+        <div class="cv-tab-nav-footer">
+          <button type="button" class="btn-tab-step" onclick="switchCvTab('pribadi')">
+            <i class="fa-solid fa-arrow-left"></i> 1. Foto & Pribadi
+          </button>
+          <button type="button" class="btn-tab-step primary" onclick="switchCvTab('pendidikan')">
+            Lanjut: 3. Pendidikan <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function renderSectionPendidikan(showNavFooter = true) {
+  return `
+    <div class="cv-tab-card">
+      <div class="cv-tab-header">
+        <div>
+          <div class="cv-tab-title">
+            <span style="background: rgba(168,85,247,0.25); color: #d8b4fe; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+              <i class="fa-solid fa-graduation-cap"></i>
+            </span>
+            3. Riwayat Pendidikan (${(cvData.educations || []).length} Poin)
+          </div>
+          <div class="cv-tab-subtitle">Cuma 1 jenjang? Cukup isi 1. Ada diploma/sarjana? Klik Tambah Pendidikan.</div>
+        </div>
+      </div>
+
+      ${(cvData.educations || []).map((edu, idx) => `
+        <div class="cv-repeater-card">
+          <div class="cv-repeater-card-header">
+            <span style="font-size: 0.75rem; font-weight: 800; color: #818cf8; display: flex; align-items: center; gap: 6px;">
+              <span class="cv-badge-count">${idx + 1}</span> Pendidikan #${idx + 1}
+            </span>
+            <button type="button" class="btn-remove-item" onclick="removeCvEducation('${edu.id}')" title="Hapus pendidikan ini">
+              <i class="fa-solid fa-trash-can"></i> ${(cvData.educations.length > 1) ? 'Hapus' : 'Kosongkan'}
+            </button>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="cv-input-group">
+              <label>Nama Sekolah / Kampus</label>
+              <input type="text" class="cv-input-text" value="${esc(edu.school)}" placeholder="SMK 33 Cikarang" oninput="updateCvEducation('${edu.id}', 'school', this.value)">
+            </div>
+            <div class="cv-input-group">
+              <label>Tahun Pendidikan</label>
+              <input type="text" class="cv-input-text" value="${esc(edu.period)}" placeholder="2014 – 2017" oninput="updateCvEducation('${edu.id}', 'period', this.value)">
+            </div>
+            <div class="cv-input-group">
+              <label>Jurusan (Opsional)</label>
+              <input type="text" class="cv-input-text" value="${esc(edu.major)}" placeholder="Teknik Komputer Jaringan" oninput="updateCvEducation('${edu.id}', 'major', this.value)">
+            </div>
+            <div class="cv-input-group">
+              <label>Nilai / Keterangan (Opsional)</label>
+              <input type="text" class="cv-input-text" value="${esc(edu.extra)}" placeholder="Nilai rata-rata : 85.3" oninput="updateCvEducation('${edu.id}', 'extra', this.value)">
+            </div>
+          </div>
+        </div>
+      `).join('')}
+
+      <button type="button" class="btn-add-repeater" onclick="addCvEducation()">
+        <i class="fa-solid fa-plus"></i> Tambah Pendidikan (+)
+      </button>
+
+      ${showNavFooter ? `
+        <div class="cv-tab-nav-footer">
+          <button type="button" class="btn-tab-step" onclick="switchCvTab('tentang')">
+            <i class="fa-solid fa-arrow-left"></i> 2. Tentang Saya
+          </button>
+          <button type="button" class="btn-tab-step primary" onclick="switchCvTab('pengalaman')">
+            Lanjut: 4. Pengalaman Kerja <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function renderSectionPengalaman(showNavFooter = true) {
+  return `
+    <div class="cv-tab-card">
+      <div class="cv-tab-header">
+        <div>
+          <div class="cv-tab-title">
+            <span style="background: rgba(16,185,129,0.25); color: #6ee7b7; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+              <i class="fa-solid fa-briefcase"></i>
+            </span>
+            4. Pengalaman Kerja & Jobdesk (${(cvData.experiences || []).length} Perusahaan)
+          </div>
+          <div class="cv-tab-subtitle">Tugas kerja diinput per poin (bullet points) agar sesuai standar ATS.</div>
+        </div>
+      </div>
+
+      ${(cvData.experiences || []).map((exp, idx) => {
+        const tasks = Array.isArray(exp.tasks) ? exp.tasks : cvToLines(exp.tasks);
+        return `
+          <div class="cv-repeater-card">
+            <div class="cv-repeater-card-header">
+              <span style="font-size: 0.75rem; font-weight: 800; color: #818cf8; display: flex; align-items: center; gap: 6px;">
+                <span class="cv-badge-count">${idx + 1}</span> Pengalaman #${idx + 1}
+              </span>
+              <button type="button" class="btn-remove-item" onclick="removeCvExperience('${exp.id}')">
+                <i class="fa-solid fa-trash-can"></i> ${(cvData.experiences.length > 1) ? 'Hapus Perusahaan' : 'Kosongkan'}
+              </button>
+            </div>
+
+            <div class="cv-input-group">
+              <label>Nama Perusahaan (PT / CV / Instansi)</label>
+              <input type="text" class="cv-input-text" style="font-weight: 700;" value="${esc(exp.company)}" placeholder="PT Astra Honda Motor" oninput="updateCvExperience('${exp.id}', 'company', this.value)">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div class="cv-input-group">
+                <label>Posisi / Jabatan</label>
+                <input type="text" class="cv-input-text" value="${esc(exp.role)}" placeholder="Operator Warehouse" oninput="updateCvExperience('${exp.id}', 'role', this.value)">
+              </div>
+              <div class="cv-input-group">
+                <label>Periode Kerja</label>
+                <input type="text" class="cv-input-text" value="${esc(exp.period)}" placeholder="Maret 2019 – Februari 2023" oninput="updateCvExperience('${exp.id}', 'period', this.value)">
+              </div>
+            </div>
+
+            <!-- BULLET TASKS PER POINT -->
+            <div style="border-top: 1px dashed #1e293b; padding-top: 8px; margin-top: 4px; display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 0.72rem; font-weight: 700; color: #34d399;">
+                Poin Tugas / Jobdesk (${tasks.length} Poin):
+              </label>
+              ${tasks.map((task, tIdx) => `
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="color: #64748b; font-weight: 800; font-size: 0.7rem;">•</span>
+                  <input type="text" class="cv-input-text" style="flex: 1; padding: 6px 8px; font-size: 0.78rem;" value="${esc(task)}" placeholder="Ketik poin tugas ke-${tIdx + 1}..." oninput="updateCvExperienceTask('${exp.id}', ${tIdx}, this.value)">
+                  <button type="button" class="btn-remove-item" style="padding: 5px 7px;" onclick="removeCvExperienceTask('${exp.id}', ${tIdx})" title="Hapus poin ini">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              `).join('')}
+
+              <button type="button" style="width: 100%; padding: 6px; border-radius: 8px; background: rgba(16, 185, 129, 0.12); border: 1px dashed rgba(16, 185, 129, 0.4); color: #6ee7b7; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 4px;" onclick="addCvExperienceTask('${exp.id}')">
+                <i class="fa-solid fa-plus"></i> Tambah Poin Tugas (+)
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('')}
+
+      <button type="button" class="btn-add-repeater" onclick="addCvExperience()">
+        <i class="fa-solid fa-plus"></i> Tambah Pengalaman Perusahaan Lain (+)
+      </button>
+
+      ${showNavFooter ? `
+        <div class="cv-tab-nav-footer">
+          <button type="button" class="btn-tab-step" onclick="switchCvTab('pendidikan')">
+            <i class="fa-solid fa-arrow-left"></i> 3. Pendidikan
+          </button>
+          <button type="button" class="btn-tab-step primary" onclick="switchCvTab('skill')">
+            Lanjut: 5. Keahlian & Sertifikat <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function renderSectionSkill(showNavFooter = true) {
+  return `
+    <div class="cv-tab-card">
+      <div class="cv-tab-header">
+        <div>
+          <div class="cv-tab-title">
+            <span style="background: rgba(245,158,11,0.25); color: #fde68a; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+              <i class="fa-solid fa-award"></i>
+            </span>
+            5. Keahlian & Sertifikat
+          </div>
+          <div class="cv-tab-subtitle">Input per poin soft skill, hard skill operasional, dan sertifikat pelatihan.</div>
+        </div>
+      </div>
+
+      <!-- 1. SOFT SKILL -->
+      <div class="cv-repeater-card">
+        <label style="font-size: 0.74rem; font-weight: 800; color: #818cf8;">
+          Soft Skill (${(cvData.softSkills || []).length} Poin)
+        </label>
+        ${(cvData.softSkills || []).map((item, idx) => `
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 18px; font-size: 0.72rem; font-weight: 800; color: #64748b; text-align: center;">${idx + 1}.</span>
+            <input type="text" class="cv-input-text" style="padding: 6px 8px; font-size: 0.78rem;" value="${esc(item)}" placeholder="Contoh: Disiplin & Tanggung Jawab" oninput="updateCvListItem('softSkills', ${idx}, this.value)">
+            <button type="button" class="btn-remove-item" style="padding: 5px 7px;" onclick="removeCvListItem('softSkills', ${idx})">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        `).join('')}
+        <button type="button" class="btn-add-repeater" style="padding: 6px; font-size: 0.72rem;" onclick="addCvListItem('softSkills')">
+          <i class="fa-solid fa-plus"></i> Tambah Soft Skill (+)
+        </button>
+      </div>
+
+      <!-- 2. HARD SKILL -->
+      <div class="cv-repeater-card">
+        <label style="font-size: 0.74rem; font-weight: 800; color: #34d399;">
+          Hard Skill (${(cvData.hardSkills || []).length} Poin)
+        </label>
+        ${(cvData.hardSkills || []).map((item, idx) => `
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 18px; font-size: 0.72rem; font-weight: 800; color: #64748b; text-align: center;">${idx + 1}.</span>
+            <input type="text" class="cv-input-text" style="padding: 6px 8px; font-size: 0.78rem;" value="${esc(item)}" placeholder="Contoh: Mengoperasikan Forklift" oninput="updateCvListItem('hardSkills', ${idx}, this.value)">
+            <button type="button" class="btn-remove-item" style="padding: 5px 7px;" onclick="removeCvListItem('hardSkills', ${idx})">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        `).join('')}
+        <button type="button" style="width: 100%; padding: 6px; border-radius: 8px; background: rgba(16, 185, 129, 0.12); border: 1px dashed rgba(16, 185, 129, 0.4); color: #6ee7b7; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="addCvListItem('hardSkills')">
+          <i class="fa-solid fa-plus"></i> Tambah Hard Skill (+)
+        </button>
+      </div>
+
+      <!-- 3. SERTIFIKAT -->
+      <div class="cv-repeater-card">
+        <label style="font-size: 0.74rem; font-weight: 800; color: #fbbf24;">
+          <i class="fa-solid fa-award"></i> Sertifikat & Pelatihan (${(cvData.certificates || []).length} Poin)
+        </label>
+        ${(cvData.certificates || []).map((item, idx) => `
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="width: 18px; font-size: 0.72rem; font-weight: 800; color: #64748b; text-align: center;">${idx + 1}.</span>
+            <input type="text" class="cv-input-text" style="padding: 6px 8px; font-size: 0.78rem;" value="${esc(item)}" placeholder="Kosongkan jika tidak ada sertifikat..." oninput="updateCvListItem('certificates', ${idx}, this.value)">
+            <button type="button" class="btn-remove-item" style="padding: 5px 7px;" onclick="removeCvListItem('certificates', ${idx})">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        `).join('')}
+        <button type="button" style="width: 100%; padding: 6px; border-radius: 8px; background: rgba(245, 158, 11, 0.12); border: 1px dashed rgba(245, 158, 11, 0.4); color: #fde68a; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="addCvListItem('certificates')">
+          <i class="fa-solid fa-plus"></i> Tambah Sertifikat (+)
+        </button>
+      </div>
+
+      ${showNavFooter ? `
+        <div class="cv-tab-nav-footer">
+          <button type="button" class="btn-tab-step" onclick="switchCvTab('pengalaman')">
+            <i class="fa-solid fa-arrow-left"></i> 4. Pengalaman Kerja
+          </button>
+          <button type="button" class="btn-tab-step primary" onclick="switchCvTab('template')">
+            Lanjut: 6. Desain Template <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function renderSectionTemplate(showNavFooter = true) {
+  return `
+    <div class="cv-tab-card">
+      <div class="cv-tab-header">
+        <div>
+          <div class="cv-tab-title">
+            <span style="background: rgba(99,102,241,0.25); color: #a5b4fc; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </span>
+            6. Pilih Desain Template (1 - 8)
+          </div>
+          <div class="cv-tab-subtitle">Klik template untuk melihat pratinjau live secara langsung.</div>
+        </div>
+        <span style="font-size: 0.75rem; color: #cbd5e1;">
+          Aktif: <strong id="cv-active-tpl-num" style="color: #818cf8;">#${cvSelectedTemplate}</strong>
         </span>
       </div>
 
@@ -1263,381 +1710,54 @@ function renderCvStudioForm() {
           </button>
         `).join('')}
       </div>
-    </div>
 
-    <!-- ACCORDION CONTROLS: Buka Semua / Tutup Semua -->
-    <div class="cv-accordion-toolbar">
-      <div class="cv-acc-title">
-        <i class="fa-solid fa-layer-group" style="color: #818cf8;"></i> Formulir Isian Data CV
-      </div>
-      <div style="display: flex; gap: 6px;">
-        <button type="button" class="btn-acc-ctrl" onclick="openAllCvSections()">
-          <i class="fa-solid fa-angles-down"></i> Buka Semua
-        </button>
-        <button type="button" class="btn-acc-ctrl" onclick="closeAllCvSections()">
-          <i class="fa-solid fa-angles-up"></i> Tutup Semua
-        </button>
-      </div>
-    </div>
-
-    <!-- ACCORDION 1: FOTO & DATA PRIBADI -->
-    <div class="cv-accordion-box">
-      <button type="button" class="cv-accordion-toggle ${cvOpenSections.pribadi ? 'active' : ''}" onclick="toggleCvAccordion('pribadi')">
-        <span style="display: flex; align-items: center; gap: 10px;">
-          <span style="background: rgba(99,102,241,0.25); color: #a5b4fc; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
-            <i class="fa-solid fa-user"></i>
-          </span>
-          <span>1. Foto & Data Pribadi</span>
-        </span>
-        <span class="cv-status-pill ${cvOpenSections.pribadi ? 'open' : 'closed'}">
-          <i class="fa-solid ${cvOpenSections.pribadi ? 'fa-chevron-up' : 'fa-chevron-down'}"></i>
-          ${cvOpenSections.pribadi ? 'Terbuka' : 'Tertutup'}
-        </span>
-      </button>
-
-      <div class="cv-accordion-content" style="display: ${cvOpenSections.pribadi ? 'flex' : 'none'};">
-        ${cvSelectedTemplate !== 7 ? `
-          <div style="display: flex; align-items: center; gap: 14px; background: #0b1120; padding: 12px; border-radius: 12px; border: 1px solid #1e293b;">
-            <div style="width: 60px; height: 76px; border-radius: 8px; overflow: hidden; border: 1.5px solid #334155; flex-shrink: 0; background-color: ${esc(cvData.photoBg)};">
-              <img id="cv-editor-photo-preview" src="${cvData.photo}" alt="Preview" style="width: 100%; height: 100%; object-fit: cover;">
-            </div>
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
-              <input type="file" id="cv-file-upload-input" accept="image/*" style="display: none;" onchange="handleCvPhotoUpload(event)">
-              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                <button type="button" class="btn btn-sm" onclick="document.getElementById('cv-file-upload-input').click()" style="background: #4f46e5; color: #fff; font-size: 0.72rem; padding: 5px 10px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer;">
-                  <i class="fa-solid fa-cloud-arrow-up"></i> Upload Foto
-                </button>
-                <button type="button" class="btn btn-sm" onclick="setCvAvatar()" style="background: #1e293b; color: #cbd5e1; font-size: 0.72rem; padding: 5px 10px; border-radius: 8px; border: 1px solid #334155; cursor: pointer;">
-                  Pakai Avatar
-                </button>
-              </div>
-              <div style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: #94a3b8;">
-                <span>Latar:</span>
-                ${[
-                  { label: 'Merah', color: '#dc2626' },
-                  { label: 'Biru', color: '#1d4ed8' },
-                  { label: 'Abu', color: '#cbd5e1' },
-                  { label: 'Gelap', color: '#0f172a' }
-                ].map(bg => `
-                  <button type="button" onclick="setCvPhotoBg('${bg.color}')" style="background: ${bg.color}; color: #fff; border: ${cvData.photoBg === bg.color ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.2)'}; padding: 2px 7px; border-radius: 6px; font-size: 0.68rem; font-weight: 700; cursor: pointer;">
-                    ${bg.label}
-                  </button>
-                `).join('')}
-              </div>
-            </div>
-          </div>
-        ` : `
-          <div style="font-size: 0.75rem; background: rgba(30, 58, 138, 0.4); border: 1px solid rgba(59, 130, 246, 0.4); color: #bfdbfe; padding: 10px; border-radius: 10px;">
-            <i class="fa-solid fa-circle-info"></i> Template #7 adalah format <strong>ATS Murni Tanpa Foto</strong>.
-          </div>
-        `}
-
-        <div class="cv-input-group">
-          <label>Nama Lengkap</label>
-          <input type="text" class="cv-input-text" value="${esc(cvData.fullName)}" placeholder="Contoh: RAVENZA CREATIVE" oninput="updateCvField('fullName', this.value)">
-        </div>
-
-        <div class="cv-input-group">
-          <label>Posisi / Jabatan yang Dilamar</label>
-          <input type="text" class="cv-input-text" value="${esc(cvData.jobTitle)}" placeholder="Contoh: OPERATOR WAREHOUSE | PICKER" oninput="updateCvField('jobTitle', this.value)">
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-          <div class="cv-input-group">
-            <label>No. HP / WhatsApp</label>
-            <input type="text" class="cv-input-text" value="${esc(cvData.phone)}" placeholder="0877xxxxxxxx" oninput="updateCvField('phone', this.value)">
-          </div>
-          <div class="cv-input-group">
-            <label>Email</label>
-            <input type="text" class="cv-input-text" value="${esc(cvData.email)}" placeholder="nama@gmail.com" oninput="updateCvField('email', this.value)">
-          </div>
-        </div>
-
-        <div class="cv-input-group">
-          <label>Alamat / Domisili</label>
-          <input type="text" class="cv-input-text" value="${esc(cvData.address)}" placeholder="Cikarang, Kabupaten Bekasi, Jawa Barat" oninput="updateCvField('address', this.value)">
-        </div>
-
-        <!-- Biodata Lengkap (Khusus Template 5) -->
-        <div style="border-top: 1px solid #1e293b; padding-top: 10px; margin-top: 4px;">
-          <div style="font-size: 0.74rem; font-weight: 700; color: #fbbf24; margin-bottom: 8px;">
-            <i class="fa-solid fa-id-card"></i> Detail Biodata Lengkap (Tampil di Template #5)
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <div class="cv-input-group" style="grid-column: span 2;">
-              <label>Tempat, Tanggal Lahir</label>
-              <input type="text" class="cv-input-text" value="${esc(cvData.birthPlaceDate)}" placeholder="Cikarang, 12 Desember 2001" oninput="updateCvField('birthPlaceDate', this.value)">
-            </div>
-            <div class="cv-input-group">
-              <label>Jenis Kelamin</label>
-              <input type="text" class="cv-input-text" value="${esc(cvData.gender)}" placeholder="Laki-Laki" oninput="updateCvField('gender', this.value)">
-            </div>
-            <div class="cv-input-group">
-              <label>Agama</label>
-              <input type="text" class="cv-input-text" value="${esc(cvData.religion)}" placeholder="Islam" oninput="updateCvField('religion', this.value)">
-            </div>
-            <div class="cv-input-group">
-              <label>Status Pernikahan</label>
-              <input type="text" class="cv-input-text" value="${esc(cvData.maritalStatus)}" placeholder="Belum Menikah / Menikah" oninput="updateCvField('maritalStatus', this.value)">
-            </div>
-            <div class="cv-input-group">
-              <label>Kewarganegaraan</label>
-              <input type="text" class="cv-input-text" value="${esc(cvData.nationality)}" placeholder="Indonesia" oninput="updateCvField('nationality', this.value)">
-            </div>
-            <div class="cv-input-group">
-              <label>Tinggi Badan</label>
-              <input type="text" class="cv-input-text" value="${esc(cvData.height)}" placeholder="167 cm" oninput="updateCvField('height', this.value)">
-            </div>
-            <div class="cv-input-group">
-              <label>Berat Badan</label>
-              <input type="text" class="cv-input-text" value="${esc(cvData.weight)}" placeholder="60 kg" oninput="updateCvField('weight', this.value)">
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ACCORDION 2: TENTANG SAYA -->
-    <div class="cv-accordion-box">
-      <button type="button" class="cv-accordion-toggle ${cvOpenSections.tentang ? 'active' : ''}" onclick="toggleCvAccordion('tentang')">
-        <span style="display: flex; align-items: center; gap: 10px;">
-          <span style="background: rgba(59,130,246,0.25); color: #93c5fd; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
-            <i class="fa-solid fa-file-lines"></i>
-          </span>
-          <span>2. Tentang Saya (Profil Singkat)</span>
-        </span>
-        <span class="cv-status-pill ${cvOpenSections.tentang ? 'open' : 'closed'}">
-          <i class="fa-solid ${cvOpenSections.tentang ? 'fa-chevron-up' : 'fa-chevron-down'}"></i>
-          ${cvOpenSections.tentang ? 'Terbuka' : 'Tertutup'}
-        </span>
-      </button>
-
-      <div class="cv-accordion-content" style="display: ${cvOpenSections.tentang ? 'flex' : 'none'};">
-        <div>
-          <span style="display: block; font-size: 0.72rem; color: #94a3b8; margin-bottom: 6px;">Pilih Cepat Contoh:</span>
-          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-            ${CV_SUMMARY_PRESETS.map((preset, i) => `
-              <button type="button" onclick="applyCvPreset(${i})" style="background: rgba(30, 27, 75, 0.8); border: 1px solid rgba(99, 102, 241, 0.4); color: #c7d2fe; font-size: 0.72rem; padding: 4px 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
-                + ${esc(preset.label)}
-              </button>
-            `).join('')}
-          </div>
-        </div>
-
-        <textarea class="cv-input-textarea" rows="4" placeholder="Tuliskan ringkasan profil singkat..." oninput="updateCvField('aboutMe', this.value)">${esc(cvData.aboutMe)}</textarea>
-      </div>
-    </div>
-
-    <!-- ACCORDION 3: PENDIDIKAN (PER POIN) -->
-    <div class="cv-accordion-box">
-      <button type="button" class="cv-accordion-toggle ${cvOpenSections.pendidikan ? 'active' : ''}" onclick="toggleCvAccordion('pendidikan')">
-        <span style="display: flex; align-items: center; gap: 10px;">
-          <span style="background: rgba(168,85,247,0.25); color: #d8b4fe; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
-            <i class="fa-solid fa-graduation-cap"></i>
-          </span>
-          <span>3. Pendidikan (${(cvData.educations || []).length} Poin)</span>
-        </span>
-        <span class="cv-status-pill ${cvOpenSections.pendidikan ? 'open' : 'closed'}">
-          <i class="fa-solid ${cvOpenSections.pendidikan ? 'fa-chevron-up' : 'fa-chevron-down'}"></i>
-          ${cvOpenSections.pendidikan ? 'Terbuka' : 'Tertutup'}
-        </span>
-      </button>
-
-      <div class="cv-accordion-content" style="display: ${cvOpenSections.pendidikan ? 'flex' : 'none'};">
-        <p style="font-size: 0.72rem; color: #94a3b8; margin: 0 0 6px;">
-          Kalau cuma mau 1 jenjang (misal SMK saja), cukup isi 1 kotak. Jika ada jenjang lain, klik <strong>+ Tambah Pendidikan</strong>.
-        </p>
-
-        ${(cvData.educations || []).map((edu, idx) => `
-          <div class="cv-repeater-card">
-            <div class="cv-repeater-card-header">
-              <span style="font-size: 0.75rem; font-weight: 800; color: #818cf8; display: flex; align-items: center; gap: 6px;">
-                <span class="cv-badge-count">${idx + 1}</span> Pendidikan #${idx + 1}
-              </span>
-              <button type="button" class="btn-remove-item" onclick="removeCvEducation('${edu.id}')" title="Hapus pendidikan ini">
-                <i class="fa-solid fa-trash-can"></i> ${(cvData.educations.length > 1) ? 'Hapus' : 'Kosongkan'}
-              </button>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-              <div class="cv-input-group">
-                <label>Nama Sekolah / Kampus</label>
-                <input type="text" class="cv-input-text" value="${esc(edu.school)}" placeholder="SMK 33 Cikarang" oninput="updateCvEducation('${edu.id}', 'school', this.value)">
-              </div>
-              <div class="cv-input-group">
-                <label>Tahun Pendidikan</label>
-                <input type="text" class="cv-input-text" value="${esc(edu.period)}" placeholder="2014 – 2017" oninput="updateCvEducation('${edu.id}', 'period', this.value)">
-              </div>
-              <div class="cv-input-group">
-                <label>Jurusan (Opsional)</label>
-                <input type="text" class="cv-input-text" value="${esc(edu.major)}" placeholder="Teknik Komputer Jaringan" oninput="updateCvEducation('${edu.id}', 'major', this.value)">
-              </div>
-              <div class="cv-input-group">
-                <label>Nilai / Keterangan (Opsional)</label>
-                <input type="text" class="cv-input-text" value="${esc(edu.extra)}" placeholder="Nilai rata-rata : 85.3" oninput="updateCvEducation('${edu.id}', 'extra', this.value)">
-              </div>
-            </div>
-          </div>
-        `).join('')}
-
-        <button type="button" class="btn-add-repeater" onclick="addCvEducation()">
-          <i class="fa-solid fa-plus"></i> Tambah Pendidikan (+)
-        </button>
-      </div>
-    </div>
-
-    <!-- ACCORDION 4: PENGALAMAN KERJA & POIN JOBDESK DINAMIS -->
-    <div class="cv-accordion-box">
-      <button type="button" class="cv-accordion-toggle ${cvOpenSections.pengalaman ? 'active' : ''}" onclick="toggleCvAccordion('pengalaman')">
-        <span style="display: flex; align-items: center; gap: 10px;">
-          <span style="background: rgba(16,185,129,0.25); color: #6ee7b7; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
-            <i class="fa-solid fa-briefcase"></i>
-          </span>
-          <span>4. Pengalaman Kerja (${(cvData.experiences || []).length} Perusahaan)</span>
-        </span>
-        <span class="cv-status-pill ${cvOpenSections.pengalaman ? 'open' : 'closed'}">
-          <i class="fa-solid ${cvOpenSections.pengalaman ? 'fa-chevron-up' : 'fa-chevron-down'}"></i>
-          ${cvOpenSections.pengalaman ? 'Terbuka' : 'Tertutup'}
-        </span>
-      </button>
-
-      <div class="cv-accordion-content" style="display: ${cvOpenSections.pengalaman ? 'flex' : 'none'};">
-        <p style="font-size: 0.72rem; color: #94a3b8; margin: 0 0 6px;">
-          Setiap pengalaman kerja dan tugasnya dibuat <strong>per poin</strong>. Tambah bullet baru dengan tombol <strong>+ Tambah Poin Tugas</strong>.
-        </p>
-
-        ${(cvData.experiences || []).map((exp, idx) => {
-          const tasks = Array.isArray(exp.tasks) ? exp.tasks : cvToLines(exp.tasks);
-          return `
-            <div class="cv-repeater-card">
-              <div class="cv-repeater-card-header">
-                <span style="font-size: 0.75rem; font-weight: 800; color: #818cf8; display: flex; align-items: center; gap: 6px;">
-                  <span class="cv-badge-count">${idx + 1}</span> Pengalaman #${idx + 1}
-                </span>
-                <button type="button" class="btn-remove-item" onclick="removeCvExperience('${exp.id}')">
-                  <i class="fa-solid fa-trash-can"></i> ${(cvData.experiences.length > 1) ? 'Hapus Perusahaan' : 'Kosongkan'}
-                </button>
-              </div>
-
-              <div class="cv-input-group">
-                <label>Nama Perusahaan (PT / CV / Instansi)</label>
-                <input type="text" class="cv-input-text" style="font-weight: 700;" value="${esc(exp.company)}" placeholder="PT Astra Honda Motor" oninput="updateCvExperience('${exp.id}', 'company', this.value)">
-              </div>
-
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                <div class="cv-input-group">
-                  <label>Posisi / Jabatan</label>
-                  <input type="text" class="cv-input-text" value="${esc(exp.role)}" placeholder="Operator Warehouse" oninput="updateCvExperience('${exp.id}', 'role', this.value)">
-                </div>
-                <div class="cv-input-group">
-                  <label>Periode Kerja</label>
-                  <input type="text" class="cv-input-text" value="${esc(exp.period)}" placeholder="Maret 2019 – Februari 2023" oninput="updateCvExperience('${exp.id}', 'period', this.value)">
-                </div>
-              </div>
-
-              <!-- BULLET TASKS PER POINT -->
-              <div style="border-top: 1px dashed #1e293b; padding-top: 8px; margin-top: 4px; display: flex; flex-direction: column; gap: 6px;">
-                <label style="font-size: 0.72rem; font-weight: 700; color: #34d399;">
-                  Poin Tugas / Jobdesk (${tasks.length} Poin):
-                </label>
-                ${tasks.map((task, tIdx) => `
-                  <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="color: #64748b; font-weight: 800; font-size: 0.7rem;">•</span>
-                    <input type="text" class="cv-input-text" style="flex: 1; padding: 6px 8px; font-size: 0.78rem;" value="${esc(task)}" placeholder="Ketik poin tugas ke-${tIdx + 1}..." oninput="updateCvExperienceTask('${exp.id}', ${tIdx}, this.value)">
-                    <button type="button" class="btn-remove-item" style="padding: 5px 7px;" onclick="removeCvExperienceTask('${exp.id}', ${tIdx})" title="Hapus poin ini">
-                      <i class="fa-solid fa-xmark"></i>
-                    </button>
-                  </div>
-                `).join('')}
-
-                <button type="button" style="width: 100%; padding: 6px; border-radius: 8px; background: rgba(16, 185, 129, 0.12); border: 1px dashed rgba(16, 185, 129, 0.4); color: #6ee7b7; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 4px;" onclick="addCvExperienceTask('${exp.id}')">
-                  <i class="fa-solid fa-plus"></i> Tambah Poin Tugas (+)
-                </button>
-              </div>
-            </div>
-          `;
-        }).join('')}
-
-        <button type="button" class="btn-add-repeater" onclick="addCvExperience()">
-          <i class="fa-solid fa-plus"></i> Tambah Pengalaman Perusahaan Lain (+)
-        </button>
-      </div>
-    </div>
-
-    <!-- ACCORDION 5: KEAHLIAN & SERTIFIKAT (PER POIN) -->
-    <div class="cv-accordion-box">
-      <button type="button" class="cv-accordion-toggle ${cvOpenSections.skill ? 'active' : ''}" onclick="toggleCvAccordion('skill')">
-        <span style="display: flex; align-items: center; gap: 10px;">
-          <span style="background: rgba(245,158,11,0.25); color: #fde68a; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;">
-            <i class="fa-solid fa-award"></i>
-          </span>
-          <span>5. Keahlian & Sertifikat (Per Poin)</span>
-        </span>
-        <span class="cv-status-pill ${cvOpenSections.skill ? 'open' : 'closed'}">
-          <i class="fa-solid ${cvOpenSections.skill ? 'fa-chevron-up' : 'fa-chevron-down'}"></i>
-          ${cvOpenSections.skill ? 'Terbuka' : 'Tertutup'}
-        </span>
-      </button>
-
-      <div class="cv-accordion-content" style="display: ${cvOpenSections.skill ? 'flex' : 'none'};">
-        <!-- 1. SOFT SKILL -->
-        <div class="cv-repeater-card">
-          <label style="font-size: 0.74rem; font-weight: 800; color: #818cf8;">
-            Soft Skill (${(cvData.softSkills || []).length} Poin)
-          </label>
-          ${(cvData.softSkills || []).map((item, idx) => `
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="width: 18px; font-size: 0.72rem; font-weight: 800; color: #64748b; text-align: center;">${idx + 1}.</span>
-              <input type="text" class="cv-input-text" style="padding: 6px 8px; font-size: 0.78rem;" value="${esc(item)}" placeholder="Contoh: Disiplin & Tanggung Jawab" oninput="updateCvListItem('softSkills', ${idx}, this.value)">
-              <button type="button" class="btn-remove-item" style="padding: 5px 7px;" onclick="removeCvListItem('softSkills', ${idx})">
-                <i class="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-          `).join('')}
-          <button type="button" class="btn-add-repeater" style="padding: 6px; font-size: 0.72rem;" onclick="addCvListItem('softSkills')">
-            <i class="fa-solid fa-plus"></i> Tambah Soft Skill (+)
+      ${showNavFooter ? `
+        <div class="cv-tab-nav-footer">
+          <button type="button" class="btn-tab-step" onclick="switchCvTab('skill')">
+            <i class="fa-solid fa-arrow-left"></i> 5. Keahlian & Sertifikat
+          </button>
+          <button type="button" class="btn-tab-step primary" onclick="printCv()" style="background: linear-gradient(135deg, #059669, #10b981); border-color: #34d399;">
+            <i class="fa-solid fa-print"></i> Cetak / Simpan PDF
           </button>
         </div>
-
-        <!-- 2. HARD SKILL -->
-        <div class="cv-repeater-card">
-          <label style="font-size: 0.74rem; font-weight: 800; color: #34d399;">
-            Hard Skill (${(cvData.hardSkills || []).length} Poin)
-          </label>
-          ${(cvData.hardSkills || []).map((item, idx) => `
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="width: 18px; font-size: 0.72rem; font-weight: 800; color: #64748b; text-align: center;">${idx + 1}.</span>
-              <input type="text" class="cv-input-text" style="padding: 6px 8px; font-size: 0.78rem;" value="${esc(item)}" placeholder="Contoh: Mengoperasikan Forklift" oninput="updateCvListItem('hardSkills', ${idx}, this.value)">
-              <button type="button" class="btn-remove-item" style="padding: 5px 7px;" onclick="removeCvListItem('hardSkills', ${idx})">
-                <i class="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-          `).join('')}
-          <button type="button" style="width: 100%; padding: 6px; border-radius: 8px; background: rgba(16, 185, 129, 0.12); border: 1px dashed rgba(16, 185, 129, 0.4); color: #6ee7b7; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="addCvListItem('hardSkills')">
-            <i class="fa-solid fa-plus"></i> Tambah Hard Skill (+)
-          </button>
-        </div>
-
-        <!-- 3. SERTIFIKAT -->
-        <div class="cv-repeater-card">
-          <label style="font-size: 0.74rem; font-weight: 800; color: #fbbf24;">
-            <i class="fa-solid fa-award"></i> Sertifikat & Pelatihan (${(cvData.certificates || []).length} Poin)
-          </label>
-          ${(cvData.certificates || []).map((item, idx) => `
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="width: 18px; font-size: 0.72rem; font-weight: 800; color: #64748b; text-align: center;">${idx + 1}.</span>
-              <input type="text" class="cv-input-text" style="padding: 6px 8px; font-size: 0.78rem;" value="${esc(item)}" placeholder="Kosongkan jika tidak ada sertifikat..." oninput="updateCvListItem('certificates', ${idx}, this.value)">
-              <button type="button" class="btn-remove-item" style="padding: 5px 7px;" onclick="removeCvListItem('certificates', ${idx})">
-                <i class="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-          `).join('')}
-          <button type="button" style="width: 100%; padding: 6px; border-radius: 8px; background: rgba(245, 158, 11, 0.12); border: 1px dashed rgba(245, 158, 11, 0.4); color: #fde68a; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="addCvListItem('certificates')">
-            <i class="fa-solid fa-plus"></i> Tambah Sertifikat (+)
-          </button>
-        </div>
-      </div>
+      ` : ''}
     </div>
   `;
+}
+
+function renderCvStudioForm() {
+  const container = document.getElementById('cv-editor-form-root');
+  if (!container) return;
+
+  if (cvActiveMenuTab === 'pribadi') {
+    container.innerHTML = renderSectionPribadi(true);
+  } else if (cvActiveMenuTab === 'tentang') {
+    container.innerHTML = renderSectionTentang(true);
+  } else if (cvActiveMenuTab === 'pendidikan') {
+    container.innerHTML = renderSectionPendidikan(true);
+  } else if (cvActiveMenuTab === 'pengalaman') {
+    container.innerHTML = renderSectionPengalaman(true);
+  } else if (cvActiveMenuTab === 'skill') {
+    container.innerHTML = renderSectionSkill(true);
+  } else if (cvActiveMenuTab === 'template') {
+    container.innerHTML = renderSectionTemplate(true);
+  } else {
+    // 'semua'
+    container.innerHTML = `
+      <div style="font-size: 0.78rem; background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.35); color: #7dd3fc; padding: 10px 14px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+        <span><i class="fa-solid fa-layer-group"></i> Menampilkan semua formulir secara berurutan tanpa tersembunyi.</span>
+        <button type="button" onclick="switchCvTab('pribadi')" style="background: #0284c7; color: #fff; border: none; border-radius: 6px; padding: 4px 10px; font-size: 0.72rem; font-weight: 700; cursor: pointer;">
+          Mode Tab Per Bagian
+        </button>
+      </div>
+      ${renderSectionPribadi(false)}
+      ${renderSectionTentang(false)}
+      ${renderSectionPendidikan(false)}
+      ${renderSectionPengalaman(false)}
+      ${renderSectionSkill(false)}
+      ${renderSectionTemplate(false)}
+    `;
+  }
 }
 
 // -------------------------------------------------------------
@@ -1872,7 +1992,7 @@ function updateCvListItem(field, idx, val) {
 function initCvStudio() {
   if (!isCvStudioInitialized) {
     isCvStudioInitialized = true;
-    renderCvStudioForm();
+    switchCvTab(cvActiveMenuTab || 'pribadi');
     updateCvPreview();
   } else {
     updateCvPreview();
@@ -1881,6 +2001,7 @@ function initCvStudio() {
 
 // Expose globals for HTML onclick bindings
 window.initCvStudio = initCvStudio;
+window.switchCvTab = switchCvTab;
 window.setCvTemplate = setCvTemplate;
 window.setCvZoom = setCvZoom;
 window.zoomCvIn = zoomCvIn;
