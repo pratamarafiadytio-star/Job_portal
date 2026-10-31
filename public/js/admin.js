@@ -156,6 +156,111 @@ window.showAdminToast = function(titleOrMsg, maybeMsg, type = 'success', duratio
 };
 
 // ==============================================================
+// ATTRACTIVE POPUP & AUDIO CHIME SYSTEM (POPUP MENARIK)
+// ==============================================================
+function playPositiveChime() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    // Pleasant 4-note ascending chord: C5, E5, G5, C6
+    const notes = [523.25, 659.25, 783.99, 1046.50];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+      gain.gain.setValueAtTime(0.12, now + idx * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.45);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + idx * 0.08);
+      osc.stop(now + idx * 0.08 + 0.46);
+    });
+  } catch (e) {}
+}
+
+window.showAdminAttractivePopup = function({
+  title = 'Berhasil!',
+  message = 'Operasi berhasil dilakukan.',
+  type = 'success',
+  confirmText = 'Bagus, Lanjutkan',
+  cancelText = null,
+  actionUrl = null,
+  duration = 4500
+}) {
+  return new Promise((resolve) => {
+    let overlay = document.getElementById('admin-attractive-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'admin-attractive-overlay';
+      overlay.className = 'admin-attractive-overlay';
+      document.body.appendChild(overlay);
+    }
+
+    playPositiveChime();
+
+    const icons = {
+      success: '<i class="fa-solid fa-check"></i>',
+      scheduled: '<i class="fa-solid fa-clock"></i>',
+      info: '<i class="fa-solid fa-bell"></i>'
+    };
+
+    overlay.innerHTML = `
+      <div class="admin-attractive-card">
+        <div class="admin-attractive-glow"></div>
+        <div class="admin-attractive-icon-box ${type}">
+          ${icons[type] || icons.success}
+        </div>
+        <div class="admin-attractive-title">${safeEscapeHtml(title)}</div>
+        <div class="admin-attractive-desc">${safeEscapeHtml(message).replace(/\\n/g, '<br>')}</div>
+        <div class="admin-attractive-actions">
+          ${cancelText ? `<button type="button" class="admin-attractive-btn-secondary" id="attr-btn-cancel">${safeEscapeHtml(cancelText)}</button>` : ''}
+          <button type="button" class="admin-attractive-btn-primary" id="attr-btn-confirm">
+            <span>${safeEscapeHtml(confirmText)}</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    `;
+
+    overlay.classList.add('active');
+
+    let timer = null;
+    const cleanup = (res) => {
+      if (timer) clearTimeout(timer);
+      overlay.classList.remove('active');
+      setTimeout(() => {
+        if (overlay) overlay.innerHTML = '';
+      }, 300);
+      resolve(res);
+    };
+
+    const btnConfirm = overlay.querySelector('#attr-btn-confirm');
+    const btnCancel = overlay.querySelector('#attr-btn-cancel');
+
+    if (btnConfirm) {
+      btnConfirm.onclick = () => {
+        if (actionUrl) window.open(actionUrl, '_blank');
+        cleanup(true);
+      };
+    }
+    if (btnCancel) {
+      btnCancel.onclick = () => cleanup(false);
+    }
+
+    overlay.onclick = (e) => {
+      if (e.target === overlay) cleanup(false);
+    };
+
+    if (duration > 0) {
+      timer = setTimeout(() => cleanup(true), duration);
+    }
+  });
+};
+
+// ==============================================================
 // MODERN CONFIRM DIALOG ENGINE (PROMISE BASED)
 // ==============================================================
 window.showAdminConfirm = function({ title = 'Konfirmasi', message = 'Lanjutkan tindakan?', confirmText = 'Ya, Lanjutkan', cancelText = 'Batal', type = 'danger' }) {
@@ -1564,9 +1669,20 @@ function setupJobFormSubmit() {
 
     if (saved) {
       if (jobStatus === 'scheduled') {
-        alert(`Berhasil! Lowongan telah dijadwalkan dan akan otomatis terbit aktif ke publik pada ${formatScheduleDisplay(scheduledAtVal)}.`);
+        showAdminAttractivePopup({
+          title: 'Lowongan Dijadwalkan!',
+          message: `Lowongan "${title}" (${company}) telah dijadwalkan dan akan otomatis terbit ke publik pada ${formatScheduleDisplay(scheduledAtVal)}.`,
+          type: 'scheduled',
+          confirmText: 'Bagus, Selesai'
+        });
       } else {
-        alert('Berhasil! Poster lowongan dan saluran kontak telah tersimpan ke Supabase Cloud.');
+        showAdminAttractivePopup({
+          title: 'Berhasil Dipublikasikan!',
+          message: `Poster lowongan "${title}" (${company}) dan saluran kontak telah tersimpan & tayang ke publik.`,
+          type: 'success',
+          confirmText: 'Lihat Lowongan di Web',
+          actionUrl: './'
+        });
       }
       form.reset();
       currentSelectedFileBase64 = '';
@@ -1578,7 +1694,7 @@ function setupJobFormSubmit() {
       const manageLink = document.querySelector('a[href="#manage-jobs"]');
       if (manageLink) manageLink.click();
     } else {
-      alert('Info: Silakan pastikan koneksi Supabase Cloud terhubung.');
+      showAdminToast('Periksa Koneksi', 'Silakan pastikan koneksi database Supabase terhubung.', 'warning');
     }
   });
 }
@@ -2204,17 +2320,10 @@ window.setAdminJobsStatusFilter = function(status) {
   const pills = document.querySelectorAll('.admin-filter-status-group .btn-filter-pill');
   pills.forEach(p => {
     const isTarget = p.getAttribute('data-filter') === adminJobsStatusFilter;
-    if (isTarget) {
-      p.classList.add('active');
-      p.style.background = '#2563eb';
-      p.style.color = '#ffffff';
-      p.style.fontWeight = '700';
-    } else {
-      p.classList.remove('active');
-      p.style.background = 'transparent';
-      p.style.color = '#475569';
-      p.style.fontWeight = '600';
-    }
+    p.classList.toggle('active', isTarget);
+    p.style.background = '';
+    p.style.color = '';
+    p.style.fontWeight = '';
   });
   renderAdminJobsTable();
 };
@@ -2387,15 +2496,15 @@ function renderAdminJobsTable() {
 }
 
 // -------------------------------------------------------------
-// LOAD ADMIN JOBS (High-Speed Single Fetch & Cached State)
+// LOAD ADMIN JOBS (High-Speed Parallel Fetch & SWR Local Cache)
 // -------------------------------------------------------------
 async function loadAdminJobs(forceRefresh = false) {
   const tbody = document.getElementById('admin-jobs-tbody');
 
-  // Check sessionStorage cache for instant display
+  // 1. Instant Cache Display (SWR from localStorage - 0ms rendering)
   if (!forceRefresh) {
     try {
-      const cached = safeSessionGet('kerja_admin_jobs_cache');
+      const cached = safeLocalGet('kerja_admin_jobs_cache_v3') || safeSessionGet('kerja_admin_jobs_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -2417,31 +2526,40 @@ async function loadAdminJobs(forceRefresh = false) {
   let jobs = null;
 
   try {
-    // 1. Fast-track local API or cached server
-    try {
+    // 2. High-Speed Concurrent Race: Query local API AND Supabase Cloud concurrently
+    const localApiPromise = (async () => {
       const { ok, data } = await safeFetchJson(getApiEndpoint('/api/jobs?status=all'));
       if (ok && data && data.success && Array.isArray(data.data) && data.data.length > 0) {
-        jobs = data.data;
+        return data.data;
       }
-    } catch (e) {}
+      throw new Error('Local API returned no jobs');
+    })();
 
-    // 2. Query Supabase Cloud if local query yielded nothing or for sync
-    if ((!jobs || jobs.length === 0) && sbClient) {
-      try {
-        const fetchPromise = sbClient.from('jobs').select('*').order('id', { ascending: false });
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000));
-        const res = await Promise.race([fetchPromise, timeoutPromise]);
-        if (res && !res.error && Array.isArray(res.data) && res.data.length > 0) {
-          jobs = res.data;
-        }
-      } catch (e) {
-        // silent fallback to existing adminJobs cache
+    const supabasePromise = (async () => {
+      if (!sbClient) throw new Error('Supabase client not initialized');
+      const fetchPromise = sbClient.from('jobs').select('*').order('id', { ascending: false });
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4500));
+      const res = await Promise.race([fetchPromise, timeoutPromise]);
+      if (res && !res.error && Array.isArray(res.data) && res.data.length > 0) {
+        return res.data;
       }
+      throw new Error('Supabase returned no jobs or error');
+    })();
+
+    try {
+      // Race whichever is fastest!
+      jobs = await Promise.any([localApiPromise, supabasePromise]);
+    } catch (errRace) {
+      // If Promise.any failed, wait for whichever might still succeed
+      try {
+        jobs = await localApiPromise.catch(() => null) || await supabasePromise.catch(() => null);
+      } catch (e) {}
     }
 
-    if (jobs) {
+    if (jobs && Array.isArray(jobs) && jobs.length > 0) {
       adminJobs = jobs.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
       try {
+        safeLocalSet('kerja_admin_jobs_cache_v3', JSON.stringify(adminJobs));
         safeSessionSet('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
       } catch (e) {}
     } else if (!adminJobs) {
@@ -2889,7 +3007,14 @@ function setupEditFormSubmit() {
     submitBtn.innerHTML = origText;
     closeEditModal();
     loadAdminJobs(true);
-    alert(finalStatus === 'scheduled' ? `Lowongan berhasil dijadwalkan untuk terbit otomatis pada ${formatScheduleDisplay(scheduledAtVal)}!` : 'Perubahan lowongan & saluran kontak berhasil disimpan!');
+    showAdminAttractivePopup({
+      title: finalStatus === 'scheduled' ? 'Lowongan Dijadwalkan!' : 'Perubahan Tersimpan!',
+      message: finalStatus === 'scheduled'
+        ? `Lowongan "${title}" (${company}) telah dijadwalkan untuk terbit otomatis pada ${formatScheduleDisplay(scheduledAtVal)}.`
+        : `Data lowongan "${title}" (${company}) berhasil diperbarui ke database.`,
+      type: finalStatus === 'scheduled' ? 'scheduled' : 'success',
+      confirmText: 'Bagus, Selesai'
+    });
   });
 }
 
@@ -6851,16 +6976,28 @@ window.publishJobFromStudio = async function() {
 
     if (saved) {
       safeSessionRemove('kerja_public_jobs_cache');
-      await loadAdminJobs();
+      loadAdminJobs();
       loadDashboardData();
       renderOfficialJobsGrid();
 
-      if (studioStatus === 'scheduled') {
-        showAdminToast('🕒 Lowongan Dijadwalkan!', `Lowongan "${updatedTitle}" (${updatedComp}) akan OTOMATIS TERBIT ke portal pengunjung pada ${studioSchedVal}.`, 'success');
-      } else {
-        showAdminToast('⚡ GAS BERHASIL!', `Lowongan "${updatedTitle}" (${updatedComp}) telah TERBIT di portal dengan ${currentFlyerSlides.length} gambar flyer (Slider Otomatis aktif)!`, 'success');
-      }
       closePosterStudioModal();
+
+      if (studioStatus === 'scheduled') {
+        showAdminAttractivePopup({
+          title: 'Lowongan Dijadwalkan!',
+          message: `Lowongan "${updatedTitle}" (${updatedComp}) berhasil disimpan dan akan otomatis tayang pada ${studioSchedVal}.`,
+          type: 'scheduled',
+          confirmText: 'Bagus, Mengerti'
+        });
+      } else {
+        showAdminAttractivePopup({
+          title: 'Berhasil Diterbitkan!',
+          message: `Lowongan "${updatedTitle}" (${updatedComp}) telah aktif di portal pengunjung dengan ${currentFlyerSlides.length} gambar flyer.`,
+          type: 'success',
+          confirmText: 'Lihat Lowongan di Web',
+          actionUrl: './'
+        });
+      }
     } else {
       alert('Gagal menerbitkan lowongan: ' + (errorMsg || 'Periksa status koneksi database/server.'));
     }
@@ -6970,39 +7107,7 @@ window.savePosterChangesToJob = async function() {
         updated_at: new Date().toISOString()
       };
 
-      const supabaseUpdatePayload = prepareJobPayloadForSupabase(updatePayload);
-
-      let saved = false;
-      if (sbClient) {
-        try {
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000));
-          const updPromise = sbClient.from('jobs').update(supabaseUpdatePayload).eq('id', jobId);
-          const { error } = await Promise.race([updPromise, timeoutPromise]);
-          if (!error) saved = true;
-          else console.warn('Supabase update warning:', error);
-        } catch (e) {
-          console.warn('Supabase poster save error:', e);
-        }
-      }
-
-      try {
-        const token = getAdminToken();
-        const apiPayload = {
-          ...updatePayload,
-          website: updatedQr || (contacts && contacts.website) || '',
-          website_url: updatedQr || (contacts && contacts.website) || ''
-        };
-        const res = await safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}`), {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify(apiPayload)
-        });
-        if (res.ok) saved = true;
-      } catch (e) {}
-
+      // 1. Instant Optimistic UI Update (0ms lag!)
       const idx = adminJobs.findIndex(j => Number(j.id) === jobId);
       if (idx >= 0) {
         adminJobs[idx] = {
@@ -7013,13 +7118,51 @@ window.savePosterChangesToJob = async function() {
           benefits: benList
         };
         try {
+          safeLocalSet('kerja_admin_jobs_cache_v3', JSON.stringify(adminJobs));
           safeSessionSet('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
         } catch (e) {}
         renderAdminJobsTable();
       }
 
-      showAdminToast('Berhasil Disimpan!', `Perubahan lowongan "${updatedTitle || 'Lowongan'}" (${currentFlyerSlides.length} slide) berhasil diperbarui di Supabase Cloud.`, 'success');
+      // 2. High-Speed Parallel Database Write (Concurrently to Supabase & Backend API)
+      const supabaseUpdatePayload = prepareJobPayloadForSupabase(updatePayload);
+      const token = getAdminToken();
+      const apiPayload = {
+        ...updatePayload,
+        website: updatedQr || (contacts && contacts.website) || '',
+        website_url: updatedQr || (contacts && contacts.website) || ''
+      };
+
+      const tasks = [];
+      if (sbClient) {
+        tasks.push(
+          Promise.race([
+            sbClient.from('jobs').update(supabaseUpdatePayload).eq('id', jobId),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4500))
+          ]).catch(e => console.warn('Supabase update background error:', e))
+        );
+      }
+      tasks.push(
+        safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}`), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(apiPayload)
+        }).catch(e => console.warn('Local API update background error:', e))
+      );
+
+      // Fire in parallel
+      await Promise.allSettled(tasks);
+
       closePosterStudioModal();
+      showAdminAttractivePopup({
+        title: 'Perubahan Tersimpan!',
+        message: `Poster dan data lowongan "${updatedTitle || 'Lowongan'}" (${currentFlyerSlides.length} slide) berhasil diperbarui ke database.`,
+        type: 'success',
+        confirmText: 'Bagus, Selesai'
+      });
     } else {
       const uploadForm = document.getElementById('form-upload-job');
       if (uploadForm) {
@@ -7064,8 +7207,13 @@ window.savePosterChangesToJob = async function() {
         if (uploadNav) uploadNav.click();
       }
 
-      showAdminToast('Tersimpan ke Formulir!', 'Seluruh teks yang Anda edit & gambar poster terbaru telah disinkronkan ke formulir upload.', 'success');
       closePosterStudioModal();
+      showAdminAttractivePopup({
+        title: 'Tersimpan ke Formulir!',
+        message: 'Seluruh teks yang Anda edit & gambar poster terbaru telah disinkronkan ke formulir upload.',
+        type: 'info',
+        confirmText: 'Lanjutkan Upload'
+      });
     }
   } catch (err) {
     console.error('savePosterChangesToJob error:', err);

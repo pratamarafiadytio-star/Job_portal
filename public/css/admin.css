@@ -2602,32 +2602,65 @@ body {
   color: #166534;
 }
 
-/* Poster Studio Modal */
+/* Poster Studio Modal - Fixed Header & Clean Scroll */
 .poster-studio-box {
-  max-width: 980px;
+  max-width: 1040px;
   width: 95%;
-  max-height: 92vh;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(226, 232, 240, 0.9);
+}
+
+.poster-studio-header {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 50;
+  background: #ffffff !important;
+  border-bottom: 1.5px solid #e2e8f0;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  padding: 16px 24px;
+}
+
+.poster-studio-box .admin-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 22px 24px;
+  max-height: calc(90vh - 80px);
 }
 
 .poster-studio-layout {
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 380px 1fr;
   gap: 24px;
   align-items: start;
+}
+
+@media (min-width: 861px) {
+  .poster-preview-col {
+    position: sticky;
+    top: 0;
+    align-self: start;
+  }
 }
 
 @media (max-width: 860px) {
   .poster-studio-layout {
     grid-template-columns: 1fr;
   }
+  .poster-preview-col {
+    position: static;
+  }
 }
 
 .poster-preview-col {
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -2638,8 +2671,8 @@ body {
   max-width: 320px;
   height: auto;
   aspect-ratio: 4 / 5;
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.05);
   display: block;
   margin: 0 auto;
   background: #ffffff;
@@ -2649,9 +2682,63 @@ body {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-height: 75vh;
-  overflow-y: auto;
-  padding-right: 6px;
+  padding-right: 4px;
+}
+
+/* ==============================================================
+   MODERN HIGH-END FILTER STATUS GROUP (TAB FILTER KEREN)
+   ============================================================== */
+.admin-filter-status-group {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 9999px;
+  padding: 4px;
+  gap: 4px;
+  box-shadow: inset 0 2px 4px rgba(15, 23, 42, 0.05);
+}
+
+.admin-filter-status-group .btn-filter-pill {
+  padding: 7px 16px;
+  border: none;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #475569;
+  background: transparent;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  letter-spacing: -0.01em;
+}
+
+.admin-filter-status-group .btn-filter-pill i {
+  font-size: 0.88rem;
+  transition: transform 0.2s ease;
+}
+
+.admin-filter-status-group .btn-filter-pill:hover {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.admin-filter-status-group .btn-filter-pill:hover i {
+  transform: scale(1.15);
+}
+
+.admin-filter-status-group .btn-filter-pill.active {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px);
+}
+
+.admin-filter-status-group .btn-filter-pill.active i {
+  color: #ffffff !important;
 }
 
 .poster-control-card {
@@ -3966,25 +4053,176 @@ body {
   font-weight: 700;
 }
 
-.btn-filter-pill {
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-.btn-filter-pill:hover {
-  background: rgba(37, 99, 235, 0.1) !important;
-  color: #1d4ed8 !important;
-}
-
-.btn-filter-pill.active {
-  background: #2563eb !important;
-  color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+.admin-table-toolbar {
+  padding: 14px 20px;
+  background: #ffffff;
+  border-bottom: 1.5px solid #e2e8f0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .admin-table-toolbar input:focus {
   border-color: #2563eb !important;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
   outline: none;
+}
+
+/* ==============================================================
+   ATTRACTIVE CELEBRATION / POPUP DIALOG (POPUP MENARIK)
+   ============================================================== */
+.admin-attractive-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-attractive-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.admin-attractive-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 28px;
+  width: 100%;
+  max-width: 460px;
+  padding: 34px 28px 26px;
+  text-align: center;
+  box-shadow: 0 30px 70px -15px rgba(15, 23, 42, 0.38), 0 0 0 1px rgba(226, 232, 240, 0.8), 0 0 50px rgba(59, 130, 246, 0.18);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  transform: scale(0.85) translateY(20px);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+  overflow: hidden;
+}
+
+.admin-attractive-overlay.active .admin-attractive-card {
+  transform: scale(1) translateY(0);
+}
+
+.admin-attractive-glow {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.22) 0%, rgba(16, 185, 129, 0.15) 50%, transparent 70%);
+  filter: blur(20px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.admin-attractive-icon-box {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 26px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  z-index: 1;
+  box-shadow: 0 12px 28px -6px rgba(16, 185, 129, 0.4);
+  animation: popupIconBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes popupIconBounce {
+  0% { transform: scale(0) rotate(-20deg); }
+  60% { transform: scale(1.15) rotate(5deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.admin-attractive-icon-box.success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  box-shadow: 0 14px 30px -6px rgba(16, 185, 129, 0.45);
+}
+
+.admin-attractive-icon-box.scheduled {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  box-shadow: 0 14px 30px -6px rgba(2, 132, 199, 0.45);
+}
+
+.admin-attractive-icon-box.info {
+  background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+  color: #ffffff;
+  box-shadow: 0 14px 30px -6px rgba(79, 70, 229, 0.45);
+}
+
+.admin-attractive-title {
+  font-family: var(--font-heading);
+  font-size: 1.38rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 8px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.admin-attractive-desc {
+  font-size: 0.92rem;
+  color: #475569;
+  line-height: 1.55;
+  margin-bottom: 22px;
+}
+
+.admin-attractive-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.admin-attractive-btn-primary {
+  padding: 11px 24px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.admin-attractive-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.45);
+}
+
+.admin-attractive-btn-secondary {
+  padding: 11px 20px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-attractive-btn-secondary:hover {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 

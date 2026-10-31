@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
   
-  <link rel="stylesheet" href="./css/admin.css?v=20261031_09">
+  <link rel="stylesheet" href="./css/admin.css?v=20261031_12">
   <!-- Supabase JS Client (Self-Hosted Local Vendor Asset) -->
   <script src="./vendor/supabase/supabase.min.js"></script>
   <!-- QRCode.js (Self-Hosted Local Vendor Asset) -->
@@ -107,14 +107,12 @@
           <a href="#sosmed-generator">
             <i class="fa-solid fa-globe" style="color: #0284c7;"></i>
             <span>Scout Loker Asli Web</span>
-            <span class="menu-pill-sparkle" style="background: linear-gradient(135deg, #0284c7, #10b981); color: white;">WEB ASLI</span>
           </a>
         </li>
         <li class="menu-item">
           <a href="#flyer-themes">
             <i class="fa-solid fa-swatchbook" style="color: #2563eb;"></i>
             <span>Tema Background Flyer</span>
-            <span class="menu-pill-sparkle" style="background: #2563eb; color: white;">FITUR BARU</span>
           </a>
         </li>
         <li class="menu-item">
@@ -127,45 +125,9 @@
           <a href="#settings-cv">
             <i class="fa-brands fa-whatsapp" style="color: #25d366;"></i>
             <span>Pesan CV WhatsApp</span>
-            <span class="menu-pill-sparkle" style="background: #25d366; color: white;">PUBLIK</span>
           </a>
         </li>
       </ul>
-
-      <!-- SIDEBAR DECORATIVE WIDGET (Corak Estetik Modern Anti-Ngantuk) -->
-      <div class="sidebar-decorative-wrap">
-        <div class="sidebar-corak-card">
-          <div class="corak-mesh-glow"></div>
-          <div class="corak-header">
-            <div class="live-pulse-box">
-              <span class="pulse-dot"></span>
-              <span class="pulse-wave"></span>
-            </div>
-            <span class="corak-title">Supabase Cloud</span>
-            <span class="corak-tag">ACTIVE</span>
-          </div>
-          <p class="corak-sub">Realtime Database & Multi-channel Contact Engine Aktif.</p>
-          <div class="corak-badges">
-            <span class="corak-pill"><i class="fa-solid fa-lock"></i> Fitur Lock Siap</span>
-            <span class="corak-pill"><i class="fa-brands fa-whatsapp"></i> Multi-WA Ready</span>
-          </div>
-          <div class="corak-tip">
-            <i class="fa-solid fa-lightbulb" style="color: #fbbf24;"></i>
-            <span>Kunci lowongan expired agar pelamar tahu posisi sudah ditutup.</span>
-          </div>
-        </div>
-
-        <!-- SVG Tech Geometric Pattern Accent -->
-        <div class="sidebar-svg-watermark">
-          <svg viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 50 Q 50 10, 100 50 T 200 50" stroke="rgba(129, 140, 248, 0.15)" stroke-width="2" fill="none"/>
-            <path d="M0 35 Q 50 -5, 100 35 T 200 35" stroke="rgba(168, 85, 247, 0.12)" stroke-width="2" fill="none"/>
-            <circle cx="20" cy="40" r="3" fill="rgba(129, 140, 248, 0.25)"/>
-            <circle cx="100" cy="30" r="2.5" fill="rgba(168, 85, 247, 0.25)"/>
-            <circle cx="180" cy="45" r="3.5" fill="rgba(16, 185, 129, 0.25)"/>
-          </svg>
-        </div>
-      </div>
 
       <div class="sidebar-footer">
         <a href="./" target="_blank" class="btn-public-site" style="margin-bottom: 8px;">
@@ -823,11 +785,19 @@
 
               <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <!-- Filter Status Pills -->
-                <div class="admin-filter-status-group" style="display: inline-flex; background: #e2e8f0; padding: 3px; border-radius: 10px; gap: 2px;">
-                  <button type="button" class="btn-filter-pill active" id="filter-pill-all" data-filter="all" onclick="setAdminJobsStatusFilter('all')" style="padding: 6px 12px; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; background: #2563eb; color: #ffffff;">Semua</button>
-                  <button type="button" class="btn-filter-pill" id="filter-pill-active" data-filter="active" onclick="setAdminJobsStatusFilter('active')" style="padding: 6px 12px; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; background: transparent; color: #475569;">🟢 Aktif</button>
-                  <button type="button" class="btn-filter-pill" id="filter-pill-scheduled" data-filter="scheduled" onclick="setAdminJobsStatusFilter('scheduled')" style="padding: 6px 12px; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; background: transparent; color: #475569;">🕒 Terjadwal</button>
-                  <button type="button" class="btn-filter-pill" id="filter-pill-expired" data-filter="expired" onclick="setAdminJobsStatusFilter('expired')" style="padding: 6px 12px; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; background: transparent; color: #475569;">🔒 Expired</button>
+                <div class="admin-filter-status-group">
+                  <button type="button" class="btn-filter-pill active" id="filter-pill-all" data-filter="all" onclick="setAdminJobsStatusFilter('all')">
+                    <i class="fa-solid fa-layer-group"></i> Semua
+                  </button>
+                  <button type="button" class="btn-filter-pill" id="filter-pill-active" data-filter="active" onclick="setAdminJobsStatusFilter('active')">
+                    <i class="fa-solid fa-circle-check" style="color: #10b981;"></i> Aktif
+                  </button>
+                  <button type="button" class="btn-filter-pill" id="filter-pill-scheduled" data-filter="scheduled" onclick="setAdminJobsStatusFilter('scheduled')">
+                    <i class="fa-solid fa-clock" style="color: #0284c7;"></i> Terjadwal
+                  </button>
+                  <button type="button" class="btn-filter-pill" id="filter-pill-expired" data-filter="expired" onclick="setAdminJobsStatusFilter('expired')">
+                    <i class="fa-solid fa-lock" style="color: #f59e0b;"></i> Expired
+                  </button>
                 </div>
 
                 <!-- Filter Kategori Dropdown -->
@@ -1617,10 +1587,10 @@
   <!-- ============================================================== -->
   <div class="admin-modal-overlay" id="poster-studio-modal">
     <div class="admin-modal-box poster-studio-box">
-      <div class="admin-modal-header" style="background: linear-gradient(135deg, rgba(79,70,229,0.08), rgba(16,185,129,0.08)); border-bottom: 1px solid rgba(226, 232, 240, 0.9); display: flex; align-items: center; justify-content: space-between; padding: 18px 24px;">
+      <div class="admin-modal-header poster-studio-header">
         <div>
           <h3 style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-            <i class="fa-solid fa-palette" style="color: #4f46e5;"></i> Studio Gambar Poster Lowongan Otomatis
+            <i class="fa-solid fa-palette" style="color: #4f46e5;"></i> Studio Gambar Poster Lowongan
           </h3>
           <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
             Informasi lowongan dari web otomatis dirender ke gambar flyer profesional siap download & diposting ke media sosial!
@@ -1628,9 +1598,9 @@
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
           <button type="button" class="btn btn-sm btn-primary" id="btn-studio-publish-direct" onclick="publishJobFromStudio()" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 800; border-radius: 10px; padding: 8px 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35); color: #fff; display: flex; align-items: center; gap: 6px;">
-            <i class="fa-solid fa-bolt"></i> Terbitkan ke Portal
+            <i class="fa-solid fa-paper-plane"></i> Terbitkan ke Portal
           </button>
-          <button type="button" class="btn btn-sm btn-primary" onclick="savePosterChangesToJob()" style="background: linear-gradient(135deg, #4f46e5, #6366f1); border: none; font-weight: 800; border-radius: 10px; padding: 8px 16px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+          <button type="button" class="btn btn-sm btn-primary" onclick="savePosterChangesToJob()" style="background: linear-gradient(135deg, #4f46e5, #6366f1); border: none; font-weight: 800; border-radius: 10px; padding: 8px 16px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); display: flex; align-items: center; gap: 6px;">
             <i class="fa-solid fa-floppy-disk"></i> Simpan
           </button>
           <button class="btn-table" onclick="closePosterStudioModal()" style="border-radius: 50%;"><i class="fa-solid fa-xmark"></i></button>
@@ -1695,14 +1665,14 @@
                 </div>
               </div>
 
-              <!-- Tombol Terbitkan Semua Slide ke Portal (Gas!) -->
+              <!-- Tombol Terbitkan Semua Slide ke Portal -->
               <button type="button" class="btn btn-primary" id="btn-publish-all-slides" onclick="publishJobFromStudio()" style="padding: 13px; font-weight: 800; font-size: 0.95rem; background: linear-gradient(135deg, #059669, #10b981); border: none; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4); color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
-                <i class="fa-solid fa-bolt" id="btn-publish-icon"></i> <span id="btn-publish-text">Terbitkan ke Portal Sekarang (Gas!) 🚀</span>
+                <i class="fa-solid fa-paper-plane" id="btn-publish-icon"></i> <span id="btn-publish-text">Terbitkan ke Portal</span>
               </button>
 
-              <!-- Tombol Simpan Perubahan ke Lowongan (Featured & Glowing) -->
+              <!-- Tombol Simpan Perubahan ke Lowongan -->
               <button type="button" class="btn btn-primary" id="btn-save-poster-changes" onclick="savePosterChangesToJob()" style="padding: 12px; font-weight: 800; font-size: 0.92rem; background: linear-gradient(135deg, #1d4ed8, #2563eb); border: none; box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35); color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
-                <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan ke Lowongan 💾
+                <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan
               </button>
 
               <button type="button" class="btn btn-primary" id="btn-download-poster-png" style="padding: 11px; font-weight: 800; font-size: 0.9rem; background: #334155; border: none; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
@@ -1920,6 +1890,6 @@
     </div>
   </div>
 
-  <script src="./js/admin.js?v=20261031_11"></script>
+  <script src="./js/admin.js?v=20261031_12"></script>
 </body>
 </html>
