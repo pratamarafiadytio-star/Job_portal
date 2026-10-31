@@ -4880,7 +4880,8 @@ window.publishOfficialJobToDatabase = async function(index) {
 // POSTER CANVAS STUDIO LOGIC (FLUX-STYLE FLYER GENERATOR)
 // -------------------------------------------------------------
 const MASCOT_IMAGES = {
-  factory: './uploads/factory_operator_mascot.jpg',
+  chocomory: './uploads/chocomory_mascot.png',
+  factory: './uploads/chocomory_mascot.png',
   corporate: './uploads/corporate_worker_mascot.jpg'
 };
 
@@ -4888,13 +4889,23 @@ const loadedMascotCache = {};
 
 function preloadMascot(type) {
   const src = MASCOT_IMAGES[type];
-  if (!src || loadedMascotCache[type]) return;
+  if (!src) return;
+  if (loadedMascotCache[type] && loadedMascotCache[type].complete && loadedMascotCache[type].naturalWidth > 0) return;
   const img = new Image();
   img.crossOrigin = 'anonymous';
+  img.onload = () => { 
+    loadedMascotCache[type] = img;
+    if (document.getElementById('poster-studio-modal')?.classList.contains('active')) {
+      renderPosterCanvas();
+    }
+  };
   img.src = src;
-  img.onload = () => { loadedMascotCache[type] = img; };
+  if (img.complete && img.naturalWidth > 0) {
+    loadedMascotCache[type] = img;
+  }
 }
 
+preloadMascot('chocomory');
 preloadMascot('factory');
 preloadMascot('corporate');
 
@@ -5809,6 +5820,16 @@ window.closePosterStudioModal = function() {
 // VECTOR MEGAPHONE CHARACTER ILLUSTRATION (EXACT REFERENCE STYLE)
 // -------------------------------------------------------------
 function drawMegaphoneMascotIllustration(ctx, x, y, w, h) {
+  const mascotImg = loadedMascotCache['chocomory'] || loadedMascotCache['factory'];
+  if (mascotImg && mascotImg.complete && mascotImg.naturalWidth > 0) {
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(mascotImg, x, y, w, h);
+    ctx.restore();
+    return;
+  }
+
   ctx.save();
   ctx.translate(x, y);
   const scale = Math.min(w / 400, h / 500);
@@ -6111,12 +6132,16 @@ function renderPosterCanvas() {
     ctx.fillStyle = '#ffffff';
     ctx.fillText(displayTitle, badgeX + 22, badgeY + Math.round(badgeH / 2) + Math.round(roleFontSize * 0.35));
 
-    // 5. VECTOR MEGAPHONE MASCOT ILLUSTRATION (RIGHT)
+    // 5. EXACT REFERENCE MEGAPHONE MASCOT IMAGE (RIGHT)
     if (drawMascotOnCustom && hasMascot) {
       if (selectedMascot === 'corporate' && loadedMascotCache['corporate']) {
         drawMascotOnCanvas(ctx, loadedMascotCache['corporate'], 640, 180, 390, 500);
       } else {
-        drawMegaphoneMascotIllustration(ctx, 640, 180, 390, 500);
+        const mascotW = 440;
+        const mascotH = Math.round(mascotW * (225 / 222)); // ~446
+        const mascotX = width - mascotW - 22; // Flush with inner card margin
+        const mascotY = 175;
+        drawMegaphoneMascotIllustration(ctx, mascotX, mascotY, mascotW, mascotH);
       }
     }
 
@@ -6139,7 +6164,7 @@ function renderPosterCanvas() {
         ]);
 
     let curItemY = kualY + 40;
-    const maxKualW = (drawMascotOnCustom && hasMascot) ? 540 : 960;
+    const maxKualW = (drawMascotOnCustom && hasMascot) ? 500 : 960;
     const itemFontSize = activeList.length > 6 ? 20 : 21;
     const itemLineH = activeList.length > 6 ? 30 : 33;
     ctx.font = `600 ${itemFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
