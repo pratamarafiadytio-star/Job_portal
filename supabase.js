@@ -122,7 +122,14 @@ const localStore = {
     if (status && status !== 'all') {
       jobs = jobs.filter(j => j.status === status);
     } else if (!status) {
-      jobs = jobs.filter(j => ['active', 'expired', 'closed'].includes(j.status));
+      const now = Date.now();
+      jobs = jobs.filter(j => {
+        if (['active', 'expired', 'closed'].includes(j.status)) return true;
+        if (j.status === 'scheduled' && j.scheduled_at) {
+          return new Date(j.scheduled_at).getTime() <= now;
+        }
+        return false;
+      });
     }
     if (category && category !== 'Semua') {
       jobs = jobs.filter(j => j.category === category);
@@ -185,7 +192,7 @@ const localStore = {
       poster_image: jobData.poster_image || '',
       cover_image: jobData.cover_image || '',
       flyer_images: Array.isArray(jobData.flyer_images) ? jobData.flyer_images : [],
-      description: jobData.description,
+      description: jobData.description || '',
       requirements: Array.isArray(jobData.requirements) ? jobData.requirements : [],
       responsibilities: Array.isArray(jobData.responsibilities) ? jobData.responsibilities : [],
       benefits: Array.isArray(jobData.benefits) ? jobData.benefits : [],
@@ -193,6 +200,7 @@ const localStore = {
       contact_value: jobData.contact_value || '',
       deadline: jobData.deadline || '',
       status: jobData.status || 'active',
+      scheduled_at: jobData.scheduled_at || null,
       is_featured: !!jobData.is_featured,
       views_count: 0,
       created_at: new Date().toISOString()
@@ -478,7 +486,7 @@ const db = {
         poster_image: jobData.poster_image || '',
         cover_image: jobData.cover_image || '',
         flyer_images: Array.isArray(jobData.flyer_images) ? jobData.flyer_images : [],
-        description: jobData.description,
+        description: jobData.description || '',
         requirements: jobData.requirements || [],
         responsibilities: jobData.responsibilities || [],
         benefits: jobData.benefits || [],
@@ -494,19 +502,28 @@ const db = {
         ),
         deadline: jobData.deadline || '',
         status: jobData.status || 'active',
+        scheduled_at: jobData.scheduled_at || null,
         is_featured: !!jobData.is_featured,
         views_count: 0
       };
 
-      const { data, error } = await supabase.from('jobs').insert([payload]).select().single();
+      let { data, error } = await supabase.from('jobs').insert([payload]).select().single();
+      if (error && error.message && error.message.includes('scheduled_at')) {
+        const payloadNoSched = { ...payload };
+        delete payloadNoSched.scheduled_at;
+        const retry = await supabase.from('jobs').insert([payloadNoSched]).select().single();
+        data = retry.data;
+        error = retry.error;
+      }
       if (error) {
         console.warn('⚠️ Supabase insert error, saving to local storage:', error.message);
         return localStore.addJob(jobData);
       }
 
-      // Also sync to local storage as backup
-      localStore.addJob(jobData);
-      return data;
+      // Also sync to local storage as backup (preserving scheduled_at)
+      const localJob = { ...jobData, id: data.id, scheduled_at: jobData.scheduled_at || null };
+      localStore.addJob(localJob);
+      return { ...data, scheduled_at: jobData.scheduled_at || null };
     } catch (err) {
       console.warn('⚠️ Supabase insert exception, using local storage:', err.message);
       return localStore.addJob(jobData);
@@ -524,7 +541,7 @@ const db = {
         'salary_display', 'experience_level', 'poster_image', 'cover_image',
         'flyer_images', 'description', 'requirements', 'responsibilities',
         'benefits', 'contact_type', 'contact_value', 'deadline', 'status',
-        'is_featured', 'views_count'
+        'scheduled_at', 'is_featured', 'views_count'
       ];
 
       const payload = { updated_at: new Date().toISOString() };
@@ -542,7 +559,14 @@ const db = {
         });
       }
 
-      const { data, error } = await supabase.from('jobs').update(payload).eq('id', Number(id)).select().single();
+      let { data, error } = await supabase.from('jobs').update(payload).eq('id', Number(id)).select().single();
+      if (error && error.message && error.message.includes('scheduled_at')) {
+        const payloadNoSched = { ...payload };
+        delete payloadNoSched.scheduled_at;
+        const retry = await supabase.from('jobs').update(payloadNoSched).eq('id', Number(id)).select().single();
+        data = retry.data;
+        error = retry.error;
+      }
       if (error) {
         console.warn('⚠️ Supabase update error, falling back to local storage:', error.message);
         return localStore.updateJob(id, updateData);
@@ -919,6 +943,34 @@ const db = {
       } catch (e) {}
     }
     return true;
+  },
+
+  async checkAndPublishScheduledJobs() {
+    const jobs = readLocalJobs();
+    const now = Date.now();
+    let changed = false;
+
+    for (const job of jobs) {
+      if (job.status === 'scheduled' && job.scheduled_at) {
+        const schedTime = new Date(job.scheduled_at).getTime();
+        if (!isNaN(schedTime) && schedTime <= now) {
+          console.log(`[Scheduler] 🕒 Auto-publishing scheduled job ID ${job.id} ("${job.title}") at ${new Date().toLocaleString()}`);
+          job.status = 'active';
+          job.updated_at = new Date().toISOString();
+          changed = true;
+          if (supabase) {
+            try {
+              await supabase.from('jobs').update({ status: 'active', updated_at: job.updated_at }).eq('id', Number(job.id));
+            } catch (e) {}
+          }
+        }
+      }
+    }
+
+    if (changed) {
+      writeLocalJobs(jobs);
+      cache.invalidateJobs();
+    }
   }
 };
 

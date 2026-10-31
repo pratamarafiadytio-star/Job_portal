@@ -467,6 +467,9 @@ app.get('/api/company-image', async (req, res) => {
 // -------------------------------------------------------------
 app.get('/api/jobs', async (req, res) => {
   try {
+    if (typeof db.checkAndPublishScheduledJobs === 'function') {
+      await db.checkAndPublishScheduledJobs().catch(() => {});
+    }
     const { search, category, job_type, location, status, sort, platform } = req.query;
     const jobs = await db.getJobs({ search, category, job_type, location, status, sort, platform });
     const enriched = jobs.map(j => {
@@ -480,6 +483,13 @@ app.get('/api/jobs', async (req, res) => {
     res.status(500).json({ success: false, message: 'Gagal memuat lowongan: ' + err.message });
   }
 });
+
+// Periodic background scheduler (checks every 15s for jobs whose scheduled_at has arrived)
+setInterval(() => {
+  if (typeof db.checkAndPublishScheduledJobs === 'function') {
+    db.checkAndPublishScheduledJobs().catch(() => {});
+  }
+}, 15000);
 
 // -------------------------------------------------------------
 // PUBLIC API: GET /api/jobs/:id (Detail & increment view)
@@ -524,6 +534,7 @@ app.post('/api/jobs', requireAdminAuth, upload.any(), async (req, res) => {
       contact_value,
       deadline,
       status,
+      scheduled_at: bodyScheduledAt,
       is_featured,
       cover_image: bodyCoverImage
     } = req.body;
@@ -533,6 +544,15 @@ app.post('/api/jobs', requireAdminAuth, upload.any(), async (req, res) => {
         success: false,
         message: 'Judul lowongan, nama perusahaan, dan deskripsi wajib diisi!'
       });
+    }
+
+    const scheduled_at = (bodyScheduledAt || (req.body && req.body.scheduled_at) || '').trim();
+    let finalStatus = (status || 'active').trim();
+    if (scheduled_at) {
+      const schedTime = new Date(scheduled_at).getTime();
+      if (!isNaN(schedTime) && schedTime > Date.now()) {
+        finalStatus = 'scheduled';
+      }
     }
 
     // Deduplication check: Prevent duplicate jobs created within 20 seconds
@@ -631,20 +651,38 @@ app.post('/api/jobs', requireAdminAuth, upload.any(), async (req, res) => {
       contact_type: contact_type || (wa ? 'whatsapp' : (em ? 'email' : 'link')),
       contact_value: finalContactVal,
       deadline: deadline || '',
-      status: status || 'active',
+      status: finalStatus,
+      scheduled_at: scheduled_at || null,
       is_featured: is_featured === '1' || is_featured === 1 || is_featured === true || is_featured === 'true',
       source_platform: req.body.source_platform || (wb.includes('linkedin.com') ? 'linkedin' : (wb.includes('instagram.com') ? 'instagram' : (wb.includes('facebook.com') ? 'facebook' : 'official'))),
       source_label: req.body.source_label || ''
     });
 
+    const isSched = finalStatus === 'scheduled';
     res.status(201).json({
       success: true,
-      message: 'Poster lowongan berhasil diunggah & dipublikasikan ke Supabase!',
+      message: isSched
+        ? `Lowongan berhasil dijadwalkan! Akan otomatis terbit pada ${scheduled_at}.`
+        : 'Poster lowongan berhasil diunggah & dipublikasikan ke Supabase!',
       data: newJob
     });
   } catch (err) {
     console.error('Error adding job:', err);
     res.status(500).json({ success: false, message: 'Gagal menambahkan lowongan: ' + err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// ADMIN PROTECTED API: POST /api/jobs/:id/publish-now (Publish scheduled job immediately)
+// -------------------------------------------------------------
+app.post('/api/jobs/:id/publish-now', requireAdminAuth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const job = await db.updateJob(id, { status: 'active', updated_at: new Date().toISOString() });
+    if (!job) return res.status(404).json({ success: false, message: 'Lowongan tidak ditemukan' });
+    res.json({ success: true, message: 'Lowongan berhasil diterbitkan sekarang (Langsung Aktif)!', data: job });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

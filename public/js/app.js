@@ -1046,6 +1046,20 @@ function setupModalDismiss(modalId) {
   });
 }
 
+// Helper to determine if a job is visible to public visitors
+function isJobPubliclyVisible(j) {
+  if (!j) return false;
+  if (j.status === 'system_settings' || j.status === 'system_master_data' || j.status === 'deleted' || j.status === 'archived') {
+    return false;
+  }
+  if (j.status === 'scheduled') {
+    if (!j.scheduled_at) return false;
+    const schedTime = new Date(j.scheduled_at).getTime();
+    if (isNaN(schedTime) || schedTime > Date.now()) return false;
+  }
+  return true;
+}
+
 // Load Jobs: Ultra-Fast Multi-Layer Fetching with 0ms Instant Cache & Concurrent Race
 async function loadJobs() {
   if (isLoadingPublicJobs) return;
@@ -1061,7 +1075,7 @@ async function loadJobs() {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          rawAllJobs = parsed.map(window.cleanJobData).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+          rawAllJobs = parsed.map(window.cleanJobData).filter(isJobPubliclyVisible);
           updateTabCounters();
           applyFiltersAndRender();
           hadCached = true;
@@ -1084,7 +1098,7 @@ async function loadJobs() {
       try {
         const { ok, data: json } = await safeFetchJson(getApiEndpoint('/api/jobs'));
         if (ok && json && json.success && Array.isArray(json.data) && json.data.length > 0) {
-          return json.data.map(window.cleanJobData).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+          return json.data.map(window.cleanJobData).filter(isJobPubliclyVisible);
         }
       } catch (e) {}
       return null;
@@ -1104,7 +1118,7 @@ async function loadJobs() {
 
         const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
         if (!error && Array.isArray(data) && data.length > 0) {
-          return data.map(window.cleanJobData).filter(j => j.status !== 'system_master_data' && j.status !== 'system_settings');
+          return data.map(window.cleanJobData).filter(isJobPubliclyVisible);
         }
       } catch (e) {}
       return null;
@@ -1119,7 +1133,7 @@ async function loadJobs() {
       try {
         const { data } = await sbClient.from('jobs').select('*').limit(30);
         if (Array.isArray(data) && data.length > 0) {
-          freshJobs = data.map(window.cleanJobData).filter(j => j.status !== 'system_master_data' && j.status !== 'system_settings');
+          freshJobs = data.map(window.cleanJobData).filter(isJobPubliclyVisible);
         }
       } catch (e) {}
     }
@@ -1155,7 +1169,7 @@ async function loadJobs() {
 
 // Calculate Tab Counters
 function updateTabCounters() {
-  const allActive = rawAllJobs.filter(j => j.status === 'active' || j.status === 'expired' || j.status === 'closed');
+  const allActive = rawAllJobs.filter(isJobPubliclyVisible);
   const featured = allActive.filter(j => j.is_featured === 1 || j.is_featured === true || j.is_featured === '1');
   const remote = allActive.filter(j => (j.job_type && j.job_type.toLowerCase().includes('remote')) || (j.location && j.location.toLowerCase().includes('remote')));
   const freshgrad = allActive.filter(j => (j.experience_level && j.experience_level.toLowerCase().includes('fresh')) || (j.description && j.description.toLowerCase().includes('fresh graduate')));
@@ -1168,8 +1182,8 @@ function updateTabCounters() {
 
 // Apply Filters and Render
 function applyFiltersAndRender() {
-  // Keep active and expired/closed jobs visible in the feed (only exclude deleted/archived)
-  let list = rawAllJobs.filter(j => j.status !== 'deleted' && j.status !== 'archived');
+  // Keep active and expired/closed jobs visible in the feed (only exclude unreleased scheduled / deleted / archived)
+  let list = rawAllJobs.filter(isJobPubliclyVisible);
 
   // Filter Tab
   if (activeFilters.tab === 'featured') {

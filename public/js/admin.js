@@ -286,7 +286,7 @@ function prepareJobPayloadForSupabase(jobObj) {
     'title', 'company_name', 'category', 'job_type', 'location',
     'salary_display', 'experience_level', 'poster_image', 'description',
     'requirements', 'responsibilities', 'benefits', 'contact_type',
-    'contact_value', 'deadline', 'status', 'is_featured', 'views_count',
+    'contact_value', 'deadline', 'status', 'scheduled_at', 'is_featured', 'views_count',
     'updated_at'
   ];
   const clean = {};
@@ -1464,6 +1464,10 @@ function setupJobFormSubmit() {
     const respValues = window.getDynamicListValues('upload-resp-items');
     const benValues = window.getDynamicListValues('upload-ben-items');
 
+    const publishMode = form.querySelector('input[name="publish_mode"]:checked')?.value || 'now';
+    const scheduledAtVal = (publishMode === 'scheduled') ? (document.getElementById('job-schedule-datetime')?.value || '').trim() : '';
+    const jobStatus = (publishMode === 'scheduled' && scheduledAtVal) ? 'scheduled' : 'active';
+
     const cleanPayload = {
       title,
       company_name: company,
@@ -1480,7 +1484,8 @@ function setupJobFormSubmit() {
       responsibilities: respValues,
       benefits: benValues,
       is_featured: form.querySelector('[name="is_featured"]').checked,
-      status: 'active',
+      status: jobStatus,
+      scheduled_at: scheduledAtVal || null,
       cover_image: currentManualCoverBase64 || '',
       poster_image: primaryFlyer,
       flyer_images: allFlyers,
@@ -1502,6 +1507,8 @@ function setupJobFormSubmit() {
       formData.set('requirements', reqValues.join('\n'));
       formData.set('responsibilities', respValues.join('\n'));
       formData.set('benefits', benValues.join('\n'));
+      formData.set('status', jobStatus);
+      formData.set('scheduled_at', scheduledAtVal);
 
       const token = sessionStorage.getItem('kerja_admin_token') || '';
       const res = await fetch(getApiEndpoint('/api/jobs'), {
@@ -1537,10 +1544,16 @@ function setupJobFormSubmit() {
     submitBtn.innerHTML = origText;
 
     if (saved) {
-      alert('Berhasil! Poster lowongan dan saluran kontak telah tersimpan ke Supabase Cloud.');
+      if (jobStatus === 'scheduled') {
+        alert(`Berhasil! Lowongan telah dijadwalkan dan akan otomatis terbit aktif ke publik pada ${scheduledAtVal}.`);
+      } else {
+        alert('Berhasil! Poster lowongan dan saluran kontak telah tersimpan ke Supabase Cloud.');
+      }
       form.reset();
       currentSelectedFileBase64 = '';
       if (typeof clearAllManualFlyers === 'function') clearAllManualFlyers();
+      const schedBox = document.getElementById('schedule-datetime-container');
+      if (schedBox) schedBox.style.display = 'none';
 
       loadAdminJobs(true);
       const manageLink = document.querySelector('a[href="#manage-jobs"]');
@@ -1550,6 +1563,83 @@ function setupJobFormSubmit() {
     }
   });
 }
+
+// ==============================================================
+// SCHEDULED PUBLISHING HELPERS (AUTO-UPLOAD BY TIME & DATE)
+// ==============================================================
+function formatDateTimeLocal(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const yr = date.getFullYear();
+  const mo = pad(date.getMonth() + 1);
+  const da = pad(date.getDate());
+  const hr = pad(date.getHours());
+  const mi = pad(date.getMinutes());
+  return `${yr}-${mo}-${da}T${hr}:${mi}`;
+}
+
+window.toggleScheduleInput = function(isScheduled) {
+  const container = document.getElementById('schedule-datetime-container');
+  const dtInput = document.getElementById('job-schedule-datetime');
+  if (!container) return;
+
+  if (isScheduled) {
+    container.style.display = 'block';
+    if (dtInput && !dtInput.value) {
+      window.setQuickSchedule(1);
+    }
+  } else {
+    container.style.display = 'none';
+    if (dtInput) dtInput.value = '';
+  }
+};
+
+window.setQuickSchedule = function(hoursAhead) {
+  const dtInput = document.getElementById('job-schedule-datetime');
+  if (!dtInput) return;
+  const d = new Date(Date.now() + (hoursAhead || 1) * 3600000);
+  dtInput.value = formatDateTimeLocal(d);
+};
+
+window.setQuickScheduleTomorrow = function(targetHour) {
+  const dtInput = document.getElementById('job-schedule-datetime');
+  if (!dtInput) return;
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(targetHour || 8, 0, 0, 0);
+  dtInput.value = formatDateTimeLocal(d);
+};
+
+window.toggleStudioSchedule = function(isScheduled) {
+  const wrap = document.getElementById('studio-schedule-input-wrap');
+  const dtInput = document.getElementById('studio-schedule-datetime');
+  if (!wrap) return;
+
+  if (isScheduled) {
+    wrap.style.display = 'block';
+    if (dtInput && !dtInput.value) {
+      window.setStudioQuickSchedule(1);
+    }
+  } else {
+    wrap.style.display = 'none';
+    if (dtInput) dtInput.value = '';
+  }
+};
+
+window.setStudioQuickSchedule = function(hoursAhead) {
+  const dtInput = document.getElementById('studio-schedule-datetime');
+  if (!dtInput) return;
+  const d = new Date(Date.now() + (hoursAhead || 1) * 3600000);
+  dtInput.value = formatDateTimeLocal(d);
+};
+
+window.setStudioQuickScheduleTomorrow = function(targetHour) {
+  const dtInput = document.getElementById('studio-schedule-datetime');
+  if (!dtInput) return;
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(targetHour || 8, 0, 0, 0);
+  dtInput.value = formatDateTimeLocal(d);
+};
 
 // -------------------------------------------------------------
 // DASHBOARD METRICS & RECENT JOBS TABLE
@@ -1811,10 +1901,25 @@ function renderAdminJobsTable() {
 
     const contacts = extractJobContacts(job);
     const isLocked = job.status === 'expired' || job.status === 'closed';
+    const isScheduled = job.status === 'scheduled';
 
-    const statusBadge = isLocked
-      ? `<span class="badge badge-expired"><i class="fa-solid fa-lock"></i> Expired (Terkunci)</span>`
-      : `<span class="badge badge-active"><i class="fa-solid fa-circle-check"></i> Aktif</span>`;
+    let statusBadge = '';
+    if (isLocked) {
+      statusBadge = `<span class="badge badge-expired"><i class="fa-solid fa-lock"></i> Expired (Terkunci)</span>`;
+    } else if (isScheduled) {
+      let timeStr = 'Otomatis';
+      if (job.scheduled_at) {
+        try {
+          const dt = new Date(job.scheduled_at);
+          timeStr = dt.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        } catch (e) {
+          timeStr = job.scheduled_at;
+        }
+      }
+      statusBadge = `<span class="badge" style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-weight: 700; white-space: nowrap;" title="Akan otomatis aktif pada ${escapeHtml(job.scheduled_at || '')}"><i class="fa-solid fa-clock"></i> Terjadwal: ${escapeHtml(timeStr)}</span>`;
+    } else {
+      statusBadge = `<span class="badge badge-active"><i class="fa-solid fa-circle-check"></i> Aktif</span>`;
+    }
 
     // Render multi-contact badges
     let contactsHtml = '<span style="color:#94a3b8; font-size:0.75rem;">-</span>';
@@ -1855,6 +1960,11 @@ function renderAdminJobsTable() {
         <td><small>${job.created_at ? new Date(job.created_at).toLocaleDateString('id-ID') : '-'}</small></td>
         <td>
           <div class="action-buttons">
+            ${isScheduled ? `
+              <button class="btn-table" onclick="publishScheduledJobNow(${job.id})" title="Terbitkan Sekarang (Aktifkan Langsung ke Publik)" style="background: #eff6ff; color: #1d4ed8; border: 1.5px solid #93c5fd; font-weight: 700;">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            ` : ''}
             ${job.website_url ? `<a href="${escapeHtml(job.website_url)}" target="_blank" rel="noopener noreferrer" class="btn-table" title="Buka Postingan Asli di Web Resmi"><i class="fa-solid fa-globe" style="color: #0284c7;"></i></a>` : ''}
             <a href="./?job=${job.id}" target="_blank" class="btn-table" title="Lihat di Web Publik"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
             <button class="btn-table" onclick="openPosterStudioFromExistingId(${job.id})" title="Generate Poster Gambar (Download)"><i class="fa-solid fa-palette" style="color: #4f46e5;"></i></button>
@@ -2001,6 +2111,46 @@ window.toggleJobLock = async function(jobId, newStatus) {
     renderDashboardStats(adminJobs);
     showAdminToast('Gagal Mengubah Status', 'Gagal mengubah status lowongan ke server.', 'error');
   }
+};
+
+// -------------------------------------------------------------
+// PUBLISH SCHEDULED JOB IMMEDIATELY (BYPASS SCHEDULE TIMER)
+// -------------------------------------------------------------
+window.publishScheduledJobNow = async function(jobId) {
+  const job = adminJobs.find(j => Number(j.id) === Number(jobId));
+  const title = job ? job.title : 'Lowongan';
+  const confirmed = await showAdminConfirm({
+    title: 'Terbitkan Sekarang',
+    message: `Terbitkan lowongan "${title}" sekarang juga ke publik tanpa menunggu jam jadwal otomatis?`,
+    confirmText: 'Ya, Terbitkan Sekarang',
+    cancelText: 'Batal',
+    type: 'primary'
+  });
+  if (!confirmed) return;
+
+  try {
+    const token = getAdminToken();
+    const res = await safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}/publish-now`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    });
+
+    if (res.ok) {
+      if (job) {
+        job.status = 'active';
+        job.scheduled_at = null;
+      }
+      showAdminToast('Berhasil Diterbitkan!', `Lowongan "${title}" sekarang sudah aktif dan dapat dilihat oleh pengunjung publik.`, 'success');
+      loadAdminJobs(true);
+      return;
+    }
+  } catch (e) {}
+
+  // Direct fallback
+  await window.toggleJobLock(jobId, 'active');
 };
 
 // -------------------------------------------------------------
@@ -4301,40 +4451,11 @@ window.handleCustomTemplateUpload = function(event) {
 // GALERI TEMA LATAR FLYER (SUPER PROMINENT BACKGROUND THEMES)
 // -------------------------------------------------------------
 let flyerThemes = [];
-let activeFlyerThemeId = 'tpl_chocomory';
+let activeFlyerThemeId = null;
 const escTheme = (s) => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// Built-in theme presets with nice SVG preview thumbnails
-const BUILTIN_THEMES = [
-  {
-    id: 'tpl_chocomory',
-    name: 'Style Megafon Chocomory (Border Biru)',
-    is_builtin: true,
-    tpl: 'chocomory',
-    thumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="150" viewBox="0 0 120 150"><rect width="120" height="150" fill="%23ffffff"/><rect x="5" y="5" width="110" height="140" rx="8" fill="none" stroke="%230052cc" stroke-width="4.5"/><text x="60" y="26" font-family="sans-serif" font-size="8.5" font-weight="900" fill="%23000" text-anchor="middle">LOWONGAN</text><line x1="22" y1="30" x2="98" y2="30" stroke="%23000" stroke-width="2.5"/><text x="60" y="42" font-family="sans-serif" font-size="7.5" font-weight="bold" fill="%23000" text-anchor="middle">PT PERUSAHAAN</text><rect x="12" y="49" width="62" height="13" rx="3" fill="%230052cc"/><text x="43" y="58" font-family="sans-serif" font-size="6" fill="%23fff" text-anchor="middle">OPERATOR PRODUKSI</text><circle cx="95" cy="57" r="14" fill="%23f97316"/><rect x="12" y="104" width="58" height="32" rx="3" fill="%23f8fafc" stroke="%230052cc" stroke-width="1.5"/><rect x="76" y="104" width="32" height="32" fill="%230f172a"/></svg>'
-  },
-  {
-    id: 'tpl_modern',
-    name: 'Instagram Modern Feed',
-    is_builtin: true,
-    tpl: 'modern',
-    thumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="150" viewBox="0 0 120 150"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%25" stop-color="%23833ab4"/><stop offset="50%25" stop-color="%23fd1d1d"/><stop offset="100%25" stop-color="%23fcb045"/></linearGradient></defs><rect width="120" height="150" fill="url(%23g)"/><rect x="8" y="8" width="104" height="134" rx="8" fill="rgba(255,255,255,0.95)"/><text x="60" y="30" font-family="sans-serif" font-size="8" font-weight="bold" fill="%231e293b" text-anchor="middle">WE ARE HIRING</text><rect x="15" y="42" width="70" height="12" rx="4" fill="%23833ab4"/><text x="50" y="51" font-family="sans-serif" font-size="6" fill="%23fff" text-anchor="middle">CREATIVE ROLE</text></svg>'
-  },
-  {
-    id: 'tpl_factory',
-    name: 'Manufaktur & Pabrik',
-    is_builtin: true,
-    tpl: 'factory',
-    thumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="150" viewBox="0 0 120 150"><rect width="120" height="150" fill="%230f172a"/><rect x="6" y="6" width="108" height="138" rx="6" fill="%231e3e62" stroke="%23f97316" stroke-width="2"/><text x="60" y="26" font-family="sans-serif" font-size="7" font-weight="bold" fill="%23f97316" text-anchor="middle">REKRUTMEN PABRIK</text><rect x="12" y="38" width="75" height="14" rx="3" fill="%23f97316"/><text x="50" y="48" font-family="sans-serif" font-size="6" fill="%23fff" text-anchor="middle">TEKNISI / OPERATOR</text></svg>'
-  },
-  {
-    id: 'tpl_bumn',
-    name: 'BUMN & Korporat Elegan',
-    is_builtin: true,
-    tpl: 'bumn',
-    thumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="150" viewBox="0 0 120 150"><rect width="120" height="150" fill="%230b192c"/><rect x="6" y="6" width="108" height="138" rx="6" fill="%231e3e62" stroke="%2310b981" stroke-width="2"/><text x="60" y="26" font-family="sans-serif" font-size="7" font-weight="bold" fill="%2310b981" text-anchor="middle">KARIR BUMN RESMI</text><rect x="12" y="38" width="75" height="14" rx="3" fill="%2310b981"/><text x="50" y="48" font-family="sans-serif" font-size="6" fill="%23fff" text-anchor="middle">OFFICER / STAFF</text></svg>'
-  }
-];
+// User-uploaded themes ONLY - all built-in themes removed per user requirement
+const BUILTIN_THEMES = [];
 
 function compressThemeImage(dataUrl, maxW = 1080) {
   return new Promise((resolve) => {
@@ -4362,8 +4483,6 @@ window.loadFlyerThemes = async function() {
     if (local) flyerThemes = JSON.parse(local) || [];
   } catch (e) {}
 
-  renderFlyerThemeGallery();
-
   // Try fetching from server API (stores in data/flyer_themes.json)
   try {
     const res = await fetch('/api/flyer-themes');
@@ -4372,8 +4491,6 @@ window.loadFlyerThemes = async function() {
       if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
         flyerThemes = json.data;
         saveThemesLocal();
-        renderFlyerThemeGallery();
-        return;
       }
     }
   } catch (e) {}
@@ -4385,33 +4502,58 @@ window.loadFlyerThemes = async function() {
       if (!error && Array.isArray(data) && data.length > 0) {
         flyerThemes = data;
         saveThemesLocal();
-        renderFlyerThemeGallery();
       }
     } catch (e) {}
   }
+
+  // Set active theme if available
+  if (flyerThemes.length > 0) {
+    const exists = flyerThemes.some(t => String(t.id) === String(activeFlyerThemeId));
+    if (!exists) {
+      applyFlyerTheme(flyerThemes[0].id);
+    }
+  } else {
+    activeFlyerThemeId = null;
+    selectedFlyerTemplate = 'default';
+    loadedCustomTemplateImg = null;
+    customTemplateDataUrl = null;
+  }
+
+  renderFlyerThemeGallery();
+  renderFlyerThemesTab();
+  populateStudioThemeSelect();
 };
 
 function renderFlyerThemeGallery() {
   const box = document.getElementById('flyer-theme-gallery');
   if (!box) return;
 
-  const allThemes = [...flyerThemes, ...BUILTIN_THEMES];
+  if (!flyerThemes.length) {
+    box.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 18px 12px; text-align: center; color: #64748b; font-size: 0.82rem; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px;">
+        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 1.5rem; color: #94a3b8; margin-bottom: 6px; display: block;"></i>
+        Belum ada tema kustom diunggah.<br>Silakan upload gambar latar / frame flyer di tab <strong>Tema Background Flyer</strong>.
+      </div>
+    `;
+    const activeNameEl = document.getElementById('theme-active-name');
+    if (activeNameEl) activeNameEl.textContent = 'Tanpa Background Kustom';
+    return;
+  }
 
-  box.innerHTML = allThemes.map(t => {
+  box.innerHTML = flyerThemes.map(t => {
     const isActive = String(activeFlyerThemeId) === String(t.id);
-    const thumbSrc = t.image_data || t.thumbnail;
-    const isCustom = !t.is_builtin;
+    const thumbSrc = t.image_data;
     return `
       <div class="flyer-theme-item ${isActive ? 'active' : ''}" onclick="applyFlyerTheme('${t.id}')" title="${escTheme(t.name || 'Tema')}">
-        <img src="${thumbSrc}" alt="${escTheme(t.name || 'Tema')}">
+        <img src="${thumbSrc}" alt="${escTheme(t.name || 'Tema')}" style="width: 100%; height: 100%; object-fit: cover;">
         <div class="flyer-theme-name">${escTheme(t.name || 'Tema')}</div>
-        ${isCustom ? `<button type="button" class="flyer-theme-del" onclick="event.stopPropagation(); deleteFlyerTheme('${t.id}')" title="Hapus tema"><i class="fa-solid fa-xmark"></i></button>` : ''}
+        <button type="button" class="flyer-theme-del" onclick="event.stopPropagation(); deleteFlyerTheme('${t.id}')" title="Hapus tema"><i class="fa-solid fa-xmark"></i></button>
         ${isActive ? '<span class="flyer-theme-check"><i class="fa-solid fa-check"></i></span>' : ''}
       </div>
     `;
   }).join('');
 
-  const cur = allThemes.find(x => String(x.id) === String(activeFlyerThemeId)) || BUILTIN_THEMES[0];
+  const cur = flyerThemes.find(x => String(x.id) === String(activeFlyerThemeId)) || flyerThemes[0];
   const activeNameEl = document.getElementById('theme-active-name');
   if (activeNameEl && cur) {
     activeNameEl.textContent = cur.name;
@@ -4474,33 +4616,33 @@ window.handleFlyerThemeUpload = async function(event) {
     renderFlyerThemeGallery();
   }
 
-  showAdminToast('Tema Tersimpan!', `${files.length} latar belakang tema baru ditambahkan & aktif.`, 'success');
+  renderFlyerThemesTab();
+  populateStudioThemeSelect();
+  showAdminToast('Tema Tersimpan!', `${files.length} latar belakang tema baru berhasil ditambahkan & aktif.`, 'success');
 };
 
 window.applyFlyerTheme = function(id) {
-  const allThemes = [...flyerThemes, ...BUILTIN_THEMES];
-  const t = allThemes.find(x => String(x.id) === String(id));
-  if (!t) return;
-
-  activeFlyerThemeId = t.id;
-
-  if (t.is_builtin) {
-    selectedFlyerTemplate = t.tpl;
+  const t = flyerThemes.find(x => String(x.id) === String(id));
+  if (!t) {
+    activeFlyerThemeId = null;
+    selectedFlyerTemplate = 'default';
     loadedCustomTemplateImg = null;
     customTemplateDataUrl = null;
     renderFlyerThemeGallery();
     renderPosterCanvas();
-  } else {
-    selectedFlyerTemplate = 'custom';
-    customTemplateDataUrl = t.image_data;
-    const img = new Image();
-    img.onload = () => {
-      loadedCustomTemplateImg = img;
-      renderFlyerThemeGallery();
-      renderPosterCanvas();
-    };
-    img.src = t.image_data;
+    return;
   }
+
+  activeFlyerThemeId = t.id;
+  selectedFlyerTemplate = 'custom';
+  customTemplateDataUrl = t.image_data;
+  const img = new Image();
+  img.onload = () => {
+    loadedCustomTemplateImg = img;
+    renderFlyerThemeGallery();
+    renderPosterCanvas();
+  };
+  img.src = t.image_data;
 };
 
 window.deleteFlyerTheme = async function(id) {
@@ -4522,11 +4664,22 @@ window.deleteFlyerTheme = async function(id) {
   }
 
   if (String(activeFlyerThemeId) === String(id)) {
-    applyFlyerTheme('tpl_chocomory');
+    if (flyerThemes.length > 0) {
+      applyFlyerTheme(flyerThemes[0].id);
+    } else {
+      activeFlyerThemeId = null;
+      selectedFlyerTemplate = 'default';
+      loadedCustomTemplateImg = null;
+      customTemplateDataUrl = null;
+      renderFlyerThemeGallery();
+      renderPosterCanvas();
+    }
   } else {
     renderFlyerThemeGallery();
   }
 
+  renderFlyerThemesTab();
+  populateStudioThemeSelect();
   showAdminToast('Tema Dihapus', 'Tema latar belakang berhasil dihapus.', 'info');
 };
 
@@ -4545,27 +4698,37 @@ window.renderFlyerThemesTab = function() {
   const grid = document.getElementById('tab-themes-grid');
   if (!grid) return;
 
-  const allThemes = [...flyerThemes, ...BUILTIN_THEMES];
-
-  if (!allThemes.length) {
-    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #94a3b8;">Belum ada tema tersedia.</div>';
+  if (!flyerThemes.length) {
+    grid.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: #ffffff; border: 2px dashed #93c5fd; border-radius: 16px;">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: #eff6ff; color: #1d4ed8; display: inline-flex; align-items: center; justify-content: center; font-size: 1.8rem; margin-bottom: 14px;">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+        </div>
+        <h4 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 6px;">Belum Ada Tema Background yang Diupload</h4>
+        <p style="font-size: 0.88rem; color: #64748b; max-width: 500px; margin: 0 auto 18px auto; line-height: 1.5;">
+          Semua poster akan menggunakan tema latar belakang yang Anda upload sendiri. Silakan upload berkas gambar poster kosong (JPG / PNG / WEBP) melalui formulir di atas.
+        </p>
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('tab-theme-file-input')?.click();" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 700; padding: 10px 20px;">
+          <i class="fa-solid fa-folder-open"></i> Pilih Berkas Gambar Sekarang
+        </button>
+      </div>
+    `;
     return;
   }
 
-  grid.innerHTML = allThemes.map(t => {
+  grid.innerHTML = flyerThemes.map(t => {
     const isDefault = String(activeFlyerThemeId) === String(t.id);
-    const thumbSrc = t.image_data || t.thumbnail;
-    const isCustom = !t.is_builtin;
+    const thumbSrc = t.image_data;
 
     return `
-      <div class="tab-theme-card ${isDefault ? 'is-default' : ''}" style="background: #ffffff; border: 1.5px solid ${isDefault ? '#2563eb' : '#e2e8f0'}; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 12px rgba(15,23,42,0.05); transition: transform 0.2s ease, box-shadow 0.2s ease;">
+      <div class="tab-theme-card ${isDefault ? 'is-default' : ''}" style="background: #ffffff; border: 1.5px solid ${isDefault ? '#1d4ed8' : '#e2e8f0'}; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 12px rgba(15,23,42,0.05); transition: transform 0.2s ease, box-shadow 0.2s ease;">
         <div style="position: relative; width: 100%; aspect-ratio: 4/5; background: #f8fafc; overflow: hidden; display: flex; align-items: center; justify-content: center;">
           <img src="${thumbSrc}" alt="${escTheme(t.name)}" style="width: 100%; height: 100%; object-fit: cover;">
-          <span style="position: absolute; top: 10px; left: 10px; font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; ${isCustom ? 'background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;' : 'background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;'}">
-            ${isCustom ? '<i class="fa-solid fa-cloud-arrow-up"></i> Kustom' : '<i class="fa-solid fa-cube"></i> Bawaan Sistem'}
+          <span style="position: absolute; top: 10px; left: 10px; font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Kustom
           </span>
           ${isDefault ? `
-            <span style="position: absolute; top: 10px; right: 10px; background: #2563eb; color: #ffffff; font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; box-shadow: 0 2px 6px rgba(37,99,235,0.4);">
+            <span style="position: absolute; top: 10px; right: 10px; background: #1d4ed8; color: #ffffff; font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; box-shadow: 0 2px 6px rgba(29,78,216,0.4);">
               <i class="fa-solid fa-check"></i> AKTIF
             </span>
           ` : ''}
@@ -4584,11 +4747,9 @@ window.renderFlyerThemesTab = function() {
                 <i class="fa-solid fa-circle-check"></i> Tema Terpasang
               </span>
             `}
-            ${isCustom ? `
-              <button type="button" class="btn btn-outline btn-sm" onclick="deleteThemeFromTab('${t.id}')" style="font-size: 0.74rem; padding: 6px 10px; border-color: #fca5a5; color: #dc2626;" title="Hapus Tema">
-                <i class="fa-solid fa-trash-can"></i>
-              </button>
-            ` : ''}
+            <button type="button" class="btn btn-outline btn-sm" onclick="deleteThemeFromTab('${t.id}')" style="font-size: 0.74rem; padding: 6px 10px; border-color: #fca5a5; color: #dc2626;" title="Hapus Tema">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
           </div>
         </div>
       </div>
@@ -4704,7 +4865,7 @@ window.setDefaultThemeFromTab = function(id) {
   applyFlyerTheme(id);
   renderFlyerThemesTab();
   populateStudioThemeSelect();
-  showAdminToast('Tema Aktif', 'Tema ini sekarang aktif sebagai latar belakang default di Studio Poster.', 'success');
+  showAdminToast('Tema Aktif', 'Tema ini sekarang aktif sebagai latar belakang di Studio Poster.', 'success');
 };
 
 window.deleteThemeFromTab = function(id) {
@@ -4717,13 +4878,19 @@ window.populateStudioThemeSelect = function() {
   const select = document.getElementById('studio-theme-select');
   if (!select) return;
 
-  const allThemes = [...flyerThemes, ...BUILTIN_THEMES];
-  select.innerHTML = allThemes.map(t => {
+  if (!flyerThemes.length) {
+    select.innerHTML = '<option value="">-- Belum ada tema kustom (Upload di Menu Tema) --</option>';
+    const activePillText = document.getElementById('studio-active-theme-text');
+    if (activePillText) activePillText.textContent = 'Tanpa Background Kustom';
+    return;
+  }
+
+  select.innerHTML = flyerThemes.map(t => {
     const isSelected = String(activeFlyerThemeId) === String(t.id);
-    return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${t.is_builtin ? '✨ [Bawaan] ' : '🖼️ [Kustom] '}${escTheme(t.name)}</option>`;
+    return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>🖼️ ${escTheme(t.name)}</option>`;
   }).join('');
 
-  const activeTheme = allThemes.find(x => String(x.id) === String(activeFlyerThemeId)) || BUILTIN_THEMES[0];
+  const activeTheme = flyerThemes.find(x => String(x.id) === String(activeFlyerThemeId)) || flyerThemes[0];
   const activePillText = document.getElementById('studio-active-theme-text');
   if (activePillText && activeTheme) {
     activePillText.textContent = activeTheme.name;
@@ -4731,9 +4898,18 @@ window.populateStudioThemeSelect = function() {
 };
 
 window.onStudioThemeSelectChange = function(themeId) {
+  if (!themeId) {
+    activeFlyerThemeId = null;
+    selectedFlyerTemplate = 'default';
+    loadedCustomTemplateImg = null;
+    customTemplateDataUrl = null;
+    renderPosterCanvas();
+    const activePillText = document.getElementById('studio-active-theme-text');
+    if (activePillText) activePillText.textContent = 'Tanpa Background Kustom';
+    return;
+  }
   applyFlyerTheme(themeId);
-  const allThemes = [...flyerThemes, ...BUILTIN_THEMES];
-  const activeTheme = allThemes.find(x => String(x.id) === String(themeId));
+  const activeTheme = flyerThemes.find(x => String(x.id) === String(themeId));
   const activePillText = document.getElementById('studio-active-theme-text');
   if (activePillText && activeTheme) {
     activePillText.textContent = activeTheme.name;
@@ -5700,24 +5876,95 @@ function renderPosterCanvas() {
       ctx.font = '600 19px "Plus Jakarta Sans", Arial, sans-serif';
       ctx.fillText('Recrutmen ini tidak dipungut biaya apapun', width - 54, 1288);
     } else {
-      ctx.fillStyle = '#f8fafc';
+      // Solid clean professional default flyer when no uploaded template image is loaded yet
+      ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, width, height);
 
-      ctx.strokeStyle = '#6366f1';
-      ctx.lineWidth = 6;
-      ctx.setLineDash([16, 12]);
-      roundRect(ctx, 40, 40, width - 80, height - 80, 24, false, true);
-      ctx.setLineDash([]);
+      ctx.strokeStyle = '#1d4ed8';
+      ctx.lineWidth = 14;
+      roundRect(ctx, 22, 22, width - 44, height - 44, 28, false, true);
+
+      // Bold Header
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '900 48px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('LOWONGAN PEKERJAAN', width / 2, 110);
+
+      ctx.fillStyle = '#1d4ed8';
+      const underW = 760;
+      ctx.fillRect((width - underW) / 2, 126, underW, 5);
+
+      // Company
+      ctx.font = '900 40px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillStyle = '#0f172a';
+      let compText = company || 'PT PERUSAHAAN TERVERIFIKASI';
+      ctx.fillText(compText, width / 2, 185);
+
+      if (hasMascot) {
+        if (selectedMascot === 'corporate' && loadedMascotCache['corporate']) {
+          drawMascotOnCanvas(ctx, loadedMascotCache['corporate'], 640, 200, 390, 500);
+        } else {
+          drawMegaphoneMascotIllustration(ctx, 640, 180, 390, 500);
+        }
+      }
+
+      // Role Pill Badge
+      const badgeY = 246;
+      const badgeX = 52;
+      const badgeH = 54;
+      const displayTitle = (title || 'OPERATOR PRODUKSI').trim();
+      const badgeW = Math.min(560, ctx.measureText(displayTitle).width + 64);
+
+      ctx.fillStyle = '#1d4ed8';
+      roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 12, true, false);
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 26px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText(displayTitle, badgeX + 24, badgeY + 36);
+
+      // Qualifications
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('Kualifikasi', 54, 350);
+
+      const activeList = (requirements && requirements.length > 0)
+        ? requirements
+        : ['Pendidikan minimal SMA/SMK sederajat', 'Freshgraduate dipersilahkan melamar', 'Disiplin, teliti, dan bertanggung jawab'];
+
+      let curItemY = 395;
+      ctx.font = '600 22px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillStyle = '#334155';
+      activeList.slice(0, 5).forEach((item) => {
+        ctx.fillStyle = '#1d4ed8';
+        ctx.beginPath();
+        ctx.arc(66, curItemY - 7, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#334155';
+        ctx.fillText(String(item).substring(0, 48), 82, curItemY);
+        curItemY += 38;
+      });
+
+      // Bottom QR box
+      const qrSize = 225;
+      const qrBoxX = 695;
+      const qrBoxY = 725;
+      drawScannableQrCode(ctx, qrUrl, qrBoxX, qrBoxY, qrSize);
 
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#4f46e5';
-      ctx.font = '900 48px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('UPLOAD TEMPLATE KOSONG ANDA', width / 2, 540);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '900 24px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('SCAN DISINI', qrBoxX + qrSize / 2, qrBoxY + qrSize + 38);
 
+      // Anti-fraud on Right
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#dc2626';
+      ctx.font = '800 22px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('⚠️ Rekrutmen ini 100% Gratis', width - 54, 1256);
       ctx.fillStyle = '#64748b';
-      ctx.font = '600 26px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('Klik tombol "Pilih File" pada panel kanan untuk mengupload gambar background.', width / 2, 600);
-      ctx.fillText('Teks lowongan & karakter orang akan otomatis digambar di atas template kosong Anda!', width / 2, 645);
+      ctx.font = '600 18px "Plus Jakarta Sans", Arial, sans-serif';
+      ctx.fillText('Tidak dipungut biaya apapun', width - 54, 1286);
     }
   }
 
@@ -6146,6 +6393,10 @@ window.publishJobFromStudio = async function() {
     const contactsJson = JSON.stringify(contacts);
     const dMeta = getDeadlineMeta(updatedDead, 30);
 
+    const isStudioSched = document.getElementById('studio-enable-schedule-cb')?.checked;
+    const studioSchedVal = (document.getElementById('studio-schedule-datetime')?.value || '').trim();
+    const studioStatus = (isStudioSched && studioSchedVal) ? 'scheduled' : 'active';
+
     const payload = {
       title: updatedTitle,
       company_name: updatedComp,
@@ -6167,7 +6418,8 @@ window.publishJobFromStudio = async function() {
       contact_type: 'link',
       contact_value: contactsJson,
       deadline: dMeta.isoDate || toIsoDate(new Date(Date.now() + 30 * 86400000)),
-      status: 'active',
+      status: studioStatus,
+      scheduled_at: (isStudioSched && studioSchedVal) ? studioSchedVal : null,
       is_featured: true,
       views_count: currentPosterJobData.views_count || 0
     };
@@ -6262,7 +6514,11 @@ window.publishJobFromStudio = async function() {
       loadDashboardData();
       renderOfficialJobsGrid();
 
-      showAdminToast('⚡ GAS BERHASIL!', `Lowongan "${updatedTitle}" (${updatedComp}) telah TERBIT di portal dengan ${currentFlyerSlides.length} gambar flyer (Slider Otomatis aktif)!`, 'success');
+      if (studioStatus === 'scheduled') {
+        showAdminToast('🕒 Lowongan Dijadwalkan!', `Lowongan "${updatedTitle}" (${updatedComp}) akan OTOMATIS TERBIT ke portal pengunjung pada ${studioSchedVal}.`, 'success');
+      } else {
+        showAdminToast('⚡ GAS BERHASIL!', `Lowongan "${updatedTitle}" (${updatedComp}) telah TERBIT di portal dengan ${currentFlyerSlides.length} gambar flyer (Slider Otomatis aktif)!`, 'success');
+      }
       closePosterStudioModal();
     } else {
       alert('Gagal menerbitkan lowongan: ' + (errorMsg || 'Periksa status koneksi database/server.'));

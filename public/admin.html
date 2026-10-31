@@ -634,6 +634,51 @@
                   </div>
                 </div>
 
+                <!-- KELOMPOK 7: WAKTU TERBIT & JADWAL UPLOAD OTOMATIS (SCHEDULED PUBLISHING) -->
+                <div class="form-section-card" style="border-left: 4px solid var(--admin-primary); background: #f8fafc;">
+                  <div class="section-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <span class="section-badge"><i class="fa-solid fa-clock"></i> 7. Waktu Terbit & Jadwal Upload Otomatis</span>
+                    <span class="badge" style="background: #eff6ff; color: #1d4ed8; font-size: 0.72rem; font-weight: 700; border: 1px solid #bfdbfe;">
+                      <i class="fa-solid fa-bolt"></i> FITUR REAL-TIME
+                    </span>
+                  </div>
+                  
+                  <p style="font-size: 0.82rem; color: #64748b; margin-top: 2px; margin-bottom: 12px; line-height: 1.4;">
+                    Pilih apakah lowongan langsung tayang sekarang atau dijadwalkan otomatis terbit pada jam tertentu. Lowongan yang dijadwalkan akan otomatis tayang ke pengunjung saat jam yang Anda tentukan tiba!
+                  </p>
+
+                  <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 12px;">
+                    <label style="display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; color: #0f172a;">
+                      <input type="radio" name="publish_mode" value="now" checked onchange="toggleScheduleInput(false)">
+                      <span>🚀 Terbitkan Sekarang (Langsung Tayang)</span>
+                    </label>
+                    <label style="display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; color: #1d4ed8;">
+                      <input type="radio" name="publish_mode" value="scheduled" onchange="toggleScheduleInput(true)">
+                      <span>🕒 Jadwalkan Upload Otomatis (Pilih Tanggal & Jam)</span>
+                    </label>
+                  </div>
+
+                  <div id="schedule-datetime-container" style="display: none; background: #ffffff; border: 1.5px solid #bfdbfe; border-radius: 12px; padding: 14px; margin-top: 8px;">
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                      <div style="flex: 1; min-width: 240px;">
+                        <label class="form-label" style="font-size: 0.82rem; font-weight: 800; color: #1e293b; margin-bottom: 4px;">
+                          <i class="fa-regular fa-calendar-check" style="color: var(--admin-primary);"></i> Tentukan Jam & Tanggal Terbit Otomatis:
+                        </label>
+                        <input type="datetime-local" id="job-schedule-datetime" name="scheduled_at" class="form-input" style="font-size: 0.88rem; font-weight: 700; padding: 8px 12px;">
+                      </div>
+                      <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-end;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="setQuickSchedule(1)" style="font-size: 0.74rem;">+1 Jam</button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="setQuickSchedule(3)" style="font-size: 0.74rem;">+3 Jam</button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="setQuickScheduleTomorrow(8)" style="font-size: 0.74rem;">Besok 08:00</button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="setQuickScheduleTomorrow(13)" style="font-size: 0.74rem;">Besok 13:00</button>
+                      </div>
+                    </div>
+                    <div style="font-size: 0.74rem; color: #0284c7; margin-top: 8px; font-weight: 600;">
+                      <i class="fa-solid fa-circle-info"></i> Status lowongan akan disimpan sebagai <strong>"Terjadwal"</strong> dan otomatis dipublikasikan aktif ke publik tepat di jam tersebut.
+                    </div>
+                  </div>
+                </div>
+
                 <!-- UNGGULAN & SUBMIT -->
                 <div class="form-footer-bar">
                   <label class="featured-toggle-label" for="is_featured_cb">
@@ -1484,13 +1529,33 @@
 
             <!-- ACTION BUTTONS -->
             <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;">
+              <!-- JADWAL TERBIT OTOMATIS DI STUDIO POSTER -->
+              <div class="studio-schedule-box" style="background: #f8fafc; border: 1.5px solid #bfdbfe; border-radius: 12px; padding: 10px 12px; margin-bottom: 2px;">
+                <label style="font-size: 0.8rem; font-weight: 800; color: #1e40af; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+                  <input type="checkbox" id="studio-enable-schedule-cb" onchange="toggleStudioSchedule(this.checked)">
+                  <span><i class="fa-solid fa-clock"></i> Jadwalkan Terbit Otomatis (Upload Sesuai Jam)</span>
+                </label>
+                <div id="studio-schedule-input-wrap" style="display: none; padding-top: 8px; margin-top: 6px; border-top: 1px dashed #bfdbfe;">
+                  <input type="datetime-local" id="studio-schedule-datetime" class="form-input" style="font-size: 0.82rem; font-weight: 700; padding: 6px 10px; background: #ffffff;">
+                  <div style="display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline btn-xs" onclick="setStudioQuickSchedule(1)" style="font-size: 0.7rem; padding: 3px 8px;">+1 Jam</button>
+                    <button type="button" class="btn btn-outline btn-xs" onclick="setStudioQuickSchedule(3)" style="font-size: 0.7rem; padding: 3px 8px;">+3 Jam</button>
+                    <button type="button" class="btn btn-outline btn-xs" onclick="setStudioQuickScheduleTomorrow(8)" style="font-size: 0.7rem; padding: 3px 8px;">Besok 08:00</button>
+                    <button type="button" class="btn btn-outline btn-xs" onclick="setStudioQuickScheduleTomorrow(13)" style="font-size: 0.7rem; padding: 3px 8px;">Besok 13:00</button>
+                  </div>
+                  <div style="font-size: 0.7rem; color: #0284c7; margin-top: 5px; font-weight: 600;">
+                    * Lowongan otomatis tayang ke pengunjung saat jam yang Anda pilih tiba.
+                  </div>
+                </div>
+              </div>
+
               <!-- Tombol Terbitkan Semua Slide ke Portal (Gas!) -->
               <button type="button" class="btn btn-primary" id="btn-publish-all-slides" onclick="publishJobFromStudio()" style="padding: 13px; font-weight: 800; font-size: 0.95rem; background: linear-gradient(135deg, #059669, #10b981); border: none; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4); color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
-                <i class="fa-solid fa-bolt"></i> Terbitkan ke Portal Sekarang (Gas!) 🚀
+                <i class="fa-solid fa-bolt" id="btn-publish-icon"></i> <span id="btn-publish-text">Terbitkan ke Portal Sekarang (Gas!) 🚀</span>
               </button>
 
               <!-- Tombol Simpan Perubahan ke Lowongan (Featured & Glowing) -->
-              <button type="button" class="btn btn-primary" id="btn-save-poster-changes" onclick="savePosterChangesToJob()" style="padding: 12px; font-weight: 800; font-size: 0.92rem; background: linear-gradient(135deg, #4f46e5, #6366f1); border: none; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35); color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+              <button type="button" class="btn btn-primary" id="btn-save-poster-changes" onclick="savePosterChangesToJob()" style="padding: 12px; font-weight: 800; font-size: 0.92rem; background: linear-gradient(135deg, #1d4ed8, #2563eb); border: none; box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35); color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
                 <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan ke Lowongan 💾
               </button>
 
@@ -1502,7 +1567,7 @@
                 <button type="button" class="btn btn-outline btn-sm" id="btn-copy-poster-clipboard" style="flex: 1; font-size: 0.8rem; border-radius: 10px;">
                   <i class="fa-regular fa-copy"></i> Salin Gambar
                 </button>
-                <button type="button" class="btn btn-outline btn-sm" id="btn-use-poster-for-job" style="flex: 1; font-size: 0.8rem; color: #4f46e5; border-color: #c7d2fe; border-radius: 10px;">
+                <button type="button" class="btn btn-outline btn-sm" id="btn-use-poster-for-job" style="flex: 1; font-size: 0.8rem; color: #1d4ed8; border-color: #93c5fd; border-radius: 10px;">
                   <i class="fa-solid fa-cloud-arrow-up"></i> Jadikan Poster Form
                 </button>
               </div>
@@ -1546,16 +1611,13 @@
               
               <div style="display: flex; gap: 8px; align-items: center;">
                 <select id="studio-theme-select" class="form-select" onchange="onStudioThemeSelectChange(this.value)" style="flex: 1; font-weight: 700; color: #0f172a; padding: 10px 12px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #ffffff;">
-                  <option value="tpl_chocomory">Style Megafon Chocomory (Border Biru)</option>
-                  <option value="tpl_modern">Instagram Modern Feed</option>
-                  <option value="tpl_factory">Manufaktur & Pabrik</option>
-                  <option value="tpl_bumn">BUMN & Korporat Elegan</option>
+                  <option value="">-- Pilih Tema Terupload --</option>
                 </select>
               </div>
 
               <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0;">
                 <span id="studio-active-theme-pill" class="badge" style="background: #eff6ff; color: #1d4ed8; font-size: 0.74rem; font-weight: 700; border: 1px solid #bfdbfe;">
-                  <i class="fa-solid fa-circle-check"></i> Tema: <span id="studio-active-theme-text">Style Megafon Chocomory</span>
+                  <i class="fa-solid fa-circle-check"></i> Tema: <span id="studio-active-theme-text">Tema Kustom</span>
                 </span>
                 <label style="font-size: 0.74rem; color: #334155; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600;">
                   <input type="checkbox" id="custom-tpl-draw-mascot" checked onchange="renderPosterCanvas()">
@@ -1750,6 +1812,6 @@
     </div>
   </div>
 
-  <script src="./js/admin.js?v=20261031_05"></script>
+  <script src="./js/admin.js?v=20261031_06"></script>
 </body>
 </html>
