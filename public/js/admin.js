@@ -1387,33 +1387,31 @@ function setupJobFormSubmit() {
     if (reqLines.length === 0 && respLines.length === 0 && benLines.length === 0 && desc) {
       const descLines = desc.split(/\r?\n/).map(s => s.replace(/^[•\-\*\d\.\)\s]+/, '').trim()).filter(Boolean);
       if (descLines.length > 0) {
-        reqLines = descLines.slice(0, 6);
+        reqLines = descLines.slice(0, 7);
       }
     }
 
-    let applyInfo = '';
-    const shortComp = company || 'Perusahaan';
-    if (whatsapp) {
-      applyInfo = `Kirim CV/Lamaran via WhatsApp resmi ${shortComp} (${whatsapp})`;
-    } else if (email) {
-      applyInfo = `Kirim CV/Lamaran via Email resmi ${shortComp} (${email})`;
-    } else if (website) {
-      applyInfo = `Kirim CV/Lamaran melalui portal resmi ${shortComp}.`;
-    } else {
-      applyInfo = `Kirim CV/Lamaran melalui tautan resmi ${shortComp}.`;
-    }
+    let applyInfo = email || (whatsapp ? `WhatsApp: ${whatsapp}` : 'recruitment2@chocomory.com');
 
     openPosterStudio({
-      title: title || 'POSISI LOWONGAN KERJA',
-      company_name: company || 'PERUSAHAAN TERVERIFIKASI',
+      title: title || 'OPERATOR PRODUKSI',
+      company_name: company || 'PT CHOCOMORY COKELAT PERSADA',
       responsibilities: respLines,
-      requirements: reqLines,
+      requirements: reqLines.length ? reqLines : [
+        'Pendidikan minimal SMA/SMK sederajat',
+        'Freshgraduate dipersilahkan apply',
+        'Teliti, disiplin dan bertanggung jawab terhadap pekerjaan',
+        'Bersedia bekerja shifting',
+        'Memahami K3 dan 5R',
+        'Bersedia ditempatkan di Cisarua, Kab Bogor'
+      ],
       benefits: benLines,
       deadline,
-      official_url: website || window.location.href,
+      official_url: website || 'https://lnkd.in/gziqaHKR',
       apply_info: applyInfo,
-      theme: title.toLowerCase().includes('operator') || title.toLowerCase().includes('teknisi') ? 'factory' : 'modern',
-      mascot: title.toLowerCase().includes('operator') || title.toLowerCase().includes('teknisi') ? 'factory' : 'corporate'
+      hashtag: '@Lokersmasmkjabodetabek #Lowongankerja2026',
+      theme: 'factory',
+      mascot: 'factory'
     });
   };
 
@@ -5680,12 +5678,26 @@ function openPosterStudio(jobData, isPublishIntent = false) {
   const qrInp = document.getElementById('poster-input-qr-url');
   const hashInp = document.getElementById('poster-input-hashtag');
 
-  if (compInp) compInp.value = jobData.company_name || '';
-  if (titleInp) titleInp.value = jobData.title || '';
+  if (compInp) compInp.value = jobData.company_name || 'PT CHOCOMORY COKELAT PERSADA';
+  if (titleInp) titleInp.value = jobData.title || 'OPERATOR PRODUKSI';
   if (deadInp) deadInp.value = jobData.deadline || '';
-  if (applyInp) applyInp.value = jobData.apply_info || (jobData.company_name ? `Kirim CV/Lamaran melalui tautan resmi ${jobData.company_name}.` : '');
-  if (qrInp) qrInp.value = jobData.official_url || window.location.origin;
-  if (hashInp) hashInp.value = jobData.hashtag || '@KerjaHubOfficial #LowonganKerja';
+  if (applyInp) applyInp.value = jobData.apply_info || (jobData.email || 'recruitment2@chocomory.com');
+  if (qrInp) qrInp.value = jobData.official_url || 'https://lnkd.in/gziqaHKR';
+  if (hashInp) hashInp.value = jobData.hashtag || '@Lokersmasmkjabodetabek #Lowongankerja2026';
+
+  // Ensure active theme image is preloaded into loadedCustomTemplateImg if available
+  if (flyerThemes.length > 0 && !loadedCustomTemplateImg) {
+    const activeTheme = flyerThemes.find(x => String(x.id) === String(activeFlyerThemeId)) || flyerThemes[0];
+    if (activeTheme && activeTheme.image_data) {
+      activeFlyerThemeId = activeTheme.id;
+      const img = new Image();
+      img.onload = () => {
+        loadedCustomTemplateImg = img;
+        renderPosterCanvas();
+      };
+      img.src = activeTheme.image_data;
+    }
+  }
 
   const parseList = (val) => {
     if (!val) return [];
@@ -5703,8 +5715,19 @@ function openPosterStudio(jobData, isPublishIntent = false) {
   };
 
   const respList = parseList(jobData.responsibilities);
-  const reqList = parseList(jobData.requirements);
+  let reqList = parseList(jobData.requirements);
   const benList = parseList(jobData.benefits);
+
+  if (reqList.length === 0 && respList.length === 0) {
+    reqList = [
+      'Pendidikan minimal SMA/SMK sederajat',
+      'Freshgraduate dipersilahkan apply',
+      'Teliti, disiplin dan bertanggung jawab terhadap pekerjaan',
+      'Bersedia bekerja shifting',
+      'Memahami K3 dan 5R',
+      'Bersedia ditempatkan di Cisarua, Kab Bogor'
+    ];
+  }
 
   window.setDynamicListValues('poster-resp-items', respList, 'responsibilities', 'poster-resp-counter');
   window.setDynamicListValues('poster-req-items', reqList, 'requirements', 'poster-req-counter');
@@ -5791,21 +5814,6 @@ function drawMegaphoneMascotIllustration(ctx, x, y, w, h) {
   const scale = Math.min(w / 400, h / 500);
   ctx.scale(scale, scale);
 
-  // Concentric Soundwaves on left of megaphone
-  ctx.strokeStyle = '#f59e0b';
-  ctx.lineWidth = 5;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.arc(80, 240, 45, Math.PI * 0.7, Math.PI * 1.3);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(80, 240, 75, Math.PI * 0.72, Math.PI * 1.28);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(80, 240, 105, Math.PI * 0.75, Math.PI * 1.25);
-  ctx.stroke();
 
   // MEGAPHONE BODY
   ctx.fillStyle = '#f97316';
@@ -6012,63 +6020,89 @@ function renderPosterCanvas() {
   const drawMascotOnCustom = document.getElementById('custom-tpl-draw-mascot') ? document.getElementById('custom-tpl-draw-mascot').checked : true;
 
   // ---------------------------------------------------------
-  // MODE 1: CHOCOMORY MEGAFON STYLE (EXACT SCREENSHOT REFERENCE)
+  // HIGH-FIDELITY CHOCOMORY / CUSTOM BACKGROUND DESIGN
   // ---------------------------------------------------------
-  if (selectedFlyerTemplate === 'chocomory') {
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, width, height);
+  if (selectedFlyerTemplate === 'chocomory' || selectedFlyerTemplate === 'custom' || selectedFlyerTemplate === 'default') {
+    // 1. BACKGROUND LAYER
+    if (loadedCustomTemplateImg) {
+      // Draw user's custom uploaded background theme
+      ctx.drawImage(loadedCustomTemplateImg, 0, 0, width, height);
+    } else {
+      // Royal blue outer canvas background
+      ctx.fillStyle = '#0052cc';
+      ctx.fillRect(0, 0, width, height);
 
-    ctx.strokeStyle = '#0052cc';
-    ctx.lineWidth = 14;
-    roundRect(ctx, 22, 22, width - 44, height - 44, 28, false, true);
+      // Large inner rounded white card
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2.5;
+      roundRect(ctx, 22, 22, width - 44, height - 44, 32, true, true);
+    }
 
-    // Bold Header: LOWONGAN PEKERJAAN with thick underline
+    // 2. HEADER TITLE: LOWONGAN PEKERJAAN with exact-fit underline
     ctx.textAlign = 'center';
     ctx.fillStyle = '#000000';
     ctx.font = '900 48px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText('LOWONGAN PEKERJAAN', width / 2, 110);
+    const headerText = 'LOWONGAN PEKERJAAN';
+    ctx.fillText(headerText, width / 2, 114);
 
+    const headerW = ctx.measureText(headerText).width;
     ctx.fillStyle = '#000000';
-    const underW = 760;
-    ctx.fillRect((width - underW) / 2, 126, underW, 5.5);
+    ctx.fillRect((width - headerW) / 2 - 8, 126, headerW + 16, 5.5);
 
-    // Company Name
-    ctx.font = '900 42px "Plus Jakarta Sans", Arial, sans-serif';
-    let compText = company || 'PT PERUSAHAAN TERVERIFIKASI';
-    if (ctx.measureText(compText).width > 920) {
-      let words = compText.split(' ');
-      let line1 = words.slice(0, Math.ceil(words.length / 2)).join(' ');
-      let line2 = words.slice(Math.ceil(words.length / 2)).join(' ');
-      ctx.fillText(line1, width / 2, 178);
-      ctx.fillText(line2, width / 2, 224);
+    // 3. COMPANY NAME (Uppercase, bold black, smart 2-line wrap if long)
+    ctx.font = '900 40px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillStyle = '#000000';
+    let compText = (company || 'PT CHOCOMORY COKELAT PERSADA').trim().toUpperCase();
+
+    let compLine1 = '';
+    let compLine2 = '';
+    if (ctx.measureText(compText).width > 780 || compText.includes('CHOCOMORY')) {
+      const words = compText.split(' ');
+      if (words.length >= 2) {
+        const mid = Math.ceil(words.length / 2);
+        compLine1 = words.slice(0, mid).join(' ');
+        compLine2 = words.slice(mid).join(' ');
+      } else {
+        compLine1 = compText;
+      }
     } else {
-      ctx.fillText(compText, width / 2, 186);
+      compLine1 = compText;
     }
 
-    // Role Pill Badge (Solid Blue Chevron/Pill on Left)
-    const badgeY = 246;
-    const badgeX = 52;
-    const badgeH = 54;
-    const displayTitle = (title || 'OPERATOR PRODUKSI').trim();
-    const maxBadgeLimit = hasMascot ? 560 : 960;
-    const maxBadgeTextW = maxBadgeLimit - 64;
+    let badgeY = 252;
+    if (compLine2) {
+      ctx.fillText(compLine1, width / 2, 178);
+      ctx.fillText(compLine2, width / 2, 226);
+      badgeY = 262;
+    } else {
+      ctx.fillText(compLine1, width / 2, 190);
+      badgeY = 248;
+    }
 
-    let roleFontSize = 28;
+    // 4. POSITION RIBBON CHEVRON BADGE
+    const badgeX = 52;
+    const badgeH = 56;
+    const displayTitle = (title || 'OPERATOR PRODUKSI').trim().toUpperCase();
+    const maxBadgeLimit = (drawMascotOnCustom && hasMascot) ? 550 : 960;
+
+    let roleFontSize = 26;
     ctx.font = `900 ${roleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-    while (ctx.measureText(displayTitle).width > maxBadgeTextW && roleFontSize > 14) {
+    while (ctx.measureText(displayTitle).width > (maxBadgeLimit - 76) && roleFontSize > 14) {
       roleFontSize -= 1;
       ctx.font = `900 ${roleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
     }
 
-    const titleW = ctx.measureText(displayTitle).width;
-    const badgeW = Math.max(300, Math.min(maxBadgeLimit, titleW + 56));
+    const titleTextW = ctx.measureText(displayTitle).width;
+    const chevronIndent = 24;
+    const badgeW = Math.max(280, Math.min(maxBadgeLimit, titleTextW + 54 + chevronIndent));
 
     ctx.fillStyle = '#0052cc';
     ctx.beginPath();
     ctx.moveTo(badgeX, badgeY);
-    ctx.lineTo(badgeX + badgeW - 22, badgeY);
+    ctx.lineTo(badgeX + badgeW - chevronIndent, badgeY);
     ctx.lineTo(badgeX + badgeW, badgeY + badgeH / 2);
-    ctx.lineTo(badgeX + badgeW - 22, badgeY + badgeH);
+    ctx.lineTo(badgeX + badgeW - chevronIndent, badgeY + badgeH);
     ctx.lineTo(badgeX, badgeY + badgeH);
     ctx.closePath();
     ctx.fill();
@@ -6077,17 +6111,17 @@ function renderPosterCanvas() {
     ctx.fillStyle = '#ffffff';
     ctx.fillText(displayTitle, badgeX + 22, badgeY + Math.round(badgeH / 2) + Math.round(roleFontSize * 0.35));
 
-    // Megaphone Character Illustration (Top Right)
-    if (hasMascot) {
+    // 5. VECTOR MEGAPHONE MASCOT ILLUSTRATION (RIGHT)
+    if (drawMascotOnCustom && hasMascot) {
       if (selectedMascot === 'corporate' && loadedMascotCache['corporate']) {
-        drawMascotOnCanvas(ctx, loadedMascotCache['corporate'], 640, 200, 390, 500);
+        drawMascotOnCanvas(ctx, loadedMascotCache['corporate'], 640, 180, 390, 500);
       } else {
         drawMegaphoneMascotIllustration(ctx, 640, 180, 390, 500);
       }
     }
 
-    // Qualifications ("Kualifikasi") Bullet List
-    const kualY = 345;
+    // 6. QUALIFICATIONS SECTION ("Kualifikasi")
+    const kualY = badgeY + badgeH + 42;
     ctx.textAlign = 'left';
     ctx.fillStyle = '#000000';
     ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
@@ -6101,24 +6135,21 @@ function renderPosterCanvas() {
           'Teliti, disiplin dan bertanggung jawab terhadap pekerjaan',
           'Bersedia bekerja shifting',
           'Memahami K3 dan 5R',
-          'Bersedia ditempatkan sesuai operasional perusahaan'
+          'Bersedia ditempatkan di Cisarua, Kab Bogor'
         ]);
 
-    let curItemY = kualY + 44;
-    const maxKualW = hasMascot ? 560 : 960;
-    const itemFontSize = activeList.length > 5 ? 20 : 22;
-    const itemLineH = activeList.length > 5 ? 32 : 36;
-
+    let curItemY = kualY + 40;
+    const maxKualW = (drawMascotOnCustom && hasMascot) ? 540 : 960;
+    const itemFontSize = activeList.length > 6 ? 20 : 21;
+    const itemLineH = activeList.length > 6 ? 30 : 33;
     ctx.font = `600 ${itemFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-    ctx.fillStyle = '#1e293b';
 
-    activeList.slice(0, 6).forEach((item) => {
+    activeList.slice(0, 7).forEach((item) => {
       ctx.fillStyle = '#000000';
       ctx.beginPath();
-      ctx.arc(66, curItemY - 7, 5, 0, Math.PI * 2);
+      ctx.arc(66, curItemY - 6, 4.5, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = '#1e293b';
       const words = String(item).split(' ');
       let line = '';
       for (let n = 0; n < words.length; n++) {
@@ -6137,9 +6168,9 @@ function renderPosterCanvas() {
       }
     });
 
-    // Bottom-Left Application Card (White box with Blue 3D Shadow Box)
+    // 7. BOTTOM-LEFT APPLICATION CARD (3D BLUE DROP SHADOW)
     const appBoxX = 52;
-    const appBoxY = 740;
+    const appBoxY = 745;
     const appBoxW = 590;
     const appBoxH = 210;
 
@@ -6157,325 +6188,82 @@ function renderPosterCanvas() {
 
     ctx.textAlign = 'left';
     ctx.fillStyle = '#000000';
-    ctx.font = '700 21px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
     ctx.fillText('Kirim CV/Lamaran melalui Scan QR Code atau link', appBoxX + 22, appBoxY + 44);
 
-    const cleanEmail = (applyInfo.includes('@') ? applyInfo.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] : null) || 'recruitment@chocomory.com';
+    const cleanEmail = (applyInfo.includes('@') ? applyInfo.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] : null) || 'recruitment2@chocomory.com';
     ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText('atau melalui email : ', appBoxX + 22, appBoxY + 82);
+    const emailPrefix = 'atau melalui email : ';
+    ctx.fillText(emailPrefix, appBoxX + 22, appBoxY + 82);
+    const prefixW = ctx.measureText(emailPrefix).width;
 
-    ctx.fillStyle = '#0052cc';
     ctx.font = '800 20px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText(cleanEmail, appBoxX + 22 + ctx.measureText('atau melalui email : ').width, appBoxY + 82);
+    ctx.fillText(cleanEmail, appBoxX + 22 + prefixW, appBoxY + 82);
+    const emailW = ctx.measureText(cleanEmail).width;
+    ctx.fillRect(appBoxX + 22 + prefixW, appBoxY + 86, emailW, 2);
+
+    ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('Subject email: Lamaran_Posisi yang dilamar_Nama', appBoxX + 22, appBoxY + 126);
+
+    ctx.fillStyle = '#334155';
+    ctx.font = '600 18px "Plus Jakarta Sans", Arial, sans-serif';
+    const shortPos = (title || 'Operator Produksi').substring(0, 20);
+    ctx.fillText(`(Contoh: Lamaran_${shortPos}_Dimas)`, appBoxX + 22, appBoxY + 166);
+
+    // 8. BOTTOM-LEFT FOOTER (TIKTOK & HASHTAG)
+    const footLeftX = 52;
+    const footLeftY = 1256;
 
     ctx.fillStyle = '#000000';
-    ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
-    const shortPos = (title || 'Operator Produksi').substring(0, 18);
-    ctx.fillText(`Subject email: Lamaran_${shortPos}_Nama`, appBoxX + 22, appBoxY + 128);
+    ctx.beginPath();
+    ctx.arc(footLeftX + 16, footLeftY - 6, 16, 0, Math.PI * 2);
+    ctx.fill();
 
-    ctx.fillStyle = '#475569';
-    ctx.font = '600 18px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText(`(Contoh: Lamaran_${shortPos}_Dimas)`, appBoxX + 22, appBoxY + 168);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 18px Arial, sans-serif';
+    ctx.fillText('d', footLeftX + 11, footLeftY);
 
-    // Bottom-Right QR Code Box
-    const qrSize = 225;
+    ctx.fillStyle = '#000000';
+    ctx.font = '800 23px "Plus Jakarta Sans", Arial, sans-serif';
+    let handleText = '@Lokersmasmkjabodetabek';
+    let tagText = '#Lowongankerja2026';
+    if (hashtag) {
+      const parts = hashtag.split(' ');
+      if (parts[0] && parts[0].startsWith('@')) handleText = parts[0];
+      if (parts[1] && parts[1].startsWith('#')) tagText = parts[1];
+    }
+    ctx.fillText(handleText, footLeftX + 42, footLeftY);
+    ctx.fillText(tagText, footLeftX + 42, footLeftY + 34);
+
+    // 9. BOTTOM-RIGHT QR CODE SECTION
+    const qrSize = 230;
     const qrBoxX = 695;
     const qrBoxY = 725;
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#000000';
-    ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
-    const displayShortUrl = qrUrl.length > 30 ? (qrUrl.replace(/^https?:\/\//, '').substring(0, 26) + '...') : qrUrl;
+    ctx.font = '700 19px "Plus Jakarta Sans", Arial, sans-serif';
+    const displayShortUrl = (qrUrl && qrUrl.length > 32)
+      ? qrUrl.replace(/^https?:\/\//, '').substring(0, 26) + '...'
+      : (qrUrl || 'https://lnkd.in/gziqaHKR');
     ctx.fillText(displayShortUrl, qrBoxX + qrSize / 2, qrBoxY - 14);
 
-    drawScannableQrCode(ctx, qrUrl, qrBoxX, qrBoxY, qrSize);
+    drawScannableQrCode(ctx, qrUrl || 'https://lnkd.in/gziqaHKR', qrBoxX, qrBoxY, qrSize, false);
 
     ctx.font = '900 26px "Plus Jakarta Sans", Arial, sans-serif';
     ctx.fillStyle = '#000000';
-    ctx.fillText('SCAN DISINI', qrBoxX + qrSize / 2, qrBoxY + qrSize + 42);
-    ctx.fillRect(qrBoxX + 24, qrBoxY + qrSize + 50, qrSize - 48, 3.5);
+    const scanText = 'SCAN DISINI';
+    ctx.fillText(scanText, qrBoxX + qrSize / 2, qrBoxY + qrSize + 40);
+    const scanW = ctx.measureText(scanText).width;
+    ctx.fillRect(qrBoxX + (qrSize - scanW) / 2, qrBoxY + qrSize + 48, scanW, 3.5);
 
-    // Bottom Footer: TikTok/IG handle left, Anti-fraud warning right
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#000000';
-    ctx.font = '900 24px "Plus Jakarta Sans", Arial, sans-serif';
-
-    ctx.beginPath();
-    ctx.arc(68, 1262, 16, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 18px Arial';
-    ctx.fillText('d', 63, 1268);
-
-    ctx.fillStyle = '#000000';
-    ctx.font = '800 23px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText('@Lokersmasmkjabodetabek', 94, 1256);
-
-    ctx.font = '800 23px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText('#Lowongankerja2026', 94, 1288);
-
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#000000';
-    ctx.font = '800 23px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText('⚠️ Hati-hati penipuan', width - 54, 1256);
+    // Anti-fraud Notice below QR
+    ctx.font = '800 21px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('⚠️ Hati-hati penipuan', qrBoxX + qrSize / 2, 1256);
 
     ctx.fillStyle = '#334155';
-    ctx.font = '600 19px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText('Recrutmen ini tidak dipungut biaya apapun', width - 54, 1288);
-  }
-
-  // ---------------------------------------------------------
-  // MODE 2: CUSTOM BLANK TEMPLATE (UPLOADED BACKGROUND DESAIN SENDIRI)
-  // ---------------------------------------------------------
-  else if (selectedFlyerTemplate === 'custom') {
-    if (loadedCustomTemplateImg) {
-      ctx.drawImage(loadedCustomTemplateImg, 0, 0, width, height);
-
-      // Top Title & Company Name
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#0f172a';
-      ctx.font = '900 44px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('LOWONGAN PEKERJAAN', width / 2, 108);
-
-      ctx.fillStyle = '#0052cc';
-      const underW = 740;
-      ctx.fillRect((width - underW) / 2, 122, underW, 4.5);
-
-      ctx.font = '900 40px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillStyle = '#000000';
-      let compText = company || 'PT PERUSAHAAN TERVERIFIKASI';
-      if (ctx.measureText(compText).width > 900) {
-        let words = compText.split(' ');
-        let line1 = words.slice(0, Math.ceil(words.length / 2)).join(' ');
-        let line2 = words.slice(Math.ceil(words.length / 2)).join(' ');
-        ctx.fillText(line1, width / 2, 168);
-        ctx.fillText(line2, width / 2, 214);
-      } else {
-        ctx.fillText(compText, width / 2, 182);
-      }
-
-      if (drawMascotOnCustom && hasMascot) {
-        if (selectedMascot === 'corporate' && loadedMascotCache['corporate']) {
-          drawMascotOnCanvas(ctx, loadedMascotCache['corporate'], 640, 200, 390, 500);
-        } else {
-          drawMegaphoneMascotIllustration(ctx, 640, 180, 390, 500);
-        }
-      }
-
-      // Role Pill Badge
-      const badgeY = 246;
-      const badgeX = 52;
-      const badgeH = 54;
-      const displayTitle = (title || 'OPERATOR PRODUKSI').trim();
-      const maxBadgeLimit = (drawMascotOnCustom && hasMascot) ? 560 : 960;
-      const maxBadgeTextW = maxBadgeLimit - 64;
-
-      let roleFontSize = 28;
-      ctx.font = `900 ${roleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-      while (ctx.measureText(displayTitle).width > maxBadgeTextW && roleFontSize > 14) {
-        roleFontSize -= 1;
-        ctx.font = `900 ${roleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-      }
-
-      const titleW = ctx.measureText(displayTitle).width;
-      const badgeW = Math.max(300, Math.min(maxBadgeLimit, titleW + 56));
-
-      ctx.fillStyle = '#0052cc';
-      ctx.beginPath();
-      ctx.moveTo(badgeX, badgeY);
-      ctx.lineTo(badgeX + badgeW - 22, badgeY);
-      ctx.lineTo(badgeX + badgeW, badgeY + badgeH / 2);
-      ctx.lineTo(badgeX + badgeW - 22, badgeY + badgeH);
-      ctx.lineTo(badgeX, badgeY + badgeH);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(displayTitle, badgeX + 22, badgeY + Math.round(badgeH / 2) + Math.round(roleFontSize * 0.35));
-
-      // Qualifications Bullet List
-      const kualY = 345;
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#000000';
-      ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('Kualifikasi', 54, kualY);
-
-      const activeList = (requirements && requirements.length > 0)
-        ? requirements
-        : (responsibilities && responsibilities.length > 0 ? responsibilities : [
-            'Pendidikan minimal SMA/SMK sederajat',
-            'Freshgraduate dipersilahkan apply',
-            'Teliti, disiplin dan bertanggung jawab terhadap pekerjaan',
-            'Bersedia bekerja shifting',
-            'Memahami K3 dan 5R'
-          ]);
-
-      let curItemY = kualY + 44;
-      ctx.font = '600 22px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillStyle = '#1e293b';
-
-      activeList.slice(0, 5).forEach((item) => {
-        ctx.fillStyle = '#000000';
-        ctx.beginPath();
-        ctx.arc(66, curItemY - 7, 5, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#1e293b';
-        ctx.fillText(String(item).substring(0, 48), 82, curItemY);
-        curItemY += 38;
-      });
-
-      // Bottom-Left Application Box (White Card with 3D Shadow)
-      const appBoxX = 52;
-      const appBoxY = 740;
-      const appBoxW = 590;
-      const appBoxH = 210;
-
-      ctx.fillStyle = '#0052cc';
-      roundRect(ctx, appBoxX + 9, appBoxY + 9, appBoxW, appBoxH, 18, true, false);
-
-      ctx.fillStyle = '#ffffff';
-      roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 18, true, false);
-
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3.5;
-      roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 18, false, true);
-
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#000000';
-      ctx.font = '700 21px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('Kirim CV/Lamaran melalui Scan QR Code atau link', appBoxX + 22, appBoxY + 44);
-
-      ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('atau melalui website / email resmi terverifikasi', appBoxX + 22, appBoxY + 82);
-
-      const shortPos = (title || 'Operator Produksi').substring(0, 18);
-      ctx.fillStyle = '#000000';
-      ctx.fillText(`Subject: Lamaran_${shortPos}_Nama`, appBoxX + 22, appBoxY + 128);
-
-      ctx.fillStyle = '#475569';
-      ctx.font = '600 18px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText(`(Contoh: Lamaran_${shortPos}_Dimas)`, appBoxX + 22, appBoxY + 168);
-
-      // QR Code
-      const qrSize = 225;
-      const qrBoxX = 695;
-      const qrBoxY = 725;
-
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#000000';
-      ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
-      const displayShortUrl = qrUrl.length > 30 ? (qrUrl.replace(/^https?:\/\//, '').substring(0, 26) + '...') : qrUrl;
-      ctx.fillText(displayShortUrl, qrBoxX + qrSize / 2, qrBoxY - 14);
-
-      drawScannableQrCode(ctx, qrUrl, qrBoxX, qrBoxY, qrSize);
-
-      ctx.font = '900 26px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillStyle = '#000000';
-      ctx.fillText('SCAN DISINI', qrBoxX + qrSize / 2, qrBoxY + qrSize + 42);
-      ctx.fillRect(qrBoxX + 24, qrBoxY + qrSize + 50, qrSize - 48, 3.5);
-
-      // Anti-fraud on Right
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#000000';
-      ctx.font = '800 23px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('⚠️ Hati-hati penipuan', width - 54, 1256);
-
-      ctx.fillStyle = '#334155';
-      ctx.font = '600 19px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('Recrutmen ini tidak dipungut biaya apapun', width - 54, 1288);
-    } else {
-      // Solid clean professional default flyer when no uploaded template image is loaded yet
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
-
-      ctx.strokeStyle = '#1d4ed8';
-      ctx.lineWidth = 14;
-      roundRect(ctx, 22, 22, width - 44, height - 44, 28, false, true);
-
-      // Bold Header
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#0f172a';
-      ctx.font = '900 48px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('LOWONGAN PEKERJAAN', width / 2, 110);
-
-      ctx.fillStyle = '#1d4ed8';
-      const underW = 760;
-      ctx.fillRect((width - underW) / 2, 126, underW, 5);
-
-      // Company
-      ctx.font = '900 40px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillStyle = '#0f172a';
-      let compText = company || 'PT PERUSAHAAN TERVERIFIKASI';
-      ctx.fillText(compText, width / 2, 185);
-
-      if (hasMascot) {
-        if (selectedMascot === 'corporate' && loadedMascotCache['corporate']) {
-          drawMascotOnCanvas(ctx, loadedMascotCache['corporate'], 640, 200, 390, 500);
-        } else {
-          drawMegaphoneMascotIllustration(ctx, 640, 180, 390, 500);
-        }
-      }
-
-      // Role Pill Badge
-      const badgeY = 246;
-      const badgeX = 52;
-      const badgeH = 54;
-      const displayTitle = (title || 'OPERATOR PRODUKSI').trim();
-      const badgeW = Math.min(560, ctx.measureText(displayTitle).width + 64);
-
-      ctx.fillStyle = '#1d4ed8';
-      roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 12, true, false);
-
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 26px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText(displayTitle, badgeX + 24, badgeY + 36);
-
-      // Qualifications
-      ctx.fillStyle = '#0f172a';
-      ctx.font = '800 28px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('Kualifikasi', 54, 350);
-
-      const activeList = (requirements && requirements.length > 0)
-        ? requirements
-        : ['Pendidikan minimal SMA/SMK sederajat', 'Freshgraduate dipersilahkan melamar', 'Disiplin, teliti, dan bertanggung jawab'];
-
-      let curItemY = 395;
-      ctx.font = '600 22px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillStyle = '#334155';
-      activeList.slice(0, 5).forEach((item) => {
-        ctx.fillStyle = '#1d4ed8';
-        ctx.beginPath();
-        ctx.arc(66, curItemY - 7, 5, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#334155';
-        ctx.fillText(String(item).substring(0, 48), 82, curItemY);
-        curItemY += 38;
-      });
-
-      // Bottom QR box
-      const qrSize = 225;
-      const qrBoxX = 695;
-      const qrBoxY = 725;
-      drawScannableQrCode(ctx, qrUrl, qrBoxX, qrBoxY, qrSize);
-
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#0f172a';
-      ctx.font = '900 24px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('SCAN DISINI', qrBoxX + qrSize / 2, qrBoxY + qrSize + 38);
-
-      // Anti-fraud on Right
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#dc2626';
-      ctx.font = '800 22px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('⚠️ Rekrutmen ini 100% Gratis', width - 54, 1256);
-      ctx.fillStyle = '#64748b';
-      ctx.font = '600 18px "Plus Jakarta Sans", Arial, sans-serif';
-      ctx.fillText('Tidak dipungut biaya apapun', width - 54, 1286);
-    }
+    ctx.font = '600 18px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('Recrutmen ini tidak dipungut biaya apapun', qrBoxX + qrSize / 2, 1288);
   }
 
   // ---------------------------------------------------------
@@ -6714,30 +6502,32 @@ function drawMascotOnCanvas(ctx, img, x, y, w, h) {
 }
 
 // Helper: draw real QR Code
-function drawScannableQrCode(ctx, url, x, y, size) {
+function drawScannableQrCode(ctx, url, x, y, size, withBrackets = false) {
   const holder = document.getElementById('poster-qrcode-temp');
   if (!holder) return;
 
   holder.innerHTML = '';
   if (typeof QRCode === 'function') {
     new QRCode(holder, {
-      text: url || 'https://recruitment.toyota.co.id',
+      text: url || 'https://lnkd.in/gziqaHKR',
       width: size,
       height: size,
-      colorDark: '#0f172a',
+      colorDark: '#000000',
       colorLight: '#ffffff',
       correctLevel: QRCode.CorrectLevel.H
     });
 
     const qrCanvas = holder.querySelector('canvas');
     if (qrCanvas) {
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 4;
-      const bLen = 22;
-      ctx.beginPath(); ctx.moveTo(x - 8, y + bLen); ctx.lineTo(x - 8, y - 8); ctx.lineTo(x + bLen, y - 8); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x + size + 8 - bLen, y - 8); ctx.lineTo(x + size + 8, y - 8); ctx.lineTo(x + size + 8, y + bLen); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x - 8, y + size + 8 - bLen); ctx.lineTo(x - 8, y + size + 8); ctx.lineTo(x + bLen, y + size + 8); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x + size + 8 - bLen, y + size + 8); ctx.lineTo(x + size + 8, y + size + 8); ctx.lineTo(x + size + 8, y + size + 8 - bLen); ctx.stroke();
+      if (withBrackets) {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        const bLen = 22;
+        ctx.beginPath(); ctx.moveTo(x - 8, y + bLen); ctx.lineTo(x - 8, y - 8); ctx.lineTo(x + bLen, y - 8); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + size + 8 - bLen, y - 8); ctx.lineTo(x + size + 8, y - 8); ctx.lineTo(x + size + 8, y + bLen); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x - 8, y + size + 8 - bLen); ctx.lineTo(x - 8, y + size + 8); ctx.lineTo(x + bLen, y + size + 8); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + size + 8 - bLen, y + size + 8); ctx.lineTo(x + size + 8, y + size + 8); ctx.lineTo(x + size + 8, y + size + 8 - bLen); ctx.stroke();
+      }
       ctx.drawImage(qrCanvas, x, y, size, size);
     }
   }
