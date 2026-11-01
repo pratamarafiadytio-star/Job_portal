@@ -6782,22 +6782,11 @@ function renderPosterCanvas() {
     const qrBoxX = 710;
     const qrBoxY = 780;
 
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#000000';
-    ctx.font = '700 19px "Plus Jakarta Sans", Arial, sans-serif';
     const publicUrlFallback = typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(currentPosterJobData?.id) : 'https://job-portal-194.pages.dev';
     let activeQrUrl = (qrUrl || publicUrlFallback).trim();
     if (activeQrUrl.includes('localhost') || activeQrUrl.includes('127.0.0.1')) {
       activeQrUrl = activeQrUrl.replace(/^https?:\/\/(localhost(:\d+)?|127\.0\.0\.1(:\d+)?)/i, 'https://job-portal-194.pages.dev');
     }
-    let displayShortUrl = activeQrUrl.replace(/^https?:\/\//, '');
-    if (displayShortUrl.includes('localhost') || displayShortUrl.includes('127.0.0.1')) {
-      displayShortUrl = displayShortUrl.replace(/^(localhost(:\d+)?|127\.0\.0\.1(:\d+)?)/i, 'job-portal-194.pages.dev');
-    }
-    if (displayShortUrl.length > 32) {
-      displayShortUrl = displayShortUrl.substring(0, 28) + '...';
-    }
-    ctx.fillText(displayShortUrl, qrBoxX + qrSize / 2, qrBoxY - 14);
 
     drawScannableQrCode(ctx, activeQrUrl, qrBoxX, qrBoxY, qrSize, false);
 

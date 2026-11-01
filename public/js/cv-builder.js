@@ -179,7 +179,10 @@ const CV_TEMPLATES_META = [
   { id: 8, badge: 'ATS Garis Tegas', subtitle: 'Desain 8: ATS Foto Kiri', color: '#f43f5e' }
 ];
 
-// STATE MANAGEMENT - ALL SECTIONS OPEN BY DEFAULT TO PREVENT "KE HIDE"
+// STATE MANAGEMENT - PERSISTED TO LOCALSTORAGE DIRECTLY
+const CV_STORAGE_KEY = 'kerjahub_saved_cv_data_v1';
+const CV_TEMPLATE_KEY = 'kerjahub_saved_cv_template_v1';
+
 let cvData = JSON.parse(JSON.stringify(INITIAL_CV_DATA));
 let cvSelectedTemplate = 8;
 let cvZoom = 0.75;
@@ -191,6 +194,70 @@ let cvOpenSections = {
   skill: true
 };
 let isCvStudioInitialized = false;
+
+// Auto-load saved user data so personal info is preserved across refreshes
+function loadCvDataFromStorage() {
+  try {
+    const saved = localStorage.getItem(CV_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') {
+        cvData = Object.assign({}, INITIAL_CV_DATA, parsed);
+        if (!Array.isArray(cvData.educations)) cvData.educations = INITIAL_CV_DATA.educations;
+        if (!Array.isArray(cvData.experiences)) cvData.experiences = INITIAL_CV_DATA.experiences;
+        if (!Array.isArray(cvData.softSkills)) cvData.softSkills = INITIAL_CV_DATA.softSkills;
+        if (!Array.isArray(cvData.hardSkills)) cvData.hardSkills = INITIAL_CV_DATA.hardSkills;
+        if (!Array.isArray(cvData.certificates)) cvData.certificates = INITIAL_CV_DATA.certificates;
+      }
+    }
+    const savedTpl = localStorage.getItem(CV_TEMPLATE_KEY);
+    if (savedTpl) {
+      const parsedTpl = parseInt(savedTpl, 10);
+      if (parsedTpl >= 1 && parsedTpl <= 8) {
+        cvSelectedTemplate = parsedTpl;
+      }
+    }
+  } catch (err) {
+    console.warn('Gagal memuat CV dari localStorage:', err);
+  }
+}
+
+let cvSaveDebounceTimer = null;
+function saveCvDataToStorage(immediate = false) {
+  const doSave = () => {
+    try {
+      localStorage.setItem(CV_STORAGE_KEY, JSON.stringify(cvData));
+      localStorage.setItem(CV_TEMPLATE_KEY, String(cvSelectedTemplate));
+      updateCvAutoSaveBadge(true);
+    } catch (err) {
+      console.warn('Gagal menyimpan CV ke localStorage:', err);
+    }
+  };
+
+  updateCvAutoSaveBadge(false);
+  if (immediate) {
+    if (cvSaveDebounceTimer) clearTimeout(cvSaveDebounceTimer);
+    doSave();
+  } else {
+    if (cvSaveDebounceTimer) clearTimeout(cvSaveDebounceTimer);
+    cvSaveDebounceTimer = setTimeout(doSave, 250);
+  }
+}
+
+function updateCvAutoSaveBadge(saved) {
+  const badge = document.getElementById('cv-autosave-indicator');
+  if (badge) {
+    if (saved) {
+      badge.style.opacity = '1';
+      badge.innerHTML = '<i class="fa-solid fa-circle-check" style="color: #34d399;"></i> Data Tersimpan';
+    } else {
+      badge.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="color: #60a5fa;"></i> Menyimpan...';
+    }
+  }
+}
+
+// Initial auto-load
+loadCvDataFromStorage();
 
 // Helper: Escape HTML strings
 function esc(str) {
@@ -1827,6 +1894,7 @@ function renderCvStudioForm() {
 // -------------------------------------------------------------
 function setCvTemplate(id) {
   cvSelectedTemplate = id;
+  saveCvDataToStorage(true);
   updateCvPreview();
 }
 
@@ -1847,6 +1915,13 @@ function zoomCvOut() {
 }
 
 function printCv() {
+  // Commit any currently focused input immediately
+  if (document.activeElement && typeof document.activeElement.blur === 'function') {
+    document.activeElement.blur();
+  }
+  saveCvDataToStorage(true);
+  updateCvPreview();
+
   const originalTitle = document.title;
   const cleanName = (cvData.fullName || 'CV').trim().replace(/[^a-zA-Z0-9 _-]/g, '');
   const cleanRole = (cvData.jobTitle || '').trim().replace(/[^a-zA-Z0-9 _-]/g, '').slice(0, 30);
@@ -1857,21 +1932,27 @@ function printCv() {
     setTimeout(() => {
       document.title = originalTitle;
     }, 1500);
-  }, 80);
+  }, 100);
 }
 
 function resetCvToInitial() {
-  cvData = JSON.parse(JSON.stringify(INITIAL_CV_DATA));
-  renderCvStudioForm();
-  updateCvPreview();
-  showCvNotification('Data contoh berhasil dimuat ulang.');
+  if (confirm('Muat ulang data contoh template? Data diri yang saat ini Anda ketik akan digantikan dengan data contoh.')) {
+    cvData = JSON.parse(JSON.stringify(INITIAL_CV_DATA));
+    saveCvDataToStorage(true);
+    renderCvStudioForm();
+    updateCvPreview();
+    showCvNotification('Data contoh berhasil dimuat ulang.');
+  }
 }
 
 function clearCvToSinglePoint() {
-  cvData = JSON.parse(JSON.stringify(EMPTY_SINGLE_CV_DATA));
-  renderCvStudioForm();
-  updateCvPreview();
-  showCvNotification('Formulir siap diisi dari 1 poin kosong.');
+  if (confirm('Mulai formulir kosong baru dari 1 poin? Data sebelumnya akan direset.')) {
+    cvData = JSON.parse(JSON.stringify(EMPTY_SINGLE_CV_DATA));
+    saveCvDataToStorage(true);
+    renderCvStudioForm();
+    updateCvPreview();
+    showCvNotification('Formulir siap diisi dari 1 poin kosong.');
+  }
 }
 
 function applyCvPreset(idx) {
@@ -1879,6 +1960,7 @@ function applyCvPreset(idx) {
   if (!p) return;
   cvData.aboutMe = p.text;
   cvData.jobTitle = p.title;
+  saveCvDataToStorage(true);
   renderCvStudioForm();
   updateCvPreview();
 }
@@ -1900,6 +1982,7 @@ function closeAllCvSections() {
 
 function updateCvField(field, val) {
   cvData[field] = val;
+  saveCvDataToStorage();
   updateCvPreview();
 }
 
@@ -1909,6 +1992,7 @@ function handleCvPhotoUpload(e) {
   const reader = new FileReader();
   reader.onload = () => {
     cvData.photo = reader.result;
+    saveCvDataToStorage(true);
     const prevImg = document.getElementById('cv-editor-photo-preview');
     if (prevImg) prevImg.src = reader.result;
     updateCvPreview();
@@ -1918,6 +2002,7 @@ function handleCvPhotoUpload(e) {
 
 function setCvPhotoBg(color) {
   cvData.photoBg = color;
+  saveCvDataToStorage(true);
   const prevBox = document.getElementById('cv-editor-photo-preview')?.parentElement;
   if (prevBox) prevBox.style.backgroundColor = color;
   updateCvPreview();
@@ -1925,6 +2010,7 @@ function setCvPhotoBg(color) {
 
 function setCvAvatar() {
   cvData.photo = DEFAULT_AVATAR_SVG;
+  saveCvDataToStorage(true);
   const prevImg = document.getElementById('cv-editor-photo-preview');
   if (prevImg) prevImg.src = DEFAULT_AVATAR_SVG;
   updateCvPreview();
@@ -1940,6 +2026,7 @@ function addCvEducation() {
     period: '',
     extra: ''
   });
+  saveCvDataToStorage();
   renderCvStudioForm();
   updateCvPreview();
 }
@@ -1950,6 +2037,7 @@ function removeCvEducation(id) {
   } else {
     cvData.educations = cvData.educations.filter(e => e.id !== id);
   }
+  saveCvDataToStorage();
   renderCvStudioForm();
   updateCvPreview();
 }
@@ -1957,6 +2045,7 @@ function removeCvEducation(id) {
 function updateCvEducation(id, field, val) {
   const item = cvData.educations.find(e => e.id === id);
   if (item) item[field] = val;
+  saveCvDataToStorage();
   updateCvPreview();
 }
 
@@ -1970,6 +2059,7 @@ function addCvExperience() {
     period: '',
     tasks: ['']
   });
+  saveCvDataToStorage();
   renderCvStudioForm();
   updateCvPreview();
 }
@@ -1980,6 +2070,7 @@ function removeCvExperience(id) {
   } else {
     cvData.experiences = cvData.experiences.filter(e => e.id !== id);
   }
+  saveCvDataToStorage();
   renderCvStudioForm();
   updateCvPreview();
 }
@@ -1987,6 +2078,7 @@ function removeCvExperience(id) {
 function updateCvExperience(id, field, val) {
   const item = cvData.experiences.find(e => e.id === id);
   if (item) item[field] = val;
+  saveCvDataToStorage();
   updateCvPreview();
 }
 
@@ -1996,6 +2088,7 @@ function addCvExperienceTask(expId) {
     if (!Array.isArray(item.tasks)) item.tasks = cvToLines(item.tasks);
     item.tasks.push('');
   }
+  saveCvDataToStorage();
   renderCvStudioForm();
   updateCvPreview();
 }
@@ -2010,6 +2103,7 @@ function removeCvExperienceTask(expId, idx) {
       item.tasks.splice(idx, 1);
     }
   }
+  saveCvDataToStorage();
   renderCvStudioForm();
   updateCvPreview();
 }
@@ -2020,6 +2114,7 @@ function updateCvExperienceTask(expId, idx, val) {
     if (!Array.isArray(item.tasks)) item.tasks = cvToLines(item.tasks);
     item.tasks[idx] = val;
   }
+  saveCvDataToStorage();
   updateCvPreview();
 }
 
@@ -2027,6 +2122,7 @@ function updateCvExperienceTask(expId, idx, val) {
 function addCvListItem(field) {
   if (!Array.isArray(cvData[field])) cvData[field] = cvToLines(cvData[field]);
   cvData[field].push('');
+  saveCvDataToStorage();
   renderCvStudioForm();
   updateCvPreview();
 }
@@ -2038,6 +2134,7 @@ function removeCvListItem(field, idx) {
   } else {
     cvData[field].splice(idx, 1);
   }
+  saveCvDataToStorage();
   renderCvStudioForm();
   updateCvPreview();
 }
@@ -2045,6 +2142,7 @@ function removeCvListItem(field, idx) {
 function updateCvListItem(field, idx, val) {
   if (!Array.isArray(cvData[field])) cvData[field] = cvToLines(cvData[field]);
   cvData[field][idx] = val;
+  saveCvDataToStorage();
   updateCvPreview();
 }
 
@@ -2052,6 +2150,7 @@ function updateCvListItem(field, idx, val) {
 // INITIALIZATION
 // -------------------------------------------------------------
 function initCvStudio() {
+  loadCvDataFromStorage();
   if (!isCvStudioInitialized) {
     isCvStudioInitialized = true;
     switchCvTab(cvActiveMenuTab || 'pribadi');
