@@ -352,7 +352,7 @@ async function initSupabaseClient() {
     // 3. Resilient fallback for site settings directly from Supabase if needed
     if (sbClient && window.siteSettings && (!window.siteSettings.cv_whatsapp || window.siteSettings.cv_whatsapp === '081234567890')) {
       try {
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({ timeout: true }), 4000));
         const fetchPromise = sbClient.from('jobs').select('description').eq('status', 'system_settings').limit(1);
         const { data: stRows } = await Promise.race([fetchPromise, timeoutPromise]);
         if (stRows && stRows.length > 0 && stRows[0].description) {
@@ -899,7 +899,7 @@ async function loadMasterDataFilters() {
   // Resilient fallback to direct Supabase if API is unavailable
   if (!data && sbClient) {
     try {
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({ timeout: true }), 5000));
       const fetchPromise = sbClient.from('jobs').select('description').eq('status', 'system_master_data').limit(1);
       const { data: rows } = await Promise.race([fetchPromise, timeoutPromise]);
       if (rows && rows.length > 0 && rows[0].description) {
@@ -1124,25 +1124,23 @@ async function loadJobs() {
           .order('is_featured', { ascending: false })
           .order('id', { ascending: false });
 
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase loadJobs timeout')), 5000));
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({ timeout: true }), 8000));
         let res = await Promise.race([fetchQuery(), timeoutPromise]);
 
         if (res && res.error && (res.error.code === 'PGRST301' || res.status === 401 || String(res.error.message || '').includes('API key'))) {
-          console.warn('Primary Supabase key failed (401), trying alternate key in public app...');
           const altKey = (currentSupabaseKey === DEFAULT_SUPABASE_KEY) ? ALTERNATE_SUPABASE_KEY : DEFAULT_SUPABASE_KEY;
           if (window.supabase && typeof window.supabase.createClient === 'function') {
             sbClient = window.supabase.createClient(DEFAULT_SUPABASE_URL, altKey, clientOptions);
             currentSupabaseKey = altKey;
-            res = await Promise.race([fetchQuery(), timeoutPromise]);
+            const altTimeout = new Promise(resolve => setTimeout(() => resolve({ timeout: true }), 8000));
+            res = await Promise.race([fetchQuery(), altTimeout]);
           }
         }
 
-        if (res && !res.error && Array.isArray(res.data) && res.data.length > 0) {
+        if (res && !res.timeout && !res.error && Array.isArray(res.data) && res.data.length > 0) {
           return res.data.map(window.cleanJobData).filter(isJobPubliclyVisible);
         }
-      } catch (e) {
-        console.warn('Public fetchSupabase error:', e);
-      }
+      } catch (e) {}
       return null;
     };
 
