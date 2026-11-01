@@ -1521,7 +1521,7 @@
             </div>
           </div>
 
-          <div class="form-grid-3">
+          <div class="form-grid-2">
             <div class="form-group">
               <label class="form-label">Gaji Ditampilkan</label>
               <input type="text" name="salary_display" class="form-input">
@@ -1531,6 +1531,13 @@
               <select name="experience_level" id="edit-experience_level" class="form-select">
                 <option value="">Memuat...</option>
               </select>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label"><i class="fa-solid fa-calendar-xmark" style="color: #ef4444;"></i> Batas Waktu / Deadline</label>
+              <input type="text" name="deadline" class="form-input" placeholder="Contoh: 30 November 2026 atau 2026-11-30">
             </div>
             <div class="form-group">
               <label class="form-label"><i class="fa-solid fa-lock" style="color: #6366f1;"></i> Status Lowongan</label>
@@ -1980,14 +1987,22 @@
                 <textarea id="poster-input-benefits" style="display:none;"></textarea>
               </div>
 
-              <div class="form-grid-2" style="margin-bottom: 10px;">
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Batas Waktu / Deadline</label>
-                  <input type="text" id="poster-input-deadline" class="form-input" placeholder="30 Oktober 2026">
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Teks Cara Melamar</label>
-                  <input type="text" id="poster-input-apply-info" class="form-input" placeholder="Kirim CV/Lamaran melalui website resmi perusahaan">
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label class="form-label" style="font-weight: 800; color: #1e293b; display: flex; align-items: center; justify-content: space-between;">
+                  <span><i class="fa-solid fa-calendar-xmark" style="color: #ef4444;"></i> Batas Waktu / Deadline (Digambar ke Poster)</span>
+                  <span style="font-size: 0.72rem; color: #059669; font-weight: 600;"><i class="fa-solid fa-bolt"></i> Realtime Update</span>
+                </label>
+                <input type="text" id="poster-input-deadline" class="form-input" placeholder="Contoh: 30 November 2026 atau Aktif Real-Time" style="font-weight: 700;">
+              </div>
+
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label class="form-label" style="font-weight: 800; color: #1e293b; display: flex; align-items: center; justify-content: space-between;">
+                  <span><i class="fa-solid fa-paper-plane" style="color: #2563eb;"></i> Teks Kustom Cara Melamar (Digambar ke Kotak Poster)</span>
+                  <span style="font-size: 0.72rem; color: #059669; font-weight: 600;"><i class="fa-solid fa-bolt"></i> Realtime Update</span>
+                </label>
+                <textarea id="poster-input-apply-info" class="form-textarea" rows="3" placeholder="Tuliskan instruksi cara melamar kustom di sini (misal: Kirim CV via website resmi perusahaan / email / scan QR code)..." style="font-size: 0.82rem; font-weight: 600; line-height: 1.45;"></textarea>
+                <div class="form-hint" style="margin-top: 4px; font-size: 0.72rem; color: #64748b;">
+                  * Teks kustom ini otomatis digambar langsung ke dalam kotak informasi lamaran di poster secara realtime.
                 </div>
               </div>
 

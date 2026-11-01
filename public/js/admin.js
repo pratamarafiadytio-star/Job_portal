@@ -522,6 +522,7 @@ function extractJobContacts(job) {
   let wa = job.whatsapp || '';
   let email = job.email || '';
   let website = job.website_url || job.website || '';
+  let applyInfo = job.apply_info || '';
 
   if (job.contact_value) {
     const raw = String(job.contact_value).trim();
@@ -531,6 +532,7 @@ function extractJobContacts(job) {
         wa = parsed.whatsapp || wa;
         email = parsed.email || email;
         website = parsed.website || parsed.website_url || website;
+        applyInfo = parsed.apply_info || applyInfo;
       } catch (e) {}
     } else if (raw.length > 0) {
       if (job.contact_type === 'whatsapp' || raw.match(/^(\+?62|08|\+?[0-9]{8,})/)) {
@@ -542,7 +544,7 @@ function extractJobContacts(job) {
       }
     }
   }
-  return { whatsapp: wa, email, website };
+  return { whatsapp: wa, email, website, apply_info: applyInfo };
 }
 
 // -------------------------------------------------------------
@@ -1500,22 +1502,41 @@ function setupJobFormSubmit() {
       }
     }
 
-    let applyInfo = email || (whatsapp ? `WhatsApp: ${whatsapp}` : 'recruitment2@chocomory.com');
+    let applyInfo = '';
+    if (email && whatsapp) {
+      applyInfo = `Kirim berkas CV & lamaran via email: ${email} atau WhatsApp: ${whatsapp}`;
+    } else if (email) {
+      applyInfo = `Kirim berkas CV & lamaran lengkap ke email: ${email}`;
+    } else if (whatsapp) {
+      applyInfo = `Kirim berkas CV & lamaran melalui WhatsApp: ${whatsapp}`;
+    } else if (website) {
+      applyInfo = `Kirim CV/Lamaran melalui website resmi ${company || 'perusahaan'} atau scan QR Code di samping.`;
+    } else {
+      applyInfo = `Kirim CV/Lamaran melalui tautan resmi ${company || 'perusahaan'} atau scan QR Code di samping.`;
+    }
+
+    let formattedDeadline = deadline;
+    if (formattedDeadline && /^\d{4}-\d{2}-\d{2}$/.test(formattedDeadline)) {
+      try {
+        const [y, m, d] = formattedDeadline.split('-');
+        const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        formattedDeadline = `${parseInt(d, 10)} ${months[parseInt(m, 10) - 1]} ${y}`;
+      } catch (e) {}
+    }
 
     openPosterStudio({
       title: title || 'OPERATOR PRODUKSI',
-      company_name: company || 'PT CHOCOMORY COKELAT PERSADA',
+      company_name: company || 'PERUSAHAAN TERVERIFIKASI',
       responsibilities: respLines,
       requirements: reqLines.length ? reqLines : [
         'Pendidikan minimal SMA/SMK sederajat',
         'Freshgraduate dipersilahkan apply',
         'Teliti, disiplin dan bertanggung jawab terhadap pekerjaan',
         'Bersedia bekerja shifting',
-        'Memahami K3 dan 5R',
-        'Bersedia ditempatkan di Cisarua, Kab Bogor'
+        'Memahami K3 dan 5R'
       ],
       benefits: benLines,
-      deadline,
+      deadline: formattedDeadline || 'Pendaftaran Terbuka',
       official_url: website || 'https://lnkd.in/gziqaHKR',
       apply_info: applyInfo,
       hashtag: '@Lokersmasmkjabodetabek #Lowongankerja2026',
@@ -1552,10 +1573,15 @@ function setupJobFormSubmit() {
       ? [...manualUploadedFlyers]
       : (primaryFlyer ? [primaryFlyer] : []);
 
+    const customApplyInfo = (currentPosterJobData && currentPosterJobData.apply_info) || '';
+    const customDeadlineDisplay = (currentPosterJobData && currentPosterJobData.deadline) || form.querySelector('[name="deadline"]')?.value || '';
+
     const contactsObj = {
       whatsapp,
       email,
       website,
+      apply_info: customApplyInfo,
+      deadline_display: customDeadlineDisplay,
       cover_image: currentManualCoverBase64 || '',
       flyer_images: allFlyers
     };
@@ -1605,6 +1631,7 @@ function setupJobFormSubmit() {
       salary_display: form.querySelector('[name="salary_display"]').value || 'Kompetitif',
       experience_level: form.querySelector('[name="experience_level"]').value,
       deadline: form.querySelector('[name="deadline"]').value || '',
+      apply_info: customApplyInfo,
       contact_type: primaryContactType,
       contact_value: contactValueJSON,
       description: desc,
@@ -2804,6 +2831,8 @@ window.openEditJobModal = function(jobId) {
   form.querySelector('[name="location"]').value = job.location || '';
   form.querySelector('[name="salary_display"]').value = job.salary_display || '';
   form.querySelector('[name="experience_level"]').value = job.experience_level || '';
+  const deadInp = form.querySelector('[name="deadline"]');
+  if (deadInp) deadInp.value = job.deadline || '';
   const statusSelect = form.querySelector('[name="status"]');
   if (statusSelect) {
     if (job.status === 'scheduled') {
@@ -2948,10 +2977,13 @@ function setupEditFormSubmit() {
     const whatsapp = form.querySelector('[name="whatsapp"]')?.value.trim() || '';
     const email = form.querySelector('[name="email"]')?.value.trim() || '';
     const website = form.querySelector('[name="website"]')?.value.trim() || '';
+    const existingContacts = currentEditingJob ? extractJobContacts(currentEditingJob) : {};
     const contactsObj = {
       whatsapp,
       email,
       website,
+      apply_info: existingContacts.apply_info || '',
+      deadline_display: form.querySelector('[name="deadline"]')?.value.trim() || existingContacts.deadline_display || '',
       cover_image: currentEditCoverBase64 || '',
       flyer_images: currentEditFlyers
     };
@@ -2991,6 +3023,8 @@ function setupEditFormSubmit() {
       location: form.querySelector('[name="location"]').value,
       salary_display: form.querySelector('[name="salary_display"]').value || 'Kompetitif',
       experience_level: form.querySelector('[name="experience_level"]').value,
+      deadline: form.querySelector('[name="deadline"]')?.value.trim() || '',
+      apply_info: existingContacts.apply_info || '',
       status: finalStatus,
       scheduled_at: scheduledAtVal,
       contact_type: primaryContactType,
@@ -5852,6 +5886,28 @@ window.openPosterStudioFromExistingId = function(jobId) {
     return String(val).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   };
 
+  let customApplyInfo = contacts.apply_info || job.apply_info || '';
+  if (!customApplyInfo) {
+    if (contacts.email) {
+      customApplyInfo = `Kirim berkas CV & lamaran via email: ${contacts.email}`;
+    } else if (contacts.website) {
+      customApplyInfo = `Kirim CV/Lamaran melalui website resmi ${job.company_name} atau scan QR Code di samping.`;
+    } else if (contacts.whatsapp) {
+      customApplyInfo = `Kirim berkas CV & lamaran melalui WhatsApp: ${contacts.whatsapp}`;
+    } else {
+      customApplyInfo = `Kirim lamaran melalui portal resmi KerjaHub atau scan QR Code di samping.`;
+    }
+  }
+
+  let formattedDeadline = job.deadline || '';
+  if (formattedDeadline && /^\d{4}-\d{2}-\d{2}$/.test(formattedDeadline)) {
+    try {
+      const [y, m, d] = formattedDeadline.split('-');
+      const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      formattedDeadline = `${parseInt(d, 10)} ${months[parseInt(m, 10) - 1]} ${y}`;
+    } catch (e) {}
+  }
+
   openPosterStudio({
     id: job.id,
     origin: 'table',
@@ -5866,9 +5922,9 @@ window.openPosterStudioFromExistingId = function(jobId) {
     responsibilities: parseJsonList(job.responsibilities),
     requirements: parseJsonList(job.requirements),
     benefits: parseJsonList(job.benefits),
-    deadline: job.deadline || '',
+    deadline: formattedDeadline || 'Pendaftaran Terbuka',
     official_url: contacts.website || './?job=' + job.id,
-    apply_info: contacts.website ? `Kirim CV/Lamaran melalui website resmi ${job.company_name}` : `Kirim lamaran melalui portal resmi KerjaHub`,
+    apply_info: customApplyInfo,
     theme: job.category === 'Operasional' || (job.title && job.title.toLowerCase().includes('operator')) ? 'factory' : 'modern',
     mascot: (job.title && (job.title.toLowerCase().includes('operator') || job.title.toLowerCase().includes('teknisi'))) ? 'factory' : 'corporate',
     poster_image: job.poster_image,
@@ -5896,10 +5952,39 @@ function openPosterStudio(jobData, isPublishIntent = false) {
   const qrInp = document.getElementById('poster-input-qr-url');
   const hashInp = document.getElementById('poster-input-hashtag');
 
-  if (compInp) compInp.value = jobData.company_name || 'PT CHOCOMORY COKELAT PERSADA';
+  if (compInp) compInp.value = jobData.company_name || 'PERUSAHAAN TERVERIFIKASI';
   if (titleInp) titleInp.value = jobData.title || 'OPERATOR PRODUKSI';
-  if (deadInp) deadInp.value = jobData.deadline || '';
-  if (applyInp) applyInp.value = jobData.apply_info || (jobData.email || 'recruitment2@chocomory.com');
+  
+  const contacts = extractJobContacts(jobData);
+  const emailVal = contacts.email || jobData.email || '';
+  const waVal = contacts.whatsapp || jobData.whatsapp || '';
+  const webVal = contacts.website || jobData.official_url || jobData.website || '';
+  const storedApply = contacts.apply_info || jobData.apply_info || '';
+
+  let initialDeadline = (contacts.deadline_display || jobData.deadline || '').trim();
+  if (initialDeadline && /^\d{4}-\d{2}-\d{2}$/.test(initialDeadline)) {
+    try {
+      const [y, m, d] = initialDeadline.split('-');
+      const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      initialDeadline = `${parseInt(d, 10)} ${months[parseInt(m, 10) - 1]} ${y}`;
+    } catch (e) {}
+  }
+  if (!initialDeadline) initialDeadline = 'Pendaftaran Terbuka';
+  if (deadInp) deadInp.value = initialDeadline;
+
+  let initialApply = (storedApply || '').trim();
+  if (!initialApply) {
+    if (emailVal && !emailVal.toLowerCase().includes('chocomory')) {
+      initialApply = `Kirim berkas CV & lamaran via email: ${emailVal}`;
+    } else if (waVal) {
+      initialApply = `Kirim berkas CV & lamaran melalui WhatsApp: ${waVal}`;
+    } else if (webVal && !webVal.startsWith('{')) {
+      initialApply = `Kirim CV & lamaran melalui website resmi ${jobData.company_name || 'perusahaan'} atau scan QR Code di samping.`;
+    } else {
+      initialApply = `Kirim CV & lamaran melalui tautan resmi ${jobData.company_name || 'perusahaan'} atau scan QR Code di samping.`;
+    }
+  }
+  if (applyInp) applyInp.value = initialApply;
   if (qrInp) qrInp.value = jobData.official_url || 'https://lnkd.in/gziqaHKR';
   if (hashInp) hashInp.value = jobData.hashtag || '@Lokersmasmkjabodetabek #Lowongankerja2026';
 
@@ -6420,9 +6505,9 @@ function renderPosterCanvas() {
 
     // 7. BOTTOM-LEFT APPLICATION CARD (3D BLUE DROP SHADOW)
     const appBoxX = 52;
-    const appBoxY = 780;
-    const appBoxW = 600;
-    const appBoxH = 220;
+    const appBoxY = 770;
+    const appBoxW = 610;
+    const appBoxH = 230;
 
     // Solid blue 3D offset shadow underneath
     ctx.fillStyle = '#0052cc';
@@ -6436,29 +6521,52 @@ function renderPosterCanvas() {
     ctx.lineWidth = 3.5;
     roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 18, false, true);
 
+    // 1. BATAS WAKTU / DEADLINE PILL BANNER
+    const deadPillX = appBoxX + 16;
+    const deadPillY = appBoxY + 14;
+    const deadPillW = appBoxW - 32;
+    const deadPillH = 38;
+
+    ctx.fillStyle = '#eff6ff';
+    roundRect(ctx, deadPillX, deadPillY, deadPillW, deadPillH, 10, true, false);
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, deadPillX, deadPillY, deadPillW, deadPillH, 10, false, true);
+
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#000000';
-    ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText('Kirim CV/Lamaran melalui Scan QR Code atau link', appBoxX + 22, appBoxY + 46);
+    ctx.fillStyle = '#1d4ed8';
+    ctx.font = '800 18px "Plus Jakarta Sans", Arial, sans-serif';
+    const deadlineVal = (deadline || 'Pendaftaran Dibuka (Segera Apply)').trim();
+    ctx.fillText(`📅 BATAS WAKTU: ${deadlineVal}`, deadPillX + 14, deadPillY + 25);
 
-    const cleanEmail = (applyInfo.includes('@') ? applyInfo.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] : null) || 'recruitment2@chocomory.com';
-    ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
-    const emailPrefix = 'atau melalui email : ';
-    ctx.fillText(emailPrefix, appBoxX + 22, appBoxY + 86);
-    const prefixW = ctx.measureText(emailPrefix).width;
+    // 2. CARA MELAMAR (CUSTOM TEXT WITH AUTO WORD-WRAP)
+    const applyHeaderY = deadPillY + deadPillH + 24;
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '800 17px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('CARA MELAMAR:', appBoxX + 18, applyHeaderY);
 
-    ctx.font = '800 20px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText(cleanEmail, appBoxX + 22 + prefixW, appBoxY + 86);
-    const emailW = ctx.measureText(cleanEmail).width;
-    ctx.fillRect(appBoxX + 22 + prefixW, appBoxY + 90, emailW, 2);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(appBoxX + 18, applyHeaderY + 6, appBoxW - 36, 1.5);
 
-    ctx.font = '700 20px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText('Subject email: Lamaran_Posisi yang dilamar_Nama', appBoxX + 22, appBoxY + 132);
+    const customApplyText = (applyInfo || (company ? `Kirim CV/Lamaran melalui tautan resmi ${company} atau scan QR Code di samping.` : 'Kirim CV/Lamaran melalui tautan pendaftaran resmi atau scan QR Code di samping.')).trim();
 
+    const textLen = customApplyText.length;
+    let applyFontSize = 18;
+    let applyLineH = 25;
+    if (textLen > 180) {
+      applyFontSize = 15;
+      applyLineH = 20;
+    } else if (textLen > 110) {
+      applyFontSize = 16.5;
+      applyLineH = 22.5;
+    } else if (textLen <= 65) {
+      applyFontSize = 19;
+      applyLineH = 26;
+    }
+
+    ctx.font = `600 ${applyFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
     ctx.fillStyle = '#334155';
-    ctx.font = '600 18px "Plus Jakarta Sans", Arial, sans-serif';
-    const shortPos = (title || 'Operator Produksi').substring(0, 20);
-    ctx.fillText(`(Contoh: Lamaran_${shortPos}_Dimas)`, appBoxX + 22, appBoxY + 172);
+    wrapCanvasText(ctx, customApplyText, appBoxX + 18, applyHeaderY + applyLineH + 6, appBoxW - 36, applyLineH, 4);
 
     // 8. BOTTOM-LEFT FOOTER (TIKTOK & HASHTAG)
     const footLeftX = 52;
@@ -6668,7 +6776,7 @@ function renderPosterCanvas() {
     const appBoxX = 52;
     const appBoxY = 760;
     const appBoxW = 600;
-    const appBoxH = 190;
+    const appBoxH = 205;
 
     ctx.fillStyle = p.applyBoxBg;
     roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 20, true, false);
@@ -6676,33 +6784,45 @@ function renderPosterCanvas() {
     ctx.lineWidth = 4;
     roundRect(ctx, appBoxX, appBoxY, appBoxW, appBoxH, 20, false, true);
 
+    // 1. DEADLINE PILL
+    const deadPillX = appBoxX + 18;
+    const deadPillY = appBoxY + 16;
+    const deadPillW = appBoxW - 36;
+    const deadPillH = 36;
+
+    ctx.fillStyle = '#f8fafc';
+    roundRect(ctx, deadPillX, deadPillY, deadPillW, deadPillH, 10, true, false);
+    ctx.strokeStyle = p.applyBoxBorder;
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, deadPillX, deadPillY, deadPillW, deadPillH, 10, false, true);
+
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#0f172a';
-    ctx.font = '800 24px "Plus Jakarta Sans", Arial, sans-serif';
-    ctx.fillText('Kirim CV/Lamaran melalui website', appBoxX + 24, appBoxY + 48);
-
-    const fullComp = (company || 'Perusahaan Terverifikasi').trim();
-    let compFontSize = 26;
-    ctx.font = `800 ${compFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-    const maxCompW = appBoxW - 48;
-    while (ctx.measureText(fullComp).width > maxCompW && compFontSize > 15) {
-      compFontSize -= 1;
-      ctx.font = `800 ${compFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-    }
-
-    ctx.fillStyle = p.primary;
-    ctx.fillText(fullComp, appBoxX + 24, appBoxY + 92);
-
-    const deadlineText = deadline ? `Deadline ${deadline}` : 'Pendaftaran Terbuka';
-    let deadFontSize = 28;
-    ctx.font = `800 ${deadFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-    while (ctx.measureText(deadlineText).width > maxCompW && deadFontSize > 16) {
-      deadFontSize -= 1;
-      ctx.font = `800 ${deadFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
-    }
-
     ctx.fillStyle = p.accentOrange;
-    ctx.fillText(deadlineText, appBoxX + 24, appBoxY + 148);
+    ctx.font = '800 18px "Plus Jakarta Sans", Arial, sans-serif';
+    const deadlineVal = (deadline || 'Pendaftaran Dibuka (Segera Apply)').trim();
+    ctx.fillText(`📅 BATAS WAKTU: ${deadlineVal}`, deadPillX + 14, deadPillY + 24);
+
+    // 2. CARA MELAMAR (CUSTOM TEXT)
+    const applyHeaderY = deadPillY + deadPillH + 24;
+    ctx.fillStyle = p.primary;
+    ctx.font = '800 18px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.fillText('CARA MELAMAR:', appBoxX + 20, applyHeaderY);
+
+    const customApplyText = (applyInfo || (company ? `Kirim CV & lamaran melalui website resmi ${company} atau scan QR Code di samping.` : 'Kirim CV & lamaran melalui link pendaftaran resmi atau scan QR Code di samping.')).trim();
+    const textLen = customApplyText.length;
+    let applyFontSize = 18;
+    let applyLineH = 25;
+    if (textLen > 180) {
+      applyFontSize = 15;
+      applyLineH = 20;
+    } else if (textLen > 110) {
+      applyFontSize = 16.5;
+      applyLineH = 22.5;
+    }
+
+    ctx.font = `600 ${applyFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
+    ctx.fillStyle = '#334155';
+    wrapCanvasText(ctx, customApplyText, appBoxX + 20, applyHeaderY + applyLineH + 6, appBoxW - 40, applyLineH, 4);
 
     const qrSize = 200;
     const qrBoxX = 715;
@@ -6781,6 +6901,41 @@ function drawScannableQrCode(ctx, url, x, y, size, withBrackets = false) {
       ctx.drawImage(qrCanvas, x, y, size, size);
     }
   }
+}
+
+// Helper: wrap text into canvas with multi-line paragraph & word-wrap support
+function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 5) {
+  if (!text) return y;
+  const paragraphs = String(text).split(/\r?\n/);
+  let curY = y;
+  let lineCount = 0;
+
+  for (let p = 0; p < paragraphs.length; p++) {
+    const rawWords = paragraphs[p].split(/\s+/).filter(Boolean);
+    if (rawWords.length === 0) continue;
+    let line = '';
+
+    for (let n = 0; n < rawWords.length; n++) {
+      const testLine = line ? (line + ' ' + rawWords[n]) : rawWords[n];
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxWidth && n > 0) {
+        ctx.fillText(line, x, curY);
+        line = rawWords[n];
+        curY += lineHeight;
+        lineCount++;
+        if (lineCount >= maxLines) return curY;
+      } else {
+        line = testLine;
+      }
+    }
+    if (line) {
+      ctx.fillText(line, x, curY);
+      curY += lineHeight;
+      lineCount++;
+      if (lineCount >= maxLines) return curY;
+    }
+  }
+  return curY;
 }
 
 // Helper: rounded rectangle path
@@ -6908,6 +7063,7 @@ window.publishJobFromStudio = async function() {
     const updatedComp = (compInp ? compInp.value.trim() : '') || currentPosterJobData.company_name || 'Perusahaan';
     const updatedTitle = (titleInp ? titleInp.value.trim() : '') || currentPosterJobData.title || 'Lowongan Kerja';
     const updatedDead = (deadInp ? deadInp.value.trim() : '') || currentPosterJobData.deadline || '';
+    const updatedApply = (applyInp ? applyInp.value.trim() : '') || currentPosterJobData.apply_info || '';
     const updatedQr = (qrInp ? qrInp.value.trim() : '') || currentPosterJobData.official_url || '';
 
     const respList = window.getDynamicListValues ? window.getDynamicListValues('poster-resp-items') : [];
@@ -6925,6 +7081,8 @@ window.publishJobFromStudio = async function() {
       }
     }
     contacts.website = updatedQr || contacts.website || '';
+    contacts.apply_info = updatedApply;
+    contacts.deadline_display = updatedDead;
     contacts.source_platform = currentPosterJobData.platform || 'official';
     contacts.source_label = currentPosterJobData.platform_label || 'Resmi BUMN & Korporasi';
     contacts.is_verified_anti_hoax = true;
@@ -6973,6 +7131,7 @@ window.publishJobFromStudio = async function() {
       whatsapp: contacts.whatsapp || '',
       email: contacts.email || '',
       website_url: contacts.website || '',
+      apply_info: updatedApply,
       contact_type: 'link',
       contact_value: contactsJson,
       deadline: dMeta.isoDate || toIsoDate(new Date(Date.now() + 30 * 86400000)),
@@ -7173,6 +7332,8 @@ window.savePosterChangesToJob = async function() {
       if (updatedQr) {
         contacts.website = updatedQr;
       }
+      contacts.apply_info = updatedApply;
+      contacts.deadline_display = updatedDead;
       contacts.flyer_images = currentFlyerSlides;
 
       const syncCoverCb = document.getElementById('studio-sync-cover-checkbox');
@@ -7189,6 +7350,7 @@ window.savePosterChangesToJob = async function() {
         title: updatedTitle || currentPosterJobData.title,
         company_name: updatedComp || currentPosterJobData.company_name,
         deadline: updatedDead,
+        apply_info: updatedApply,
         responsibilities: respList,
         requirements: reqList,
         benefits: benList,
@@ -7256,6 +7418,12 @@ window.savePosterChangesToJob = async function() {
         confirmText: 'Bagus, Selesai'
       });
     } else {
+      if (currentPosterJobData) {
+        currentPosterJobData.apply_info = updatedApply;
+        currentPosterJobData.deadline = updatedDead;
+        currentPosterJobData.company_name = updatedComp || currentPosterJobData.company_name;
+        currentPosterJobData.title = updatedTitle || currentPosterJobData.title;
+      }
       const uploadForm = document.getElementById('form-upload-job');
       if (uploadForm) {
         if (updatedTitle) {
@@ -7268,7 +7436,14 @@ window.savePosterChangesToJob = async function() {
         }
         if (updatedDead) {
           const dInp = uploadForm.querySelector('[name="deadline"]');
-          if (dInp) dInp.value = updatedDead;
+          if (dInp) {
+            if (dInp.type === 'date') {
+              const meta = getDeadlineMeta(updatedDead);
+              if (meta && meta.isoDate) dInp.value = meta.isoDate;
+            } else {
+              dInp.value = updatedDead;
+            }
+          }
         }
         if (updatedQr) {
           const wInp = uploadForm.querySelector('[name="website"]');

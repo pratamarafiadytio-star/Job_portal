@@ -2354,12 +2354,21 @@ function openJobDetail(jobId) {
             </div>
 
             <div class="info-item">
-              <i class="fa-solid fa-calendar-xmark"></i>
+              <i class="fa-solid fa-calendar-xmark" style="color: #ef4444;"></i>
               <div>
                 <div class="info-label">Batas Waktu Rekrutmen</div>
-                <div class="info-val">${escapeHtml(job.deadline || 'Terbuka Selama Lowongan Aktif')}</div>
+                <div class="info-val">${escapeHtml(contacts.deadline_display || job.deadline || 'Terbuka Selama Lowongan Aktif')}</div>
               </div>
             </div>
+
+            ${contacts.apply_info ? `
+              <div class="info-item" style="flex-direction: column; align-items: flex-start; background: #eff6ff; padding: 10px 12px; border-radius: 8px; border: 1.5px solid #bfdbfe; margin-top: 6px; margin-bottom: 8px;">
+                <div class="info-label" style="color: #1d4ed8; font-weight: 800; font-size: 0.76rem; margin-bottom: 4px; display: flex; align-items: center; gap: 5px;">
+                  <i class="fa-solid fa-paper-plane"></i> Petunjuk Cara Melamar
+                </div>
+                <div class="info-val" style="color: #1e293b; font-size: 0.82rem; line-height: 1.45; white-space: pre-line; font-weight: 600;">${escapeHtml(contacts.apply_info)}</div>
+              </div>
+            ` : ''}
 
             ${contacts.whatsapp ? `
               <div class="info-item">
@@ -2483,6 +2492,8 @@ function extractJobContacts(job) {
   let wa = (job.whatsapp || '').trim();
   let email = (job.email || '').trim();
   let website = (job.website_url || job.official_url || job.url || job.website || '').trim();
+  let applyInfo = job.apply_info || '';
+  let deadlineDisplay = job.deadline_display || '';
 
   // Helper to parse JSON safely
   function parseJsonSafely(val) {
@@ -2518,6 +2529,8 @@ function extractJobContacts(job) {
       }
       if (parsedContact.whatsapp && !wa) wa = parsedContact.whatsapp.trim();
       if (parsedContact.email && !email) email = parsedContact.email.trim();
+      if (parsedContact.apply_info && !applyInfo) applyInfo = parsedContact.apply_info;
+      if (parsedContact.deadline_display && !deadlineDisplay) deadlineDisplay = parsedContact.deadline_display;
     } else {
       const raw = String(job.contact_value).trim();
       const type = job.contact_type || '';
@@ -2602,7 +2615,9 @@ function extractJobContacts(job) {
     email: email,
     website_url: website,
     direct_apply_url: directApplyUrl,
-    direct_type: directType
+    direct_type: directType,
+    apply_info: applyInfo,
+    deadline_display: deadlineDisplay
   };
 }
 
