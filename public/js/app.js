@@ -1049,7 +1049,7 @@ function setupModalDismiss(modalId) {
 // Helper to determine if a job is visible to public visitors
 function isJobPubliclyVisible(j) {
   if (!j) return false;
-  if (j.status === 'system_settings' || j.status === 'system_master_data' || j.status === 'deleted' || j.status === 'archived') {
+  if (!j.status || j.status.startsWith('system_') || j.status === 'deleted' || j.status === 'archived') {
     return false;
   }
   if (j.status === 'scheduled') {
@@ -1113,6 +1113,7 @@ async function loadJobs() {
           .select('*')
           .neq('status', 'system_master_data')
           .neq('status', 'system_settings')
+          .neq('status', 'system_flyer_themes')
           .order('is_featured', { ascending: false })
           .order('id', { ascending: false });
 

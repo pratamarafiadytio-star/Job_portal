@@ -191,7 +191,7 @@ async function loadAllJobs() {
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
       if (!error && Array.isArray(data) && data.length > 0) {
         const normalizer = typeof window.cleanJobData === 'function' ? window.cleanJobData : (j => j);
-        allJobs = data.map(normalizer).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+        allJobs = data.map(normalizer).filter(j => j && (!j.status || !j.status.startsWith('system_')));
       }
     } catch (e) {
       console.warn('Direct Supabase jobs fetch failed in cek-cv:', e);

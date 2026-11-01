@@ -863,49 +863,64 @@
               <div class="scout-controls-card">
 
                 <!-- PLATFORM / SUMBER SELECTOR PILLS (GENERATE BY SOSMED) -->
-                <div style="margin-bottom: 14px;">
-                  <div style="font-size: 0.82rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                      <i class="fa-solid fa-share-nodes" style="color: #0284c7;"></i> Pilih Media Sosial / Sumber Web:
+                <div class="filter-pills-wrapper" style="margin-bottom: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px;">
+                  <div style="margin-bottom: 12px;">
+                    <div style="font-size: 0.82rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-share-nodes" style="color: #0284c7;"></i> Sumber Platform / Media:
+                      </div>
+                      <span style="font-size: 0.73rem; color: var(--text-muted); font-weight: 500;">Pilih media sosial untuk generate & tarik lowongan spesifik</span>
                     </div>
-                    <span style="font-size: 0.74rem; color: var(--text-muted);">Pilih media sosial untuk generate & tarik lowongan spesifik</span>
+                    <div class="official-source-pills" id="official-source-pills" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                      <button type="button" class="source-pill active" data-source="all" title="Generate dari semua media sosial & situs web">
+                        <i class="fa-solid fa-globe"></i> Semua Platform
+                      </button>
+                      <button type="button" class="source-pill pill-linkedin" data-source="linkedin" title="Generate khusus lowongan postingan resmi LinkedIn">
+                        <i class="fa-brands fa-linkedin" style="color: #0077b5;"></i> LinkedIn
+                      </button>
+                      <button type="button" class="source-pill pill-instagram" data-source="instagram" title="Generate khusus lowongan akun karir Instagram">
+                        <i class="fa-brands fa-instagram" style="color: #e1306c;"></i> Instagram
+                      </button>
+                      <button type="button" class="source-pill pill-facebook" data-source="facebook" title="Generate khusus lowongan grup & fanspage Facebook">
+                        <i class="fa-brands fa-facebook" style="color: #1877f2;"></i> Facebook
+                      </button>
+                      <button type="button" class="source-pill pill-twitter" data-source="twitter" title="Generate khusus lowongan terbitan Twitter / X">
+                        <i class="fa-brands fa-x-twitter" style="color: #0f172a;"></i> Twitter (X)
+                      </button>
+                      <button type="button" class="source-pill pill-media" data-source="media" title="Generate khusus dari portal media berita nasional (Kompas, Detik, Tribun)">
+                        <i class="fa-solid fa-newspaper" style="color: #0284c7;"></i> Portal Berita
+                      </button>
+                      <button type="button" class="source-pill pill-bumn" data-source="bumn" title="Generate khusus lowongan BUMN & Kedinasan">
+                        <i class="fa-solid fa-landmark" style="color: #10b981;"></i> BUMN Resmi
+                      </button>
+                    </div>
                   </div>
-                  <div class="official-source-pills" id="official-source-pills" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button type="button" class="source-pill active" data-source="all" title="Generate dari semua media sosial & situs web">
-                      <i class="fa-solid fa-globe"></i> Semua Sosmed & Web
-                    </button>
-                    <button type="button" class="source-pill pill-linkedin" data-source="linkedin" title="Generate khusus lowongan postingan resmi LinkedIn">
-                      <i class="fa-brands fa-linkedin" style="color: #0077b5;"></i> LinkedIn
-                    </button>
-                    <button type="button" class="source-pill pill-instagram" data-source="instagram" title="Generate khusus lowongan akun karir Instagram">
-                      <i class="fa-brands fa-instagram" style="color: #e1306c;"></i> Instagram
-                    </button>
-                    <button type="button" class="source-pill pill-facebook" data-source="facebook" title="Generate khusus lowongan grup & fanspage Facebook">
-                      <i class="fa-brands fa-facebook" style="color: #1877f2;"></i> Facebook
-                    </button>
-                    <button type="button" class="source-pill pill-twitter" data-source="twitter" title="Generate khusus lowongan terbitan Twitter / X">
-                      <i class="fa-brands fa-x-twitter" style="color: #0f172a;"></i> Twitter (X)
-                    </button>
-                    <button type="button" class="source-pill pill-media" data-source="media" title="Generate khusus dari portal media berita nasional (Kompas, Detik, Tribun)">
-                      <i class="fa-solid fa-newspaper" style="color: #0284c7;"></i> Portal Berita Media
-                    </button>
-                    <button type="button" class="source-pill pill-bumn" data-source="bumn" title="Generate khusus lowongan BUMN & Kedinasan">
-                      <i class="fa-solid fa-landmark" style="color: #10b981;"></i> BUMN & Karir Resmi
-                    </button>
-                  </div>
-                </div>
 
-                <!-- SEKTOR SELECTOR TABS -->
-                <div style="margin-bottom: 16px;">
-                  <div style="font-size: 0.82rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                    <i class="fa-solid fa-layer-group" style="color: #6366f1;"></i> Kategori Sektor Industri:
-                  </div>
-                  <div class="official-sector-pills" id="official-sector-pills" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button type="button" class="sector-pill active" data-sector="all">Semua Sektor</button>
-                    <button type="button" class="sector-pill" data-sector="manufaktur"><i class="fa-solid fa-industry"></i> Manufaktur & Otomotif (Toyota, Astra, Denso, Sumco)</button>
-                    <button type="button" class="sector-pill" data-sector="bumn"><i class="fa-solid fa-landmark"></i> BUMN & Perbankan (KAI, BRI, BCA, Krakatau)</button>
-                    <button type="button" class="sector-pill" data-sector="fmcg"><i class="fa-solid fa-boxes-stacked"></i> FMCG, Farmasi & Retail (Mayora, Kalbe, Indofood)</button>
-                    <button type="button" class="sector-pill" data-sector="tech"><i class="fa-solid fa-laptop-code"></i> Teknologi, E-Commerce & Agency (Shopee, Telkom)</button>
+                  <!-- SEKTOR SELECTOR TABS -->
+                  <div style="border-top: 1px dashed #e2e8f0; padding-top: 10px;">
+                    <div style="font-size: 0.82rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-layer-group" style="color: #6366f1;"></i> Kategori Sektor Industri:
+                      </div>
+                      <span style="font-size: 0.73rem; color: var(--text-muted); font-weight: 500;">Saring bidang karir terverifikasi</span>
+                    </div>
+                    <div class="official-sector-pills" id="official-sector-pills" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                      <button type="button" class="sector-pill active" data-sector="all" title="Tampilkan lowongan semua bidang industri">
+                        <i class="fa-solid fa-border-all"></i> Semua Sektor
+                      </button>
+                      <button type="button" class="sector-pill" data-sector="manufaktur" title="Perusahaan Manufaktur & Otomotif (Toyota, Astra, Denso, Sumco, dll)">
+                        <i class="fa-solid fa-industry"></i> Manufaktur & Otomotif
+                      </button>
+                      <button type="button" class="sector-pill" data-sector="bumn" title="BUMN, Kedinasan & Perbankan (KAI, BRI, BCA, Krakatau Steel, PLN, dll)">
+                        <i class="fa-solid fa-landmark"></i> BUMN & Perbankan
+                      </button>
+                      <button type="button" class="sector-pill" data-sector="fmcg" title="Consumer Goods & Farmasi (Mayora, Kalbe, Indofood, Alfamart, Unilever, dll)">
+                        <i class="fa-solid fa-boxes-stacked"></i> FMCG & Ritel
+                      </button>
+                      <button type="button" class="sector-pill" data-sector="tech" title="Teknologi, E-Commerce & Digital (Shopee, Telkom, GoTo, dll)">
+                        <i class="fa-solid fa-laptop-code"></i> Teknologi & Digital
+                      </button>
+                    </div>
                   </div>
                 </div>
 

@@ -1991,7 +1991,7 @@ function renderDashboardCharts(jobsList, activeCount, scheduledCount, expiredCou
 }
 
 function renderDashboardStats(jobsList) {
-  const realJobs = (jobsList || []).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+  const realJobs = (jobsList || []).filter(j => j && (!j.status || !j.status.startsWith('system_')));
   const now = new Date();
 
   // Lowongan terjadwal (antrean yang belum terbit)
@@ -2382,7 +2382,7 @@ function renderAdminJobsTable() {
   const tbody = document.getElementById('admin-jobs-tbody');
   if (!tbody) return;
 
-  const validJobs = (adminJobs || []).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+  const validJobs = (adminJobs || []).filter(j => j && (!j.status || !j.status.startsWith('system_')));
   populateAdminJobsCategoryDropdown(validJobs);
 
   let filteredJobs = validJobs;
@@ -2584,7 +2584,7 @@ async function loadAdminJobs(forceRefresh = false) {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          adminJobs = parsed.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+          adminJobs = parsed.filter(j => j && (!j.status || !j.status.startsWith('system_')));
           renderAdminJobsTable();
           renderDashboardStats(adminJobs);
         }
@@ -2633,7 +2633,7 @@ async function loadAdminJobs(forceRefresh = false) {
     }
 
     if (jobs && Array.isArray(jobs) && jobs.length > 0) {
-      adminJobs = jobs.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+      adminJobs = jobs.filter(j => j && (!j.status || !j.status.startsWith('system_')));
       try {
         safeLocalSet('kerja_admin_jobs_cache_v3', JSON.stringify(adminJobs));
         safeSessionSet('kerja_admin_jobs_cache', JSON.stringify(adminJobs));
@@ -3217,7 +3217,7 @@ function detectCompanySector(comp, title, category) {
 function syncAdminJobsToOfficialDb() {
   if (!Array.isArray(adminJobs) || adminJobs.length === 0) return;
   adminJobs.forEach(dbJob => {
-    if (dbJob.status === 'system_settings' || dbJob.status === 'system_master_data') return;
+    if (!dbJob || (dbJob.status && dbJob.status.startsWith('system_'))) return;
     const exists = OFFICIAL_VACANCIES_DB.some(o => 
       o.id === 'db_' + dbJob.id ||
       (o.title && dbJob.title && o.title.toLowerCase().trim() === dbJob.title.toLowerCase().trim() && (o.company_name || '').toLowerCase().trim() === (dbJob.company_name || '').toLowerCase().trim())
@@ -3290,6 +3290,72 @@ function setupSupabaseRealtimeSync() {
   }
 }
 
+// Helper: Resolve authentic, trustworthy corporate career portal URLs (prevent search/abal-abal links)
+function resolveTrustedCareerUrl(job) {
+  if (!job) return 'https://job-portal-194.pages.dev';
+  let url = (job.official_url || job.website_url || job.url || '').trim();
+
+  // If contact_value has a verified website, prioritize it
+  if (job.contact_value) {
+    try {
+      const cv = typeof job.contact_value === 'string' ? JSON.parse(job.contact_value) : job.contact_value;
+      if (cv && cv.website && cv.website.startsWith('http')) {
+        const cw = cv.website.trim();
+        if (!cw.includes('/search?') && !cw.includes('/search/') && !cw.includes('google.com') && !cw.includes('bing.com')) {
+          url = cw;
+        }
+      }
+    } catch (e) {}
+  }
+
+  const comp = ((job.company_name || '') + ' ' + (job.title || '')).toLowerCase();
+
+  // If url is a search query, generic social homepage, or abal-abal link, map to official verified corporate career portals:
+  const isSearchOrGeneric = !url ||
+    url.includes('/search?') ||
+    url.includes('/search/') ||
+    url.includes('google.com') ||
+    url.includes('bing.com') ||
+    url.includes('x.com/search') ||
+    url.includes('twitter.com/search') ||
+    url === 'https://x.com' ||
+    url === 'https://twitter.com' ||
+    url === 'https://www.instagram.com' ||
+    url === 'https://www.facebook.com' ||
+    url.startsWith('./') ||
+    url.startsWith('/');
+
+  if (isSearchOrGeneric || url.includes('x.com') || url.includes('instagram.com') || url.includes('facebook.com')) {
+    if (comp.includes('astra')) return 'https://career.astra.co.id';
+    if (comp.includes('toyota')) return 'https://toyotaindonesiamanufacturing.co.id';
+    if (comp.includes('kai services') || comp.includes('reska')) return 'https://recruitment.reska.id';
+    if (comp.includes('kai') || comp.includes('kereta api')) return 'https://recruitment.kai.id';
+    if (comp.includes('bca') || comp.includes('central asia')) return 'https://karir.bca.co.id';
+    if (comp.includes('bri') || comp.includes('rakyat indonesia')) return 'https://e-recruitment.bri.co.id';
+    if (comp.includes('bsi') || comp.includes('syariah indonesia')) return 'https://bankbsi.co.id/karir';
+    if (comp.includes('mandiri')) return 'https://bankmandiri.co.id/karir';
+    if (comp.includes('bni')) return 'https://recruitment.bni.co.id';
+    if (comp.includes('pln')) return 'https://rekrutmen.pln.co.id';
+    if (comp.includes('pertamina')) return 'https://recruitment.pertamina.com';
+    if (comp.includes('telkom')) return 'https://careers.telkom.co.id';
+    if (comp.includes('unilever')) return 'https://careers.unilever.com';
+    if (comp.includes('indofood') || comp.includes('indolakto') || comp.includes('indomilk') || comp.includes('icbp')) return 'https://career.indofood.com';
+    if (comp.includes('mayora')) return 'https://career.mayora.co.id';
+    if (comp.includes('alfamart') || comp.includes('sumber alfaria')) return 'https://recruitment.alfamart.co.id';
+    if (comp.includes('indomaret') || comp.includes('indomarco')) return 'https://karir.indomaret.co.id';
+    if (comp.includes('kalbe')) return 'https://www.kalbe.co.id/career';
+    if (comp.includes('shopee')) return 'https://careers.shopee.co.id';
+    if (comp.includes('goto') || comp.includes('gojek') || comp.includes('tokopedia')) return 'https://careers.gotocompany.com';
+    if (comp.includes('denso')) return 'https://denso.co.id/career';
+    if (comp.includes('kompas')) return 'https://money.kompas.com/karir';
+    if (comp.includes('detik')) return 'https://finance.detik.com/karir';
+    if (comp.includes('tribun')) return 'https://www.tribunnews.com/bisnis/karir';
+  }
+
+  return url || 'https://job-portal-194.pages.dev';
+}
+window.resolveTrustedCareerUrl = resolveTrustedCareerUrl;
+
 // Master Seed Data for Verified Platforms (Anti-Hoax & 100% Real-World Verified Companies)
 function getPlatformSeedVacancies(source) {
   const seeds = [];
@@ -3322,7 +3388,7 @@ function getPlatformSeedVacancies(source) {
         platform_label: 'X (Twitter) Karir Resmi',
         platform_icon: 'fa-brands fa-x-twitter',
         platform_class: 'twitter',
-        official_url: 'https://x.com/search?q=KAI+Services+lowongan+resmi',
+        official_url: 'https://recruitment.reska.id',
         contact_type: 'link',
         contact_value: JSON.stringify({ whatsapp: '', email: 'karir@reska.id', website: 'https://recruitment.reska.id' }),
         anti_fraud_notice: 'PT KAI Services tidak memungut biaya apapun dalam proses rekrutmen. Lowongan dipublikasikan di akun resmi X.',
@@ -3361,7 +3427,7 @@ function getPlatformSeedVacancies(source) {
         platform_label: 'X (Twitter) Karir Resmi',
         platform_icon: 'fa-brands fa-x-twitter',
         platform_class: 'twitter',
-        official_url: 'https://x.com/search?q=Bank+Syariah+Indonesia+lowongan',
+        official_url: 'https://bankbsi.co.id/karir',
         contact_type: 'link',
         contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@bankbsi.co.id', website: 'https://bankbsi.co.id/karir' }),
         anti_fraud_notice: 'Bank Syariah Indonesia tidak pernah memungut biaya pendaftaran atau tiket travel apapun.',
@@ -3400,7 +3466,7 @@ function getPlatformSeedVacancies(source) {
         platform_label: 'X (Twitter) Karir Resmi',
         platform_icon: 'fa-brands fa-x-twitter',
         platform_class: 'twitter',
-        official_url: 'https://x.com/search?q=Astra+International+operator+produksi',
+        official_url: 'https://career.astra.co.id',
         contact_type: 'link',
         contact_value: JSON.stringify({ whatsapp: '', email: 'arc@ai.astra.co.id', website: 'https://career.astra.co.id' }),
         anti_fraud_notice: 'Astra Group tidak memungut biaya apapun dalam proses rekrutmen operator pabrik.',
@@ -3439,7 +3505,7 @@ function getPlatformSeedVacancies(source) {
         platform_label: 'X (Twitter) Karir Resmi',
         platform_icon: 'fa-brands fa-x-twitter',
         platform_class: 'twitter',
-        official_url: 'https://x.com/search?q=Shopee+lowongan+digital+marketing',
+        official_url: 'https://careers.shopee.co.id',
         contact_type: 'link',
         contact_value: JSON.stringify({ whatsapp: '', email: 'careers@shopee.co.id', website: 'https://careers.shopee.co.id' }),
         anti_fraud_notice: 'Shopee tidak pernah memungut bayaran apapun dalam proses seleksi calon karyawan.',
@@ -3478,7 +3544,7 @@ function getPlatformSeedVacancies(source) {
         platform_label: 'X (Twitter) Karir Resmi',
         platform_icon: 'fa-brands fa-x-twitter',
         platform_class: 'twitter',
-        official_url: 'https://x.com/search?q=Indofood+lowongan+quality+control',
+        official_url: 'https://career.indofood.com',
         contact_type: 'link',
         contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@icbp.indofood.co.id', website: 'https://career.indofood.com' }),
         anti_fraud_notice: 'PT Indofood CBP Sukses Makmur Tbk tidak memungut biaya apapun.',
@@ -3722,7 +3788,7 @@ function getPlatformSeedVacancies(source) {
         platform_label: 'Instagram Info Karir Resmi',
         platform_icon: 'fa-brands fa-instagram',
         platform_class: 'instagram',
-        official_url: 'https://www.instagram.com/indomilk/',
+        official_url: 'https://career.indofood.com',
         contact_type: 'link',
         contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment.indolakto@indofood.co.id', website: 'https://career.indofood.com' }),
         anti_fraud_notice: 'PT Indolakto tidak pernah memungut biaya apapun dari pelamar kerja.',
@@ -3761,7 +3827,7 @@ function getPlatformSeedVacancies(source) {
         platform_label: 'Instagram Info Karir Resmi',
         platform_icon: 'fa-brands fa-instagram',
         platform_class: 'instagram',
-        official_url: 'https://www.instagram.com/mayora_career/',
+        official_url: 'https://career.mayora.co.id',
         contact_type: 'link',
         contact_value: JSON.stringify({ whatsapp: '', email: 'mayorakarir@mayora.co.id', website: 'https://career.mayora.co.id' }),
         anti_fraud_notice: 'Mayora Group tidak pernah bekerjasama dengan pihak manapun untuk memungut biaya tes.',
@@ -3800,7 +3866,7 @@ function getPlatformSeedVacancies(source) {
         platform_label: 'Instagram Info Karir Resmi',
         platform_icon: 'fa-brands fa-instagram',
         platform_class: 'instagram',
-        official_url: 'https://www.instagram.com/alfamartkarir/',
+        official_url: 'https://recruitment.alfamart.co.id',
         contact_type: 'link',
         contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@sat.co.id', website: 'https://recruitment.alfamart.co.id' }),
         anti_fraud_notice: 'Alfamart tidak memungut biaya registrasi dan tidak menahan ijazah asli pelamar.',
@@ -3844,7 +3910,7 @@ function getPlatformSeedVacancies(source) {
         platform_label: 'Facebook Postingan Karir Resmi',
         platform_icon: 'fa-brands fa-facebook',
         platform_class: 'facebook',
-        official_url: 'https://www.facebook.com/ToyotaID/',
+        official_url: 'https://toyotaindonesiamanufacturing.co.id',
         contact_type: 'link',
         contact_value: JSON.stringify({ whatsapp: '', email: 'recruitment@toyota.co.id', website: 'https://toyotaindonesiamanufacturing.co.id' }),
         anti_fraud_notice: 'TMMIN tidak pernah memungut biaya apapun dari calon pelamar.',
@@ -3883,7 +3949,7 @@ function getPlatformSeedVacancies(source) {
         platform_label: 'Facebook Postingan Karir Resmi',
         platform_icon: 'fa-brands fa-facebook',
         platform_class: 'facebook',
-        official_url: 'https://www.facebook.com/DensoID/',
+        official_url: 'https://denso.co.id/career',
         contact_type: 'link',
         contact_value: JSON.stringify({ whatsapp: '', email: 'career@denso.co.id', website: 'https://denso.co.id/career' }),
         anti_fraud_notice: 'PT Denso Indonesia bebas biaya rekrutmen apapun.',
@@ -4140,7 +4206,7 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          adminJobs = parsed.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+          adminJobs = parsed.filter(j => j && (!j.status || !j.status.startsWith('system_')));
         }
       }
     } catch (e) {}
@@ -4245,7 +4311,7 @@ async function populateOfficialVacanciesFromSystem(keyword = 'lowongan', isBackg
     try {
       const { data: directJobs } = await sbClient.from('jobs').select('*').limit(30);
       if (Array.isArray(directJobs) && directJobs.length > 0) {
-        adminJobs = directJobs.filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+        adminJobs = directJobs.filter(j => j && (!j.status || !j.status.startsWith('system_')));
         syncAdminJobsToOfficialDb();
       }
     } catch (e) {}
@@ -4661,7 +4727,7 @@ function renderOfficialJobsGrid() {
         </div>
 
         <h3 class="official-job-title">
-          <a href="${escapeHtml(job.official_url || '#')}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;" title="Buka Postingan Asli ${platNameShort}">
+          <a href="${escapeHtml(typeof resolveTrustedCareerUrl === 'function' ? resolveTrustedCareerUrl(job) : (job.official_url || '#'))}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;" title="Buka Postingan Asli & Web Karir Resmi ${platNameShort}">
             ${escapeHtml(job.title)} <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.78rem; color: #0284c7; margin-left: 4px;"></i>
           </a>
         </h3>
@@ -4693,7 +4759,7 @@ function renderOfficialJobsGrid() {
 
         <div class="official-apply-note">
           <i class="fa-solid fa-circle-info" style="color: #0284c7;"></i>
-          <span>${escapeHtml(job.apply_info || 'Klik Buka Postingan Asli untuk langsung menuju sumber pengumuman resmi.')}</span>
+          <span>${escapeHtml(job.apply_info || 'Klik Buka Web Karir Resmi untuk langsung menuju sumber pendaftaran valid.')}</span>
         </div>
 
         <!-- ACTION BUTTONS -->
@@ -4715,8 +4781,8 @@ function renderOfficialJobsGrid() {
             <button type="button" class="btn-copy-caption" onclick="copyJobSosmedCaption(${idx})" title="Salin teks caption siap diposting ke medsos">
               <i class="fa-regular fa-copy"></i> Salin Caption
             </button>
-            <a href="${escapeHtml(job.official_url || '#')}" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="border-color: #0284c7; color: #0284c7; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;" title="Buka Postingan Asli Langsung di ${platNameShort}">
-              <i class="${platIcon}"></i> Buka Postingan ${platNameShort} ↗
+            <a href="${escapeHtml(typeof resolveTrustedCareerUrl === 'function' ? resolveTrustedCareerUrl(job) : (job.official_url || '#'))}" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="border-color: #0284c7; color: #0284c7; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;" title="Buka Portal Karir Resmi Terverifikasi">
+              <i class="${platIcon}"></i> Buka Web Karir Resmi ↗
             </a>
           </div>
         </div>
@@ -4729,6 +4795,7 @@ window.copyJobSosmedCaption = function(idx) {
   const job = currentOfficialFilteredJobs[idx];
   if (!job) return;
   const plat = job.platform_label || 'Web Resmi';
+  const cleanUrl = typeof resolveTrustedCareerUrl === 'function' ? resolveTrustedCareerUrl(job) : (job.official_url || '');
   const text = `📢 [LOWONGAN KERJA RESMI - ${job.company_name}]
 
 Posisi: ${job.title}
@@ -4740,8 +4807,8 @@ Posisi: ${job.title}
 Persyaratan Utama:
 ${job.requirements.slice(0, 4).map(r => `• ${r}`).join('\n')}
 
-🔗 Buka Link Postingan Asli (${plat}):
-${job.official_url}
+🔗 Web Karir & Pendaftaran Resmi (${plat}):
+${cleanUrl}
 
 ${job.hashtag || '#LokerResmi #InfoLowongan'} @KerjaHubOfficial`;
 
@@ -4758,8 +4825,11 @@ ${job.hashtag || '#LokerResmi #InfoLowongan'} @KerjaHubOfficial`;
 
 window.openWebJobDirectFromIndex = function(idx) {
   const job = currentOfficialFilteredJobs[idx];
-  if (job && job.official_url) {
-    window.open(job.official_url, '_blank', 'noopener,noreferrer');
+  if (job) {
+    const targetUrl = typeof resolveTrustedCareerUrl === 'function' ? resolveTrustedCareerUrl(job) : (job.official_url || '');
+    if (targetUrl) {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    }
   }
 };
 window.openJobStreetViewerFromOfficialIndex = window.openWebJobDirectFromIndex;
@@ -4877,8 +4947,10 @@ function generateFlyerPosterDataUrl(jobData) {
   if (deadInp) deadInp.value = jobData.deadline || '';
   if (applyInp) applyInp.value = jobData.apply_info || (jobData.company_name ? `Kirim CV/Lamaran melalui tautan resmi ${jobData.company_name}.` : '');
   let flyerQr = (jobData.official_url || '').trim();
-  if (!flyerQr || flyerQr.startsWith('./') || flyerQr.startsWith('/') || flyerQr.includes('lnkd.in')) {
-    flyerQr = typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(jobData.id) : window.location.origin;
+  if (!flyerQr || flyerQr.startsWith('./') || flyerQr.startsWith('/') || flyerQr.includes('lnkd.in') || flyerQr.includes('localhost') || flyerQr.includes('127.0.0.1')) {
+    flyerQr = typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(jobData.id) : 'https://job-portal-194.pages.dev';
+  } else if (flyerQr.includes('localhost') || flyerQr.includes('127.0.0.1')) {
+    flyerQr = flyerQr.replace(/^https?:\/\/(localhost(:\d+)?|127\.0\.0\.1(:\d+)?)/i, 'https://job-portal-194.pages.dev');
   }
   if (qrInp) qrInp.value = flyerQr;
   if (hashInp) hashInp.value = jobData.hashtag || `@KerjaHubOfficial #LowonganKerja`;
@@ -5268,6 +5340,18 @@ window.loadFlyerThemes = async function() {
         saveThemesLocal();
       }
     } catch (e) {}
+
+    // Fallback: check jobs table where status = 'system_flyer_themes'
+    try {
+      const { data: rows, error: rowErr } = await sbClient.from('jobs').select('description').eq('status', 'system_flyer_themes').limit(1);
+      if (!rowErr && rows && rows.length > 0 && rows[0].description) {
+        const parsed = JSON.parse(rows[0].description);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          flyerThemes = parsed;
+          saveThemesLocal();
+        }
+      }
+    } catch (e) {}
   }
 
   // Set active theme if available
@@ -5359,13 +5443,38 @@ window.handleFlyerThemeUpload = async function(event) {
         }
       } catch (err) {}
 
-      if (sbClient && !theme.id.toString().startsWith('theme_')) {
+      flyerThemes.unshift(theme);
+
+      // Direct cloud sync via Supabase Client
+      if (sbClient) {
         try {
           await sbClient.from('flyer_themes').insert([{ name: cleanName, image_data }]);
         } catch (e) {}
-      }
 
-      flyerThemes.unshift(theme);
+        // Guaranteed fallback to jobs table where status = 'system_flyer_themes'
+        try {
+          const { data: rows } = await sbClient.from('jobs').select('id').eq('status', 'system_flyer_themes').limit(1);
+          if (rows && rows.length > 0) {
+            await sbClient.from('jobs').update({
+              description: JSON.stringify(flyerThemes),
+              updated_at: new Date().toISOString()
+            }).eq('id', rows[0].id);
+          } else {
+            await sbClient.from('jobs').insert([{
+              title: '__SYSTEM_FLYER_THEMES__',
+              company_name: 'System',
+              category: 'System',
+              job_type: 'Full Time',
+              location: 'Indonesia',
+              salary_display: 'Kompetitif',
+              experience_level: 'Semua Tingkat',
+              poster_image: '',
+              description: JSON.stringify(flyerThemes),
+              status: 'system_flyer_themes'
+            }]);
+          }
+        } catch (e) {}
+      }
     } catch (err) {
       console.warn('Error reading theme file:', err);
     }
@@ -5425,6 +5534,15 @@ window.deleteFlyerTheme = async function(id) {
 
   if (sbClient) {
     try { await sbClient.from('flyer_themes').delete().eq('id', id); } catch (e) {}
+    try {
+      const { data: rows } = await sbClient.from('jobs').select('id').eq('status', 'system_flyer_themes').limit(1);
+      if (rows && rows.length > 0) {
+        await sbClient.from('jobs').update({
+          description: JSON.stringify(flyerThemes),
+          updated_at: new Date().toISOString()
+        }).eq('id', rows[0].id);
+      }
+    } catch (e) {}
   }
 
   if (String(activeFlyerThemeId) === String(id)) {
@@ -5866,8 +5984,16 @@ window.deleteFlyerSlide = function(idx, event) {
 // HELPER: GET ABSOLUTE PUBLIC USER WEB URL FOR A JOB (?job=...)
 // -------------------------------------------------------------
 function getPublicJobPageUrl(jobId) {
-  const origin = window.location.origin;
-  let basePath = window.location.pathname.replace(/\/admin(\.html)?$/i, '/').replace(/\/admin\/.*$/i, '/');
+  // If running on localhost or local network, ALWAYS default to production domain https://job-portal-194.pages.dev
+  // so barcodes and flyers created on localhost scan directly to the online website!
+  const isLocal = window.location.hostname === 'localhost' || 
+                  window.location.hostname === '127.0.0.1' || 
+                  window.location.hostname.endsWith('.local') ||
+                  window.location.hostname.startsWith('192.168.') ||
+                  window.location.hostname.startsWith('10.');
+
+  const origin = isLocal ? 'https://job-portal-194.pages.dev' : window.location.origin;
+  let basePath = isLocal ? '/' : window.location.pathname.replace(/\/admin(\.html)?$/i, '/').replace(/\/admin\/.*$/i, '/');
   if (!basePath.endsWith('/')) {
     basePath += '/';
   }
@@ -6028,8 +6154,10 @@ function openPosterStudio(jobData, isPublishIntent = false) {
 
   // Initialize Barcode URL to visitor website posting (?job=...)
   let qrTargetUrl = (jobData.official_url || '').trim();
-  if (!qrTargetUrl || qrTargetUrl.startsWith('./') || qrTargetUrl.startsWith('/') || qrTargetUrl.includes('lnkd.in/gziqaHKR')) {
+  if (!qrTargetUrl || qrTargetUrl.startsWith('./') || qrTargetUrl.startsWith('/') || qrTargetUrl.includes('lnkd.in/gziqaHKR') || qrTargetUrl.includes('localhost') || qrTargetUrl.includes('127.0.0.1')) {
     qrTargetUrl = getPublicJobPageUrl(jobData.id);
+  } else if (qrTargetUrl.includes('localhost') || qrTargetUrl.includes('127.0.0.1')) {
+    qrTargetUrl = qrTargetUrl.replace(/^https?:\/\/(localhost(:\d+)?|127\.0\.0\.1(:\d+)?)/i, 'https://job-portal-194.pages.dev');
   }
   if (qrInp) qrInp.value = qrTargetUrl;
   if (hashInp) hashInp.value = jobData.hashtag || '@Lokersmasmkjabodetabek #Lowongankerja2026';
@@ -6647,11 +6775,18 @@ function renderPosterCanvas() {
     ctx.textAlign = 'center';
     ctx.fillStyle = '#000000';
     ctx.font = '700 19px "Plus Jakarta Sans", Arial, sans-serif';
-    const publicUrlFallback = typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(currentPosterJobData?.id) : window.location.href;
-    const activeQrUrl = qrUrl || publicUrlFallback;
-    const displayShortUrl = (activeQrUrl && activeQrUrl.length > 30)
-      ? activeQrUrl.replace(/^https?:\/\//, '').substring(0, 24) + '...'
-      : (activeQrUrl ? activeQrUrl.replace(/^https?:\/\//, '') : '');
+    const publicUrlFallback = typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(currentPosterJobData?.id) : 'https://job-portal-194.pages.dev';
+    let activeQrUrl = (qrUrl || publicUrlFallback).trim();
+    if (activeQrUrl.includes('localhost') || activeQrUrl.includes('127.0.0.1')) {
+      activeQrUrl = activeQrUrl.replace(/^https?:\/\/(localhost(:\d+)?|127\.0\.0\.1(:\d+)?)/i, 'https://job-portal-194.pages.dev');
+    }
+    let displayShortUrl = activeQrUrl.replace(/^https?:\/\//, '');
+    if (displayShortUrl.includes('localhost') || displayShortUrl.includes('127.0.0.1')) {
+      displayShortUrl = displayShortUrl.replace(/^(localhost(:\d+)?|127\.0\.0\.1(:\d+)?)/i, 'job-portal-194.pages.dev');
+    }
+    if (displayShortUrl.length > 32) {
+      displayShortUrl = displayShortUrl.substring(0, 28) + '...';
+    }
     ctx.fillText(displayShortUrl, qrBoxX + qrSize / 2, qrBoxY - 14);
 
     drawScannableQrCode(ctx, activeQrUrl, qrBoxX, qrBoxY, qrSize, false);
@@ -6872,7 +7007,10 @@ function renderPosterCanvas() {
     ctx.fillStyle = '#334155';
     wrapCanvasText(ctx, customApplyText, appBoxX + 20, applyHeaderY + applyLineH + 6, appBoxW - 40, applyLineH, 4);
 
-    const activeQrUrlMode3 = qrUrl || (typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(currentPosterJobData?.id) : window.location.href);
+    let activeQrUrlMode3 = (qrUrl || (typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(currentPosterJobData?.id) : 'https://job-portal-194.pages.dev')).trim();
+    if (activeQrUrlMode3.includes('localhost') || activeQrUrlMode3.includes('127.0.0.1')) {
+      activeQrUrlMode3 = activeQrUrlMode3.replace(/^https?:\/\/(localhost(:\d+)?|127\.0\.0\.1(:\d+)?)/i, 'https://job-portal-194.pages.dev');
+    }
     drawScannableQrCode(ctx, activeQrUrlMode3, qrBoxX, qrBoxY, qrSize);
 
     ctx.textAlign = 'center';
@@ -6922,7 +7060,10 @@ function drawScannableQrCode(ctx, url, x, y, size, withBrackets = false) {
   const holder = document.getElementById('poster-qrcode-temp');
   if (!holder) return;
 
-  const targetScanUrl = (url || (typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(currentPosterJobData?.id) : window.location.href)).trim();
+  let targetScanUrl = (url || (typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(currentPosterJobData?.id) : 'https://job-portal-194.pages.dev')).trim();
+  if (targetScanUrl.includes('localhost') || targetScanUrl.includes('127.0.0.1')) {
+    targetScanUrl = targetScanUrl.replace(/^https?:\/\/(localhost(:\d+)?|127\.0\.0\.1(:\d+)?)/i, 'https://job-portal-194.pages.dev');
+  }
 
   holder.innerHTML = '';
   if (typeof QRCode === 'function') {

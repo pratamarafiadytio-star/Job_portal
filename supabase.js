@@ -923,6 +923,19 @@ const db = {
         if (!error && Array.isArray(data) && data.length > 0) {
           themes = data;
           writeLocalThemes(themes);
+          return themes;
+        }
+      } catch (e) {}
+
+      // Fallback: check jobs table where status = 'system_flyer_themes'
+      try {
+        const { data: rows } = await supabase.from('jobs').select('description').eq('status', 'system_flyer_themes').limit(1);
+        if (rows && rows.length > 0 && rows[0].description) {
+          const parsed = JSON.parse(rows[0].description);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            themes = parsed;
+            writeLocalThemes(themes);
+          }
         }
       } catch (e) {}
     }
@@ -951,6 +964,33 @@ const db = {
     }
     themes.unshift(newTheme);
     writeLocalThemes(themes);
+
+    // Sync to Supabase jobs table (system_flyer_themes)
+    if (supabase) {
+      try {
+        const { data: rows } = await supabase.from('jobs').select('id').eq('status', 'system_flyer_themes').limit(1);
+        if (rows && rows.length > 0) {
+          await supabase.from('jobs').update({
+            description: JSON.stringify(themes),
+            updated_at: new Date().toISOString()
+          }).eq('id', rows[0].id);
+        } else {
+          await supabase.from('jobs').insert([{
+            title: '__SYSTEM_FLYER_THEMES__',
+            company_name: 'System',
+            category: 'System',
+            job_type: 'Full Time',
+            location: 'Indonesia',
+            salary_display: 'Kompetitif',
+            experience_level: 'Semua Tingkat',
+            poster_image: '',
+            description: JSON.stringify(themes),
+            status: 'system_flyer_themes'
+          }]);
+        }
+      } catch (e) {}
+    }
+
     return newTheme;
   },
 
@@ -961,6 +1001,15 @@ const db = {
     if (supabase) {
       try {
         await supabase.from('flyer_themes').delete().eq('id', id);
+      } catch (e) {}
+      try {
+        const { data: rows } = await supabase.from('jobs').select('id').eq('status', 'system_flyer_themes').limit(1);
+        if (rows && rows.length > 0) {
+          await supabase.from('jobs').update({
+            description: JSON.stringify(themes),
+            updated_at: new Date().toISOString()
+          }).eq('id', rows[0].id);
+        }
       } catch (e) {}
     }
     return true;

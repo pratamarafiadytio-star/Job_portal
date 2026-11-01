@@ -260,6 +260,101 @@ async function saveMasterData(supabaseUrl, supabaseKey, masterData) {
   return masterData;
 }
 
+// Helper: Fetch Flyer Themes from Supabase
+async function fetchFlyerThemes(supabaseUrl, supabaseKey) {
+  // 1. Try flyer_themes table first
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/flyer_themes?select=id,name,image_data,created_at&order=id.desc`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`
+      }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows;
+      }
+    }
+  } catch (err) {}
+
+  // 2. Fallback to jobs table where status = 'system_flyer_themes'
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/jobs?status=eq.system_flyer_themes&select=id,description&limit=1`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`
+      }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (rows && rows.length > 0 && rows[0].description) {
+        try {
+          const parsed = JSON.parse(rows[0].description);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } catch (e) {}
+      }
+    }
+  } catch (err) {}
+
+  return [];
+}
+
+// Helper: Save Flyer Themes to Supabase
+async function saveFlyerThemes(supabaseUrl, supabaseKey, themes) {
+  try {
+    const checkRes = await fetch(`${supabaseUrl}/rest/v1/jobs?status=eq.system_flyer_themes&select=id&limit=1`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`
+      }
+    });
+    const checkRows = checkRes.ok ? await checkRes.json() : [];
+
+    if (checkRows && checkRows.length > 0) {
+      await fetch(`${supabaseUrl}/rest/v1/jobs?id=eq.${checkRows[0].id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          description: JSON.stringify(themes),
+          updated_at: new Date().toISOString()
+        })
+      });
+    } else {
+      await fetch(`${supabaseUrl}/rest/v1/jobs`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          title: '__SYSTEM_FLYER_THEMES__',
+          company_name: 'System',
+          category: 'System',
+          job_type: 'Full Time',
+          location: 'Indonesia',
+          salary_display: 'Kompetitif',
+          experience_level: 'Semua Tingkat',
+          poster_image: '',
+          description: JSON.stringify(themes),
+          status: 'system_flyer_themes'
+        })
+      });
+    }
+  } catch (e) {
+    console.error('Error saving flyer themes to Supabase:', e);
+  }
+}
+
 // Clean HTML Tags & Entities from RSS snippets
 function cleanHtmlSnippet(raw) {
   if (!raw) return '';
@@ -591,6 +686,82 @@ export async function onRequest(context) {
     });
   }
 
+  // 8d. GET /api/flyer-themes
+  if (pathname === '/api/flyer-themes' && method === 'GET') {
+    const themes = await fetchFlyerThemes(supabaseUrl, supabaseKey);
+    return jsonResponse({
+      success: true,
+      data: themes
+    });
+  }
+
+  // 8e. POST /api/flyer-themes
+  if (pathname === '/api/flyer-themes' && method === 'POST') {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const { name, image_data } = body;
+      if (!image_data) {
+        return jsonResponse({ success: false, message: 'image_data wajib diisi!' }, 400);
+      }
+      const newTheme = {
+        id: 'theme_' + Date.now() + Math.floor(Math.random() * 1000),
+        name: name || 'Tema Latar Kustom',
+        image_data,
+        created_at: new Date().toISOString()
+      };
+
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/flyer_themes`, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name: newTheme.name, image_data })
+        });
+      } catch (e) {}
+
+      let themes = await fetchFlyerThemes(supabaseUrl, supabaseKey);
+      themes.unshift(newTheme);
+      await saveFlyerThemes(supabaseUrl, supabaseKey, themes);
+
+      return jsonResponse({
+        success: true,
+        data: newTheme
+      }, 201);
+    } catch (err) {
+      return jsonResponse({ success: false, message: 'Gagal menambahkan tema flyer: ' + err.message }, 500);
+    }
+  }
+
+  // 8f. DELETE /api/flyer-themes/:id
+  if (pathname.startsWith('/api/flyer-themes/') && method === 'DELETE') {
+    try {
+      const themeId = pathname.replace('/api/flyer-themes/', '');
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/flyer_themes?id=eq.${themeId}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`
+          }
+        });
+      } catch (e) {}
+
+      let themes = await fetchFlyerThemes(supabaseUrl, supabaseKey);
+      themes = themes.filter(t => String(t.id) !== String(themeId));
+      await saveFlyerThemes(supabaseUrl, supabaseKey, themes);
+
+      return jsonResponse({
+        success: true,
+        message: 'Tema latar berhasil dihapus'
+      });
+    } catch (err) {
+      return jsonResponse({ success: false, message: 'Gagal menghapus tema flyer: ' + err.message }, 500);
+    }
+  }
+
   // 9. GET /api/admin/stats
   if (pathname === '/api/admin/stats' && method === 'GET') {
     try {
@@ -602,7 +773,7 @@ export async function onRequest(context) {
       });
       if (sbRes.ok) {
         let jobs = await sbRes.json();
-        jobs = (jobs || []).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+        jobs = (jobs || []).filter(j => !j.status || !j.status.startsWith('system_'));
         const activeJobs = jobs.filter(j => j.status === 'active').length;
         const closedJobs = jobs.filter(j => j.status === 'closed' || j.status === 'expired').length;
         const totalViews = jobs.reduce((sum, j) => sum + (j.views_count || 0), 0);
@@ -1046,7 +1217,7 @@ export async function onRequest(context) {
       });
       if (sbRes.ok) {
         let jobs = await sbRes.json();
-        jobs = (jobs || []).filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data');
+        jobs = (jobs || []).filter(j => !j.status || !j.status.startsWith('system_'));
         return jsonResponse({ success: true, data: jobs });
       }
     } catch (err) {}
