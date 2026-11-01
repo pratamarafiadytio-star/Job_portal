@@ -36,7 +36,7 @@ function safeSessionRemove(key) {
 }
 
 const DEFAULT_SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co";
-const DEFAULT_SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_vhr-CPf4EI0fy2Xsl1uBPg_RxF7UwWT";
 const DEFAULT_ADMIN_PASSWORD = "admin_supersecret_portal_2026";
 const defaultPoster = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80"><rect width="80" height="80" fill="#1e293b"/><text x="40" y="48" font-family="sans-serif" font-size="28" text-anchor="middle" fill="#6366f1">💼</text></svg>');
 let isLoadingAdminJobs = false;
