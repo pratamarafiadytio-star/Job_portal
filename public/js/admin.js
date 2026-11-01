@@ -1537,7 +1537,7 @@ function setupJobFormSubmit() {
       ],
       benefits: benLines,
       deadline: formattedDeadline || 'Pendaftaran Terbuka',
-      official_url: website || 'https://lnkd.in/gziqaHKR',
+      official_url: getPublicJobPageUrl(),
       apply_info: applyInfo,
       hashtag: '@Lokersmasmkjabodetabek #Lowongankerja2026',
       theme: 'factory',
@@ -4876,7 +4876,11 @@ function generateFlyerPosterDataUrl(jobData) {
   if (titleInp) titleInp.value = jobData.title || '';
   if (deadInp) deadInp.value = jobData.deadline || '';
   if (applyInp) applyInp.value = jobData.apply_info || (jobData.company_name ? `Kirim CV/Lamaran melalui tautan resmi ${jobData.company_name}.` : '');
-  if (qrInp) qrInp.value = jobData.official_url || window.location.origin;
+  let flyerQr = (jobData.official_url || '').trim();
+  if (!flyerQr || flyerQr.startsWith('./') || flyerQr.startsWith('/') || flyerQr.includes('lnkd.in')) {
+    flyerQr = typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(jobData.id) : window.location.origin;
+  }
+  if (qrInp) qrInp.value = flyerQr;
   if (hashInp) hashInp.value = jobData.hashtag || `@KerjaHubOfficial #LowonganKerja`;
 
   const parseList = (val) => {
@@ -5859,13 +5863,49 @@ window.deleteFlyerSlide = function(idx, event) {
 };
 
 // -------------------------------------------------------------
+// HELPER: GET ABSOLUTE PUBLIC USER WEB URL FOR A JOB (?job=...)
+// -------------------------------------------------------------
+function getPublicJobPageUrl(jobId) {
+  const origin = window.location.origin;
+  let basePath = window.location.pathname.replace(/\/admin(\.html)?$/i, '/').replace(/\/admin\/.*$/i, '/');
+  if (!basePath.endsWith('/')) {
+    basePath += '/';
+  }
+  let cleanId = (jobId !== undefined && jobId !== null && String(jobId).trim() !== '') 
+    ? String(jobId).replace(/^db_/, '').trim() 
+    : '';
+
+  if (!cleanId) {
+    const existingNumericIds = (Array.isArray(adminJobs) ? adminJobs : [])
+      .map(j => Number(j.id))
+      .filter(n => !isNaN(n) && n > 0);
+    cleanId = existingNumericIds.length > 0 ? String(Math.max(...existingNumericIds) + 1) : '';
+  }
+
+  return cleanId ? `${origin}${basePath}?job=${encodeURIComponent(cleanId)}` : `${origin}${basePath}`;
+}
+window.getPublicJobPageUrl = getPublicJobPageUrl;
+
+// -------------------------------------------------------------
 // OPEN POSTER STUDIO MODAL
 // -------------------------------------------------------------
 window.openPosterStudioFromOfficialIndex = function(index, isPublishIntent = false) {
   const job = currentOfficialFilteredJobs[index];
   if (!job) return;
+
+  let targetId = job.id;
+  if (targetId && String(targetId).startsWith('db_')) {
+    targetId = String(targetId).replace(/^db_/, '');
+  } else if (!targetId || isNaN(Number(targetId))) {
+    const existingNumericIds = (Array.isArray(adminJobs) ? adminJobs : [])
+      .map(j => Number(j.id))
+      .filter(n => !isNaN(n) && n > 0);
+    targetId = existingNumericIds.length > 0 ? (Math.max(...existingNumericIds) + 1) : 1;
+  }
+
   openPosterStudio({
     ...job,
+    official_url: getPublicJobPageUrl(targetId),
     origin: 'scout',
     _isPublishIntent: isPublishIntent
   }, isPublishIntent);
@@ -5923,7 +5963,7 @@ window.openPosterStudioFromExistingId = function(jobId) {
     requirements: parseJsonList(job.requirements),
     benefits: parseJsonList(job.benefits),
     deadline: formattedDeadline || 'Pendaftaran Terbuka',
-    official_url: contacts.website || './?job=' + job.id,
+    official_url: getPublicJobPageUrl(job.id),
     apply_info: customApplyInfo,
     theme: job.category === 'Operasional' || (job.title && job.title.toLowerCase().includes('operator')) ? 'factory' : 'modern',
     mascot: (job.title && (job.title.toLowerCase().includes('operator') || job.title.toLowerCase().includes('teknisi'))) ? 'factory' : 'corporate',
@@ -5985,7 +6025,13 @@ function openPosterStudio(jobData, isPublishIntent = false) {
     }
   }
   if (applyInp) applyInp.value = initialApply;
-  if (qrInp) qrInp.value = jobData.official_url || 'https://lnkd.in/gziqaHKR';
+
+  // Initialize Barcode URL to visitor website posting (?job=...)
+  let qrTargetUrl = (jobData.official_url || '').trim();
+  if (!qrTargetUrl || qrTargetUrl.startsWith('./') || qrTargetUrl.startsWith('/') || qrTargetUrl.includes('lnkd.in/gziqaHKR')) {
+    qrTargetUrl = getPublicJobPageUrl(jobData.id);
+  }
+  if (qrInp) qrInp.value = qrTargetUrl;
   if (hashInp) hashInp.value = jobData.hashtag || '@Lokersmasmkjabodetabek #Lowongankerja2026';
 
   // Ensure active theme image is preloaded into loadedCustomTemplateImg if available
@@ -6601,12 +6647,14 @@ function renderPosterCanvas() {
     ctx.textAlign = 'center';
     ctx.fillStyle = '#000000';
     ctx.font = '700 19px "Plus Jakarta Sans", Arial, sans-serif';
-    const displayShortUrl = (qrUrl && qrUrl.length > 32)
-      ? qrUrl.replace(/^https?:\/\//, '').substring(0, 26) + '...'
-      : (qrUrl || 'https://lnkd.in/gziqaHKR');
+    const publicUrlFallback = typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(currentPosterJobData?.id) : window.location.href;
+    const activeQrUrl = qrUrl || publicUrlFallback;
+    const displayShortUrl = (activeQrUrl && activeQrUrl.length > 30)
+      ? activeQrUrl.replace(/^https?:\/\//, '').substring(0, 24) + '...'
+      : (activeQrUrl ? activeQrUrl.replace(/^https?:\/\//, '') : '');
     ctx.fillText(displayShortUrl, qrBoxX + qrSize / 2, qrBoxY - 14);
 
-    drawScannableQrCode(ctx, qrUrl || 'https://lnkd.in/gziqaHKR', qrBoxX, qrBoxY, qrSize, false);
+    drawScannableQrCode(ctx, activeQrUrl, qrBoxX, qrBoxY, qrSize, false);
 
     ctx.font = '900 26px "Plus Jakarta Sans", Arial, sans-serif';
     ctx.fillStyle = '#000000';
@@ -6824,10 +6872,8 @@ function renderPosterCanvas() {
     ctx.fillStyle = '#334155';
     wrapCanvasText(ctx, customApplyText, appBoxX + 20, applyHeaderY + applyLineH + 6, appBoxW - 40, applyLineH, 4);
 
-    const qrSize = 200;
-    const qrBoxX = 715;
-    const qrBoxY = 750;
-    drawScannableQrCode(ctx, qrUrl, qrBoxX, qrBoxY, qrSize);
+    const activeQrUrlMode3 = qrUrl || (typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(currentPosterJobData?.id) : window.location.href);
+    drawScannableQrCode(ctx, activeQrUrlMode3, qrBoxX, qrBoxY, qrSize);
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#0f172a';
@@ -6876,10 +6922,12 @@ function drawScannableQrCode(ctx, url, x, y, size, withBrackets = false) {
   const holder = document.getElementById('poster-qrcode-temp');
   if (!holder) return;
 
+  const targetScanUrl = (url || (typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(currentPosterJobData?.id) : window.location.href)).trim();
+
   holder.innerHTML = '';
   if (typeof QRCode === 'function') {
     new QRCode(holder, {
-      text: url || 'https://lnkd.in/gziqaHKR',
+      text: targetScanUrl,
       width: size,
       height: size,
       colorDark: '#000000',
@@ -7189,7 +7237,7 @@ window.publishJobFromStudio = async function() {
         renderAdminJobsTable();
       }
     } else {
-      // NEW JOB FROM SCOUT / STUDIO: INSERT INTO DATABASE (Single Source of Truth)
+      let createdJobId = null;
       try {
         const token = getAdminToken();
         const res = await safeFetchJson(getApiEndpoint('/api/jobs'), {
@@ -7202,6 +7250,9 @@ window.publishJobFromStudio = async function() {
         });
         if (res.ok) {
           saved = true;
+          if (res.data && res.data.id) {
+            createdJobId = res.data.id;
+          }
         }
       } catch (e) {
         console.warn('Backend API insert warning:', e);
@@ -7211,16 +7262,40 @@ window.publishJobFromStudio = async function() {
       if (!saved && sbClient) {
         try {
           const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
-          const insPromise = sbClient.from('jobs').insert([prepareJobPayloadForSupabase(payload)]);
-          const { error } = await Promise.race([insPromise, timeoutPromise]);
-          if (!error) saved = true;
-          else {
+          const insPromise = sbClient.from('jobs').insert([prepareJobPayloadForSupabase(payload)]).select('id');
+          const { data: insData, error } = await Promise.race([insPromise, timeoutPromise]);
+          if (!error) {
+            saved = true;
+            if (insData && insData[0] && insData[0].id) {
+              createdJobId = insData[0].id;
+            }
+          } else {
             console.warn('Supabase fallback insert warning:', error);
             if (!errorMsg) errorMsg = error.message;
           }
         } catch (e) {
           console.warn('Supabase fallback insert error:', e);
           if (!errorMsg) errorMsg = e.message;
+        }
+      }
+
+      // If new job was created, guarantee flyer QR code matches the exact newly assigned ID
+      if (saved && createdJobId) {
+        const exactPublicUrl = getPublicJobPageUrl(createdJobId);
+        if (qrInp && qrInp.value !== exactPublicUrl) {
+          qrInp.value = exactPublicUrl;
+          renderPosterCanvas();
+          const syncedFlyer = canvas.toDataURL('image/png');
+          currentFlyerSlides[0] = syncedFlyer;
+          const token = getAdminToken();
+          safeFetchJson(getApiEndpoint(`/api/jobs/${createdJobId}`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+            body: JSON.stringify({ poster_image: syncedFlyer, flyer_images: currentFlyerSlides })
+          }).catch(() => {});
+          if (sbClient) {
+            sbClient.from('jobs').update({ poster_image: syncedFlyer, flyer_images: currentFlyerSlides }).eq('id', createdJobId).then();
+          }
         }
       }
     }
@@ -7241,12 +7316,14 @@ window.publishJobFromStudio = async function() {
           confirmText: 'Bagus, Mengerti'
         });
       } else {
+        const targetId = createdJobId || numId;
+        const publicJobUrl = getPublicJobPageUrl(targetId);
         showAdminAttractivePopup({
           title: 'Berhasil Diterbitkan!',
-          message: `Lowongan "${updatedTitle}" (${updatedComp}) telah aktif di portal pengunjung dengan ${currentFlyerSlides.length} gambar flyer.`,
+          message: `Lowongan "${updatedTitle}" (${updatedComp}) telah aktif di portal pengunjung. Barcode telah terhubung langsung ke postingan lowongan ini di web Anda.`,
           type: 'success',
           confirmText: 'Lihat Lowongan di Web',
-          actionUrl: './'
+          actionUrl: publicJobUrl
         });
       }
     } else {
@@ -7744,6 +7821,21 @@ function setupOfficialVacancyGenerator() {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', () => renderPosterCanvas());
   });
+
+  // Reset Barcode URL to public website posting (?job=...)
+  const btnResetQr = document.getElementById('btn-reset-qr-to-portal');
+  if (btnResetQr) {
+    btnResetQr.addEventListener('click', () => {
+      const targetId = currentPosterJobData ? currentPosterJobData.id : null;
+      const publicUrl = typeof getPublicJobPageUrl === 'function' ? getPublicJobPageUrl(targetId) : window.location.href;
+      const qrInp = document.getElementById('poster-input-qr-url');
+      if (qrInp) {
+        qrInp.value = publicUrl;
+        renderPosterCanvas();
+        showAdminToast('Barcode Diperbarui', `URL Barcode diarahkan ke halaman postingan web: ${publicUrl}`, 'success');
+      }
+    });
+  }
 
   // Poster themes
   document.querySelectorAll('input[name="poster_theme"]').forEach(radio => {

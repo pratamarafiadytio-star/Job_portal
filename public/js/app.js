@@ -2131,9 +2131,23 @@ window.openLightboxSlide = function(jobId, slideIndex) {
   openLightbox(currentSrc, `Poster Lowongan (Slide ${slideIndex + 1})`);
 };
 
-// Open Detail Modal
-function openJobDetail(jobId) {
-  const rawJob = rawAllJobs.find(j => Number(j.id) === Number(jobId));
+async function openJobDetail(jobId) {
+  let rawJob = rawAllJobs.find(j => Number(j.id) === Number(jobId));
+  if (!rawJob && jobId) {
+    try {
+      const { ok, data: fetchedJob } = await safeFetchJson(getApiEndpoint(`/api/jobs/${jobId}`));
+      if (ok && fetchedJob) {
+        rawJob = fetchedJob;
+        rawAllJobs.unshift(rawJob);
+      } else if (sbClient) {
+        const { data: sbJobs } = await sbClient.from('jobs').select('*').eq('id', jobId).limit(1);
+        if (sbJobs && sbJobs.length > 0) {
+          rawJob = sbJobs[0];
+          rawAllJobs.unshift(rawJob);
+        }
+      }
+    } catch (e) {}
+  }
   if (!rawJob) return;
 
   const job = typeof window.cleanJobData === 'function' ? window.cleanJobData(rawJob) : rawJob;
