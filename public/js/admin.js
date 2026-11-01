@@ -36,7 +36,8 @@ function safeSessionRemove(key) {
 }
 
 const DEFAULT_SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co";
-const DEFAULT_SUPABASE_KEY = "sb_publishable_vhr-CPf4EI0fy2Xsl1uBPg_RxF7UwWT";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
+const ALTERNATE_SUPABASE_KEY = "sb_publishable_vhr-CPf4EI0fy2Xsl1uBPg_RxF7UwWT";
 const DEFAULT_ADMIN_PASSWORD = "admin_supersecret_portal_2026";
 const defaultPoster = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80"><rect width="80" height="80" fill="#1e293b"/><text x="40" y="48" font-family="sans-serif" font-size="28" text-anchor="middle" fill="#6366f1">💼</text></svg>');
 let isLoadingAdminJobs = false;
@@ -2613,9 +2614,18 @@ async function loadAdminJobs(forceRefresh = false) {
 
     const supabasePromise = (async () => {
       if (!sbClient) throw new Error('Supabase client not initialized');
-      const fetchPromise = sbClient.from('jobs').select('*').order('id', { ascending: false });
+      const fetchJobs = () => sbClient.from('jobs').select('*').order('id', { ascending: false });
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4500));
-      const res = await Promise.race([fetchPromise, timeoutPromise]);
+      let res = await Promise.race([fetchJobs(), timeoutPromise]);
+      if (res && res.error && (res.error.code === 'PGRST301' || res.status === 401 || String(res.error.message || '').includes('API key'))) {
+        console.warn('Primary Supabase key failed (401), trying alternate key in admin...');
+        const altKey = (currentSupabaseKey === DEFAULT_SUPABASE_KEY) ? ALTERNATE_SUPABASE_KEY : DEFAULT_SUPABASE_KEY;
+        if (window.supabase && typeof window.supabase.createClient === 'function') {
+          sbClient = window.supabase.createClient(DEFAULT_SUPABASE_URL, altKey, clientOptions);
+          currentSupabaseKey = altKey;
+          res = await Promise.race([fetchJobs(), timeoutPromise]);
+        }
+      }
       if (res && !res.error && Array.isArray(res.data) && res.data.length > 0) {
         return res.data;
       }

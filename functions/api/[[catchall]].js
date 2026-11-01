@@ -4,7 +4,8 @@
 // ==============================================================
 
 const DEFAULT_SUPABASE_URL = "https://nptmawuukuysqzqakwej.supabase.co";
-const DEFAULT_SUPABASE_KEY = "sb_publishable_vhr-CPf4EI0fy2Xsl1uBPg_RxF7UwWT";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_CeLmp_Pj-sgJ_vIrShAj2A__rzAQIYT";
+const ALTERNATE_SUPABASE_KEY = "sb_publishable_vhr-CPf4EI0fy2Xsl1uBPg_RxF7UwWT";
 const DEFAULT_ADMIN_PASSWORD = "admin_supersecret_portal_2026";
 
 
@@ -765,12 +766,21 @@ export async function onRequest(context) {
   // 9. GET /api/admin/stats
   if (pathname === '/api/admin/stats' && method === 'GET') {
     try {
-      const sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs?select=*&order=id.desc`, {
+      let sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs?select=*&order=id.desc`, {
         headers: {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`
         }
       });
+      if (!sbRes.ok && sbRes.status === 401) {
+        const altKey = (supabaseKey === DEFAULT_SUPABASE_KEY) ? ALTERNATE_SUPABASE_KEY : DEFAULT_SUPABASE_KEY;
+        sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs?select=*&order=id.desc`, {
+          headers: {
+            'apikey': altKey,
+            'Authorization': `Bearer ${altKey}`
+          }
+        });
+      }
       if (sbRes.ok) {
         let jobs = await sbRes.json();
         jobs = (jobs || []).filter(j => !j.status || !j.status.startsWith('system_'));
@@ -1209,12 +1219,21 @@ export async function onRequest(context) {
     }
 
     try {
-      const sbRes = await fetch(sbPath, {
+      let sbRes = await fetch(sbPath, {
         headers: {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`
         }
       });
+      if (!sbRes.ok && sbRes.status === 401) {
+        const altKey = (supabaseKey === DEFAULT_SUPABASE_KEY) ? ALTERNATE_SUPABASE_KEY : DEFAULT_SUPABASE_KEY;
+        sbRes = await fetch(sbPath, {
+          headers: {
+            'apikey': altKey,
+            'Authorization': `Bearer ${altKey}`
+          }
+        });
+      }
       if (sbRes.ok) {
         let jobs = await sbRes.json();
         jobs = (jobs || []).filter(j => !j.status || !j.status.startsWith('system_'));
