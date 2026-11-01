@@ -2587,13 +2587,27 @@ function extractJobContacts(job) {
     if (m) website = m[0];
   }
 
+  // If website points to our own portal or localhost, it is NOT the company's apply URL
+  const isSelfPortalUrl = website.includes('job-portal') || website.includes('localhost') || website.includes('127.0.0.1') || website.includes('?job=');
+  if (isSelfPortalUrl) {
+    website = '';
+  }
+
   // If website contains an unresolvable Google News / Bing tracking link or is missing, resolve to direct genuine career portal
   const isGenericNewsUrl = !website || website.startsWith('{') || website.includes('news.google.com') || website.includes('bing.com/news');
   const comp = (job.company_name || '').toLowerCase();
   const title = (job.title || '').toLowerCase();
 
   if (isGenericNewsUrl) {
-    if (comp.includes('patra drilling') || comp.includes('pdc') || title.includes('patra drilling')) {
+    if (comp.includes('bank syariah indonesia') || comp.includes('bsi')) {
+      website = 'https://rekrutmen.bankbsi.co.id';
+    } else if (comp.includes('kai services') || comp.includes('reska')) {
+      website = 'https://karir.reska.id';
+    } else if (comp.includes('goto') || comp.includes('gojek') || comp.includes('tokopedia')) {
+      website = 'https://careers.gotocompany.com';
+    } else if (comp.includes('kai') || comp.includes('kereta api')) {
+      website = 'https://recruitment.kai.id';
+    } else if (comp.includes('patra drilling') || comp.includes('pdc') || title.includes('patra drilling')) {
       website = 'https://karir.pertamina-pdc.com';
     } else if (comp.includes('bukajobs') || (job.source_platform || '').includes('bukajobs') || (job.source_label || '').includes('bukajobs')) {
       website = 'https://bukajobs.com';
@@ -2609,8 +2623,6 @@ function extractJobContacts(job) {
       website = 'https://e-recruitment.bri.co.id';
     } else if (comp.includes('mayora')) {
       website = 'https://mayorakarir.com';
-    } else if (comp.includes('kai') || comp.includes('kereta api')) {
-      website = 'https://recruitment.kai.id';
     } else if (comp.includes('kalbe')) {
       website = 'https://careers.kalbe.co.id';
     } else if (comp.includes('yamaha')) {
@@ -2621,6 +2633,8 @@ function extractJobContacts(job) {
       website = 'https://careers.shopee.co.id';
     } else if (comp.includes('krakatau')) {
       website = 'https://krakatausteel.com/career';
+    } else if (comp.includes('rhythm')) {
+      website = 'https://www.rhythm.co.jp';
     } else if (comp.includes('bumn')) {
       website = 'https://rekrutmenbersama.fhcibumn.id';
     }

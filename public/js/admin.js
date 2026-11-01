@@ -42,6 +42,31 @@ const DEFAULT_ADMIN_PASSWORD = "admin_supersecret_portal_2026";
 const defaultPoster = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80"><rect width="80" height="80" fill="#1e293b"/><text x="40" y="48" font-family="sans-serif" font-size="28" text-anchor="middle" fill="#6366f1">💼</text></svg>');
 let isLoadingAdminJobs = false;
 
+function getKnownCorporateCareerUrl(compName) {
+  const c = String(compName || '').toLowerCase().trim();
+  if (c.includes('bsi') || c.includes('syariah indonesia')) return 'https://rekrutmen.bankbsi.co.id';
+  if (c.includes('kai services') || c.includes('reska')) return 'https://karir.reska.id';
+  if (c.includes('goto') || c.includes('gojek') || c.includes('tokopedia')) return 'https://careers.gotocompany.com';
+  if (c.includes('kai') || c.includes('kereta api')) return 'https://recruitment.kai.id';
+  if (c.includes('mayora')) return 'https://mayorakarir.com';
+  if (c.includes('bca') || c.includes('central asia')) return 'https://karir.bca.co.id';
+  if (c.includes('patra drilling') || c.includes('pdc')) return 'https://karir.pertamina-pdc.com';
+  if (c.includes('pertamina')) return 'https://recruitment.pertamina.com';
+  if (c.includes('toyota')) return 'https://recruitment.toyota.co.id';
+  if (c.includes('astra honda') || c.includes('ahm')) return 'https://recruitment.astra-honda.com';
+  if (c.includes('telkom')) return 'https://careers.telkom.co.id';
+  if (c.includes('bri') || c.includes('rakyat indonesia')) return 'https://e-recruitment.bri.co.id';
+  if (c.includes('kalbe')) return 'https://careers.kalbe.co.id';
+  if (c.includes('yamaha')) return 'https://www.yamaha-motor.co.id/career';
+  if (c.includes('indofood') || c.includes('indolakto')) return 'https://careers.indofood.com';
+  if (c.includes('shopee')) return 'https://careers.shopee.co.id';
+  if (c.includes('krakatau')) return 'https://krakatausteel.com/career';
+  if (c.includes('rhythm')) return 'https://www.rhythm.co.jp';
+  if (c.includes('bumn')) return 'https://rekrutmenbersama.fhcibumn.id';
+  return '';
+}
+window.getKnownCorporateCareerUrl = getKnownCorporateCareerUrl;
+
 function getApiEndpoint(endpoint) {
   if (!endpoint) return '';
   const clean = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
@@ -6056,8 +6081,17 @@ window.openPosterStudioFromOfficialIndex = function(index, isPublishIntent = fal
     targetId = existingNumericIds.length > 0 ? (Math.max(...existingNumericIds) + 1) : 1;
   }
 
+  let realCompUrl = job.company_website || job.official_url || job.website_url || job.url || '';
+  if (realCompUrl.includes('job-portal') || realCompUrl.includes('localhost') || realCompUrl.includes('127.0.0.1') || realCompUrl.includes('?job=')) {
+    realCompUrl = '';
+  }
+  if (!realCompUrl) {
+    realCompUrl = getKnownCorporateCareerUrl(job.company_name);
+  }
+
   openPosterStudio({
     ...job,
+    company_website: realCompUrl,
     official_url: getPublicJobPageUrl(targetId),
     origin: 'scout',
     _isPublishIntent: isPublishIntent
@@ -6069,6 +6103,14 @@ window.openPosterStudioFromExistingId = function(jobId) {
   if (!job) return;
 
   const contacts = extractJobContacts(job);
+  let compWeb = (contacts.website || job.website_url || '').trim();
+  if (compWeb.includes('job-portal') || compWeb.includes('localhost') || compWeb.includes('127.0.0.1') || compWeb.includes('?job=')) {
+    compWeb = '';
+  }
+  if (!compWeb) {
+    compWeb = getKnownCorporateCareerUrl(job.company_name);
+  }
+
   const parseJsonList = (val) => {
     if (!val) return [];
     if (Array.isArray(val)) return val;
@@ -6083,7 +6125,7 @@ window.openPosterStudioFromExistingId = function(jobId) {
   if (!customApplyInfo) {
     if (contacts.email) {
       customApplyInfo = `Kirim berkas CV & lamaran via email: ${contacts.email}`;
-    } else if (contacts.website) {
+    } else if (compWeb) {
       customApplyInfo = `Kirim CV/Lamaran melalui website resmi ${job.company_name} atau scan QR Code di samping.`;
     } else if (contacts.whatsapp) {
       customApplyInfo = `Kirim berkas CV & lamaran melalui WhatsApp: ${contacts.whatsapp}`;
@@ -6116,6 +6158,7 @@ window.openPosterStudioFromExistingId = function(jobId) {
     requirements: parseJsonList(job.requirements),
     benefits: parseJsonList(job.benefits),
     deadline: formattedDeadline || 'Pendaftaran Terbuka',
+    company_website: compWeb,
     official_url: getPublicJobPageUrl(job.id),
     apply_info: customApplyInfo,
     theme: job.category === 'Operasional' || (job.title && job.title.toLowerCase().includes('operator')) ? 'factory' : 'modern',
@@ -6143,6 +6186,7 @@ function openPosterStudio(jobData, isPublishIntent = false) {
   const deadInp = document.getElementById('poster-input-deadline');
   const applyInp = document.getElementById('poster-input-apply-info');
   const qrInp = document.getElementById('poster-input-qr-url');
+  const compWebInp = document.getElementById('poster-input-company-website');
   const hashInp = document.getElementById('poster-input-hashtag');
 
   if (compInp) compInp.value = jobData.company_name || 'PERUSAHAAN TERVERIFIKASI';
@@ -6151,7 +6195,16 @@ function openPosterStudio(jobData, isPublishIntent = false) {
   const contacts = extractJobContacts(jobData);
   const emailVal = contacts.email || jobData.email || '';
   const waVal = contacts.whatsapp || jobData.whatsapp || '';
-  const webVal = contacts.website || jobData.official_url || jobData.website || '';
+
+  // Company Genuine Apply / Career URL
+  let compWebVal = (jobData.company_website || contacts.website || jobData.website_url || '').trim();
+  if (compWebVal.includes('job-portal') || compWebVal.includes('localhost') || compWebVal.includes('127.0.0.1') || compWebVal.includes('?job=')) {
+    compWebVal = '';
+  }
+  if (!compWebVal) {
+    compWebVal = getKnownCorporateCareerUrl(jobData.company_name);
+  }
+  if (compWebInp) compWebInp.value = compWebVal;
   const storedApply = contacts.apply_info || jobData.apply_info || '';
 
   let initialDeadline = (contacts.deadline_display || jobData.deadline || '').trim();
@@ -6171,7 +6224,7 @@ function openPosterStudio(jobData, isPublishIntent = false) {
       initialApply = `Kirim berkas CV & lamaran via email: ${emailVal}`;
     } else if (waVal) {
       initialApply = `Kirim berkas CV & lamaran melalui WhatsApp: ${waVal}`;
-    } else if (webVal && !webVal.startsWith('{')) {
+    } else if (compWebVal && !compWebVal.startsWith('{')) {
       initialApply = `Kirim CV & lamaran melalui website resmi ${jobData.company_name || 'perusahaan'} atau scan QR Code di samping.`;
     } else {
       initialApply = `Kirim CV & lamaran melalui tautan resmi ${jobData.company_name || 'perusahaan'} atau scan QR Code di samping.`;
@@ -6180,14 +6233,21 @@ function openPosterStudio(jobData, isPublishIntent = false) {
   if (applyInp) applyInp.value = initialApply;
 
   // Initialize Barcode URL to visitor website posting (?job=...)
-  let qrTargetUrl = (jobData.official_url || '').trim();
-  if (!qrTargetUrl || qrTargetUrl.startsWith('./') || qrTargetUrl.startsWith('/') || qrTargetUrl.includes('lnkd.in/gziqaHKR') || qrTargetUrl.includes('localhost') || qrTargetUrl.includes('127.0.0.1')) {
-    qrTargetUrl = getPublicJobPageUrl(jobData.id);
-  } else if (qrTargetUrl.includes('localhost') || qrTargetUrl.includes('127.0.0.1')) {
-    qrTargetUrl = qrTargetUrl.replace(/^https?:\/\/(localhost(:\d+)?|127\.0\.0\.1(:\d+)?)/i, 'https://job-portal-194.pages.dev');
-  }
+  let qrTargetUrl = getPublicJobPageUrl(jobData.id);
   if (qrInp) qrInp.value = qrTargetUrl;
   if (hashInp) hashInp.value = jobData.hashtag || '@Lokersmasmkjabodetabek #Lowongankerja2026';
+
+  const resetQrBtn = document.getElementById('btn-reset-qr-to-portal');
+  if (resetQrBtn) {
+    resetQrBtn.onclick = () => {
+      const pUrl = getPublicJobPageUrl(currentPosterJobData?.id);
+      if (qrInp) {
+        qrInp.value = pUrl;
+        renderPosterCanvas();
+        showAdminToast('Barcode Direset', 'URL QR Code diset ke link web postingan: ' + pUrl, 'info');
+      }
+    };
+  }
 
   // Ensure active theme image is preloaded into loadedCustomTemplateImg if available
   if (flyerThemes.length > 0 && !loadedCustomTemplateImg) {
@@ -7264,12 +7324,21 @@ window.publishJobFromStudio = async function() {
     const deadInp = document.getElementById('poster-input-deadline');
     const applyInp = document.getElementById('poster-input-apply-info');
     const qrInp = document.getElementById('poster-input-qr-url');
+    const compWebInp = document.getElementById('poster-input-company-website');
 
     const updatedComp = (compInp ? compInp.value.trim() : '') || currentPosterJobData.company_name || 'Perusahaan';
     const updatedTitle = (titleInp ? titleInp.value.trim() : '') || currentPosterJobData.title || 'Lowongan Kerja';
     const updatedDead = (deadInp ? deadInp.value.trim() : '') || currentPosterJobData.deadline || '';
     const updatedApply = (applyInp ? applyInp.value.trim() : '') || currentPosterJobData.apply_info || '';
-    const updatedQr = (qrInp ? qrInp.value.trim() : '') || currentPosterJobData.official_url || '';
+    const updatedQr = (qrInp ? qrInp.value.trim() : '') || getPublicJobPageUrl(currentPosterJobData.id);
+
+    let updatedCompWeb = (compWebInp ? compWebInp.value.trim() : '') || currentPosterJobData.company_website || '';
+    if (updatedCompWeb.includes('job-portal') || updatedCompWeb.includes('localhost') || updatedCompWeb.includes('127.0.0.1')) {
+      updatedCompWeb = '';
+    }
+    if (!updatedCompWeb) {
+      updatedCompWeb = getKnownCorporateCareerUrl(updatedComp);
+    }
 
     const respList = window.getDynamicListValues ? window.getDynamicListValues('poster-resp-items') : [];
     const reqList = window.getDynamicListValues ? window.getDynamicListValues('poster-req-items') : [];
@@ -7285,7 +7354,8 @@ window.publishJobFromStudio = async function() {
         contacts = {};
       }
     }
-    contacts.website = updatedQr || contacts.website || '';
+    contacts.website = updatedCompWeb;
+    contacts.website_url = updatedCompWeb;
     contacts.apply_info = updatedApply;
     contacts.deadline_display = updatedDead;
     contacts.source_platform = currentPosterJobData.platform || 'official';
@@ -7333,9 +7403,9 @@ window.publishJobFromStudio = async function() {
       benefits: benList.length > 0 ? benList : (Array.isArray(currentPosterJobData.benefits) ? currentPosterJobData.benefits : []),
       whatsapp: contacts.whatsapp || '',
       email: contacts.email || '',
-      website_url: contacts.website || '',
+      website_url: updatedCompWeb,
       apply_info: updatedApply,
-      contact_type: 'link',
+      contact_type: contacts.whatsapp ? 'whatsapp' : (contacts.email ? 'email' : 'link'),
       contact_value: contactsJson,
       deadline: dMeta.isoDate || toIsoDate(new Date(Date.now() + 30 * 86400000)),
       status: studioStatus,
