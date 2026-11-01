@@ -766,7 +766,8 @@ export async function onRequest(context) {
   // 9. GET /api/admin/stats
   if (pathname === '/api/admin/stats' && method === 'GET') {
     try {
-      let sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs?select=*&order=id.desc`, {
+      const statsFields = 'id,title,company_name,status,views_count';
+      let sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs?select=${statsFields}&order=id.desc`, {
         headers: {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`
@@ -774,7 +775,7 @@ export async function onRequest(context) {
       });
       if (!sbRes.ok && sbRes.status === 401) {
         const altKey = (supabaseKey === DEFAULT_SUPABASE_KEY) ? ALTERNATE_SUPABASE_KEY : DEFAULT_SUPABASE_KEY;
-        sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs?select=*&order=id.desc`, {
+        sbRes = await fetch(`${supabaseUrl}/rest/v1/jobs?select=${statsFields}&order=id.desc`, {
           headers: {
             'apikey': altKey,
             'Authorization': `Bearer ${altKey}`
@@ -1301,14 +1302,8 @@ export async function onRequest(context) {
           contactObj.raw = contact_value;
         }
       }
-      if (bodyData.cover_image) {
-        contactObj.cover_image = bodyData.cover_image;
-      }
-      if (bodyData.flyer_images) {
-        try {
-          contactObj.flyer_images = typeof bodyData.flyer_images === 'string' ? JSON.parse(bodyData.flyer_images) : bodyData.flyer_images;
-        } catch (e) {}
-      }
+      delete contactObj.cover_image;
+      delete contactObj.flyer_images;
       const finalContactVal = JSON.stringify(contactObj);
 
       const parseJsonList = (val) => {
@@ -1332,7 +1327,7 @@ export async function onRequest(context) {
         experience_level: experience_level || 'Semua Tingkat',
         poster_image: poster_image || '',
         cover_image: bodyData.cover_image || '',
-        flyer_images: contactObj.flyer_images || [],
+        flyer_images: parseJsonList(bodyData.flyer_images) || [],
         description: description.trim(),
         requirements: parseJsonList(requirements),
         responsibilities: parseJsonList(responsibilities),

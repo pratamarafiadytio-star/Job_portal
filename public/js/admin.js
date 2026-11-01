@@ -1582,9 +1582,7 @@ function setupJobFormSubmit() {
       email,
       website,
       apply_info: customApplyInfo,
-      deadline_display: customDeadlineDisplay,
-      cover_image: currentManualCoverBase64 || '',
-      flyer_images: allFlyers
+      deadline_display: customDeadlineDisplay
     };
     const primaryContactType = whatsapp ? 'whatsapp' : (email ? 'email' : 'link');
     const contactValueJSON = JSON.stringify(contactsObj);
@@ -2993,9 +2991,7 @@ function setupEditFormSubmit() {
       email,
       website,
       apply_info: existingContacts.apply_info || '',
-      deadline_display: form.querySelector('[name="deadline"]')?.value.trim() || existingContacts.deadline_display || '',
-      cover_image: currentEditCoverBase64 || '',
-      flyer_images: currentEditFlyers
+      deadline_display: form.querySelector('[name="deadline"]')?.value.trim() || existingContacts.deadline_display || ''
     };
     const primaryContactType = whatsapp ? 'whatsapp' : (email ? 'email' : 'link');
     const contactValueJSON = JSON.stringify(contactsObj);
@@ -7275,15 +7271,13 @@ window.publishJobFromStudio = async function() {
     contacts.source_label = currentPosterJobData.platform_label || 'Resmi BUMN & Korporasi';
     contacts.is_verified_anti_hoax = true;
     contacts.verified_screening_status = 'passed';
-    contacts.flyer_images = currentFlyerSlides;
+    delete contacts.flyer_images;
+    delete contacts.cover_image;
 
     const syncCoverCb = document.getElementById('studio-sync-cover-checkbox');
     let studioCover = (currentPosterJobData && currentPosterJobData.cover_image) || '';
     if (syncCoverCb && syncCoverCb.checked) {
       studioCover = currentFlyerSlides[0] || currentCanvasDataUrl;
-    }
-    if (studioCover) {
-      contacts.cover_image = studioCover;
     }
 
     const contactsJson = JSON.stringify(contacts);
@@ -7331,6 +7325,7 @@ window.publishJobFromStudio = async function() {
 
     let saved = false;
     let errorMsg = '';
+    let createdJobId = null;
 
     const rawId = currentPosterJobData && currentPosterJobData.id;
     const numId = Number(rawId);
@@ -7377,7 +7372,7 @@ window.publishJobFromStudio = async function() {
         renderAdminJobsTable();
       }
     } else {
-      let createdJobId = null;
+      createdJobId = null;
       try {
         const token = getAdminToken();
         const res = await safeFetchJson(getApiEndpoint('/api/jobs'), {

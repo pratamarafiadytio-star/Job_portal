@@ -1106,10 +1106,16 @@ async function loadJobs() {
     };
 
     const fetchSupabase = async () => {
+      if (!sbClient && window.supabase && typeof window.supabase.createClient === 'function') {
+        try {
+          sbClient = window.supabase.createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY, clientOptions);
+          currentSupabaseUrl = DEFAULT_SUPABASE_URL;
+          currentSupabaseKey = DEFAULT_SUPABASE_KEY;
+        } catch (e) {}
+      }
       if (!sbClient) return null;
       try {
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase loadJobs timeout')), 2500));
-        const queryPromise = sbClient
+        const fetchQuery = () => sbClient
           .from('jobs')
           .select('*')
           .neq('status', 'system_master_data')
@@ -1118,17 +1124,31 @@ async function loadJobs() {
           .order('is_featured', { ascending: false })
           .order('id', { ascending: false });
 
-        const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
-        if (!error && Array.isArray(data) && data.length > 0) {
-          return data.map(window.cleanJobData).filter(isJobPubliclyVisible);
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase loadJobs timeout')), 5000));
+        let res = await Promise.race([fetchQuery(), timeoutPromise]);
+
+        if (res && res.error && (res.error.code === 'PGRST301' || res.status === 401 || String(res.error.message || '').includes('API key'))) {
+          console.warn('Primary Supabase key failed (401), trying alternate key in public app...');
+          const altKey = (currentSupabaseKey === DEFAULT_SUPABASE_KEY) ? ALTERNATE_SUPABASE_KEY : DEFAULT_SUPABASE_KEY;
+          if (window.supabase && typeof window.supabase.createClient === 'function') {
+            sbClient = window.supabase.createClient(DEFAULT_SUPABASE_URL, altKey, clientOptions);
+            currentSupabaseKey = altKey;
+            res = await Promise.race([fetchQuery(), timeoutPromise]);
+          }
         }
-      } catch (e) {}
+
+        if (res && !res.error && Array.isArray(res.data) && res.data.length > 0) {
+          return res.data.map(window.cleanJobData).filter(isJobPubliclyVisible);
+        }
+      } catch (e) {
+        console.warn('Public fetchSupabase error:', e);
+      }
       return null;
     };
 
     // Fetch both sources in parallel
     const [localResult, supabaseResult] = await Promise.all([fetchLocalApi(), fetchSupabase()]);
-    let freshJobs = localResult || supabaseResult;
+    let freshJobs = (supabaseResult && supabaseResult.length > 0) ? supabaseResult : localResult;
 
     // Fallback if both returned null
     if (!freshJobs && sbClient && !supabaseResult) {
