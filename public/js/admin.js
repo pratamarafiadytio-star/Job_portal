@@ -390,7 +390,7 @@ function prepareJobPayloadForSupabase(jobObj) {
   if (!jobObj || typeof jobObj !== 'object') return {};
   const allowed = [
     'title', 'company_name', 'category', 'job_type', 'location',
-    'salary_display', 'experience_level', 'poster_image', 'description',
+    'salary_display', 'experience_level', 'poster_image', 'cover_image', 'flyer_images', 'description',
     'requirements', 'responsibilities', 'benefits', 'contact_type',
     'contact_value', 'deadline', 'status', 'scheduled_at', 'is_featured', 'views_count',
     'updated_at'
@@ -402,6 +402,15 @@ function prepareJobPayloadForSupabase(jobObj) {
     }
   }
 
+  // Prevent duplicate cover_image if identical to poster_image
+  if (clean.cover_image && clean.poster_image && clean.cover_image === clean.poster_image) {
+    clean.cover_image = null;
+  }
+  // Prevent duplicate single-slide flyer_images if identical to poster_image
+  if (Array.isArray(clean.flyer_images) && clean.flyer_images.length === 1 && clean.poster_image && clean.flyer_images[0] === clean.poster_image) {
+    clean.flyer_images = [];
+  }
+
   // Ensure contact_value contains website/contact details if passed separately
   if (!clean.contact_value && (jobObj.whatsapp || jobObj.email || jobObj.website || jobObj.website_url)) {
     clean.contact_value = JSON.stringify({
@@ -409,6 +418,18 @@ function prepareJobPayloadForSupabase(jobObj) {
       email: jobObj.email || '',
       website: jobObj.website_url || jobObj.website || ''
     });
+  }
+
+  // Guarantee contact_value never carries bloated base64 strings
+  if (clean.contact_value && typeof clean.contact_value === 'string') {
+    try {
+      const cvObj = JSON.parse(clean.contact_value);
+      if (cvObj.cover_image || cvObj.flyer_images) {
+        delete cvObj.cover_image;
+        delete cvObj.flyer_images;
+        clean.contact_value = JSON.stringify(cvObj);
+      }
+    } catch (e) {}
   }
 
   // Ensure JSONB list columns are valid native arrays (not JSON strings or raw text)
