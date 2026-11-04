@@ -1223,11 +1223,27 @@ function renderActiveCvHtml() {
   }
 }
 
+function syncCvPrintPortal(htmlContent) {
+  let portal = document.getElementById('cv-print-only-portal');
+  if (!portal) {
+    portal = document.createElement('div');
+    portal.id = 'cv-print-only-portal';
+    portal.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(portal);
+  }
+  const activeHtml = htmlContent !== undefined ? htmlContent : renderActiveCvHtml();
+  portal.innerHTML = `<div class="cv-a4-sheet cv-print-sheet-clean" id="cv-print-a4-sheet">${activeHtml}</div>`;
+}
+
 function updateCvPreview() {
   const container = document.getElementById('cv-live-a4-sheet');
+  const activeHtml = renderActiveCvHtml();
   if (container) {
-    container.innerHTML = renderActiveCvHtml();
+    container.innerHTML = activeHtml;
     container.style.transform = `scale(${cvZoom})`;
+
+    // Keep dedicated body-level print portal synchronized
+    syncCvPrintPortal(activeHtml);
 
     // Check page height in pixels (~1122.5px for 297mm A4)
     setTimeout(() => {
@@ -1914,25 +1930,73 @@ function zoomCvOut() {
   setCvZoom(cvZoom - 0.1);
 }
 
-function printCv() {
-  // Commit any currently focused input immediately
+function prepareCvForPrint() {
   if (document.activeElement && typeof document.activeElement.blur === 'function') {
     document.activeElement.blur();
   }
   saveCvDataToStorage(true);
-  updateCvPreview();
+  const activeHtml = renderActiveCvHtml();
+  const liveSheet = document.getElementById('cv-live-a4-sheet');
+  if (liveSheet) {
+    liveSheet.innerHTML = activeHtml;
+    liveSheet.style.transform = 'none';
+  }
+  syncCvPrintPortal(activeHtml);
+  document.body.classList.add('cv-printing-active');
+
+  // Auto-scale inner template inside print portal if content height slightly exceeds 1 A4 page (1122px)
+  const printSheet = document.getElementById('cv-print-a4-sheet');
+  if (printSheet && printSheet.firstElementChild) {
+    const innerTpl = printSheet.firstElementChild;
+    innerTpl.style.maxHeight = 'none';
+    innerTpl.style.height = 'auto';
+    const contentH = innerTpl.scrollHeight;
+    innerTpl.style.height = '297mm';
+    innerTpl.style.maxHeight = '297mm';
+    if (contentH > 1124) {
+      const fitScale = Math.max(0.82, +(1118 / contentH).toFixed(3));
+      innerTpl.style.zoom = String(fitScale);
+    }
+  }
+}
+
+function restoreCvAfterPrint(originalTitle) {
+  document.body.classList.remove('cv-printing-active');
+  const liveSheet = document.getElementById('cv-live-a4-sheet');
+  if (liveSheet) {
+    liveSheet.style.transform = `scale(${cvZoom})`;
+  }
+  if (originalTitle) {
+    document.title = originalTitle;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeprint', () => {
+    const cvSection = document.getElementById('section-cv-builder');
+    if (cvSection && cvSection.style.display !== 'none') {
+      prepareCvForPrint();
+    }
+  });
+  window.addEventListener('afterprint', () => {
+    restoreCvAfterPrint();
+  });
+}
+
+function printCv() {
+  prepareCvForPrint();
 
   const originalTitle = document.title;
   const cleanName = (cvData.fullName || 'CV').trim().replace(/[^a-zA-Z0-9 _-]/g, '');
   const cleanRole = (cvData.jobTitle || '').trim().replace(/[^a-zA-Z0-9 _-]/g, '').slice(0, 30);
   document.title = `CV_${cleanName}${cleanRole ? '_' + cleanRole : ''}`.replace(/\s+/g, '_');
-  
+
   setTimeout(() => {
     window.print();
     setTimeout(() => {
-      document.title = originalTitle;
-    }, 1500);
-  }, 100);
+      restoreCvAfterPrint(originalTitle);
+    }, 800);
+  }, 80);
 }
 
 function resetCvToInitial() {

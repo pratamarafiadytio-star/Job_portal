@@ -294,20 +294,21 @@ window.filterByPlatform = function(plat) {
 
 let isLoadingPublicJobs = false;
 
-async function initSupabaseClient() {
-  const memoryStore = {};
-  const clientOptions = {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-      storage: {
-        getItem: (k) => memoryStore[k] || null,
-        setItem: (k, v) => { memoryStore[k] = String(v); },
-        removeItem: (k) => { delete memoryStore[k]; }
-      }
+const _sbMemoryStore = {};
+const clientOptions = {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+    storage: {
+      getItem: (k) => _sbMemoryStore[k] || null,
+      setItem: (k, v) => { _sbMemoryStore[k] = String(v); },
+      removeItem: (k) => { delete _sbMemoryStore[k]; }
     }
-  };
+  }
+};
+
+async function initSupabaseClient() {
 
   // 1. Immediately initialize with client-side default Supabase credentials so it works on GitHub Pages, workdev, and static previews
   if (window.supabase && typeof window.supabase.createClient === 'function') {
@@ -421,7 +422,6 @@ const STATIC_COMPANY_IMAGES = {
   "PT Patra Drilling Contractor": "https://www.tender-indonesia.com/newsrectory/files/Logo_111.68.127.98ea5bb3cc200030c4e01ae3eaee70f1fb1234567890.png",
   "PT Bank Central Asia Tbk (BCA)": "https://static.vecteezy.com/system/resources/previews/024/701/610/large_2x/yogyakarta-indonesia-march-20-2023-bank-bca-exterior-building-bank-central-asia-tbk-is-the-largest-private-bank-in-indonesia-bca-kcp-ahmad-dahlan-free-photo.JPG",
   "Trinova Tech Solutions": "https://trinovatechsolutions.in/logo.png",
-  "PT Indolakto - Indofood CBP (INDOMILK)": "./uploads/indolakto_indomilk_banner.jpg",
   "PT Indofood CBP Sukses Makmur Tbk": "https://lokermedan.net/wp-content/uploads/2022/05/PT-Indofood-CBP-Sukses-Makmur-Tbk.jpg",
   "PT TOYOTA MOTOR MANUFACTURING INDONESIA (TMMIN)": "https://images.cakeresume.com/images/e7290147-dc27-4025-81e5-1f1cfa4e5431.jpg",
   "PT Kalbe Farma Tbk": "https://cdn1-production-images-kly.akamaized.net/UiFATqcym61jnHSQIM2axtwK_oc=/1280x720/smart/filters:quality(75):strip_icc():format(webp)/kly-media-production/medias/3526828/original/027148900_1627708283-kalbe_farma_31_juli_2021Kalbe_Farma_31_juli_2021.jpg",
@@ -435,9 +435,7 @@ const STATIC_COMPANY_IMAGES = {
   "PT Yamaha Indonesia Motor Mfg": "https://global.yamaha-motor.com/about/group/asia_oceania/img/pic_004.jpg",
   "PT Krakatau Blue Water": "https://static.wikia.nocookie.net/logopedia/images/9/9f/Krakatau_Blue_Water.png",
   "PT Sumco Indonesia": "https://wlkp-assets.kemnaker.go.id/companies/95cde64d-dcfa-40f7-b85f-0ef7383e02fa/62a15a7ee1312.JPG",
-  "PT Shopee International Indonesia": "https://www.shutterstock.com/shutterstock/photos/2279767699/display_1500/stock-photo-surakarta-indonesia-march-shopee-logo-on-office-building-at-surakarta-shopee-2279767699.jpg",
-  "PT Indofood Sukses Makmur Tbk": "./uploads/indolakto_indomilk_banner.jpg",
-  "Creative Sparks Agency": "./uploads/corporate_worker_mascot.jpg"
+  "PT Shopee International Indonesia": "https://www.shutterstock.com/shutterstock/photos/2279767699/display_1500/stock-photo-surakarta-indonesia-march-shopee-logo-on-office-building-at-surakarta-shopee-2279767699.jpg"
 };
 
 window._companyImagesCache = { ...STATIC_COMPANY_IMAGES };
@@ -3008,8 +3006,16 @@ const SKILL_KEYWORDS_DICT = [
   'marketing', 'digital marketing', 'social media', 'content creator', 'copywriter', 'copywriting', 'seo', 'sem',
   'meta ads', 'facebook ads', 'instagram ads', 'tiktok ads', 'google ads', 'sales', 'business development',
   'data', 'data analyst', 'data science', 'machine learning', 'deep learning', 'ai', 'prompt engineering', 'llm',
-  'excel', 'powerbi', 'tableau', 'accounting', 'finance', 'administrasi', 'customer service', 'support', 'hr', 'hrd'
+  'excel', 'powerbi', 'tableau', 'accounting', 'finance', 'administrasi', 'customer service', 'support', 'hr', 'hrd',
+  'operator produksi', 'warehouse', 'gudang', 'forklift', 'quality control', 'qc', 'qa', 'ppic', 'teknisi',
+  'welder', 'cnc', 'wms', 'k3', 'hse', 'logistik', 'supply chain', 'microsoft office', 'maintenance', 'elektrik'
 ];
+
+const STOPWORDS = new Set([
+  'dan', 'atau', 'untuk', 'dengan', 'yang', 'dari', 'pada', 'dalam', 'sebagai', 'staff', 'staf',
+  'junior', 'senior', 'lead', 'officer', 'specialist', 'associate', 'intern', 'magang', 'lowongan',
+  'kerja', 'terbaru', 'bumn', 'swasta', 'resmi', 'tahun', '2025', '2026', 'full', 'time', 'part'
+]);
 
 function setupCvMatcher() {
   const dropzone = document.getElementById('cv-dropzone');

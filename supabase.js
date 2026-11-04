@@ -198,6 +198,7 @@ const localStore = {
       benefits: Array.isArray(jobData.benefits) ? jobData.benefits : [],
       contact_type: jobData.contact_type || (jobData.whatsapp ? 'whatsapp' : (jobData.email ? 'email' : 'link')),
       contact_value: jobData.contact_value || '',
+      apply_info: jobData.apply_info || '',
       deadline: jobData.deadline || '',
       status: jobData.status || 'active',
       scheduled_at: jobData.scheduled_at || null,
@@ -396,7 +397,7 @@ const db = {
         });
 
         allRawJobs = (data || [])
-          .filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data')
+          .filter(j => j.status !== 'system_settings' && j.status !== 'system_master_data' && j.status !== 'system_flyer_themes')
           .map(j => {
             const localSched = localSchedMap[j.id] || localSchedMap[String(j.id)];
             if (!j.scheduled_at && localSched) {
@@ -477,7 +478,7 @@ const db = {
       }
 
       const { data, error } = await supabase.from('jobs').select('*').eq('id', Number(id)).single();
-      if (error || !data || data.status === 'system_settings' || data.status === 'system_master_data') {
+      if (error || !data || data.status === 'system_settings' || data.status === 'system_master_data' || data.status === 'system_flyer_themes') {
         return null;
       }
 
@@ -561,7 +562,7 @@ const db = {
         'title', 'company_name', 'category', 'job_type', 'location',
         'salary_display', 'experience_level', 'poster_image', 'cover_image',
         'flyer_images', 'description', 'requirements', 'responsibilities',
-        'benefits', 'contact_type', 'contact_value', 'deadline', 'status',
+        'benefits', 'contact_type', 'contact_value', 'apply_info', 'deadline', 'status',
         'scheduled_at', 'is_featured', 'views_count'
       ];
 
@@ -581,10 +582,11 @@ const db = {
       }
 
       let { data, error } = await supabase.from('jobs').update(payload).eq('id', Number(id)).select().single();
-      if (error && error.message && error.message.includes('scheduled_at')) {
-        const payloadNoSched = { ...payload };
-        delete payloadNoSched.scheduled_at;
-        const retry = await supabase.from('jobs').update(payloadNoSched).eq('id', Number(id)).select().single();
+      if (error && error.message && (error.message.includes('scheduled_at') || error.message.includes('apply_info'))) {
+        const payloadNoOpt = { ...payload };
+        delete payloadNoOpt.scheduled_at;
+        delete payloadNoOpt.apply_info;
+        const retry = await supabase.from('jobs').update(payloadNoOpt).eq('id', Number(id)).select().single();
         data = retry.data;
         error = retry.error;
       }

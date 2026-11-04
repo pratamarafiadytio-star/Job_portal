@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS public.jobs (
     website_url TEXT DEFAULT '',
     contact_type TEXT DEFAULT 'whatsapp',
     contact_value TEXT DEFAULT '',
+    apply_info TEXT DEFAULT '',
     deadline TEXT DEFAULT '',
     status TEXT DEFAULT 'active',
     scheduled_at TIMESTAMPTZ DEFAULT NULL,
@@ -64,6 +65,7 @@ ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS email TEXT DEFAULT '';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS website_url TEXT DEFAULT '';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS contact_type TEXT DEFAULT 'whatsapp';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS contact_value TEXT DEFAULT '';
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS apply_info TEXT DEFAULT '';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS deadline TEXT DEFAULT '';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ DEFAULT NULL;
@@ -100,7 +102,29 @@ CREATE INDEX IF NOT EXISTS idx_jobs_job_type ON public.jobs (job_type);
 CREATE INDEX IF NOT EXISTS idx_jobs_source_platform ON public.jobs (source_platform);
 CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON public.jobs (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_scheduled_at ON public.jobs (scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_jobs_status_scheduled ON public.jobs (status, scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_jobs_featured_id ON public.jobs (is_featured DESC, id DESC);
+
+-- Fungsi Helper Auto-Publish Lowongan Terjadwal (Scheduled -> Active)
+CREATE OR REPLACE FUNCTION public.publish_due_scheduled_jobs()
+RETURNS INT AS $$
+DECLARE
+    updated_rows INT;
+BEGIN
+    WITH updated AS (
+        UPDATE public.jobs
+        SET status = 'active',
+            scheduled_at = NULL,
+            updated_at = NOW()
+        WHERE status = 'scheduled'
+          AND scheduled_at IS NOT NULL
+          AND scheduled_at <= NOW()
+        RETURNING id
+    )
+    SELECT COUNT(*) INTO updated_rows FROM updated;
+    RETURN updated_rows;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ==============================================================
 -- 4. TABEL MASTER DATA: public.master_data
@@ -112,6 +136,13 @@ CREATE TABLE IF NOT EXISTS public.master_data (
     icon TEXT DEFAULT '',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Bersihkan data duplikat (type, name) yang ada di tabel sebelum membuat UNIQUE INDEX
+DELETE FROM public.master_data a
+USING public.master_data b
+WHERE a.id > b.id
+  AND a.type = b.type
+  AND a.name = b.name;
 
 CREATE INDEX IF NOT EXISTS idx_master_data_type ON public.master_data (type);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_master_data_type_name ON public.master_data (type, name);
@@ -183,6 +214,13 @@ CREATE TABLE IF NOT EXISTS public.flyer_themes (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Bersihkan data duplikat tema jika sebelumnya sempat terinput ganda
+DELETE FROM public.flyer_themes a
+USING public.flyer_themes b
+WHERE a.id > b.id
+  AND a.name = b.name
+  AND a.image_data = b.image_data;
+
 CREATE INDEX IF NOT EXISTS idx_flyer_themes_created_at ON public.flyer_themes (created_at DESC);
 
 -- ==============================================================
@@ -243,7 +281,7 @@ END $$;
 INSERT INTO public.jobs (
     id, title, company_name, category, job_type, location, salary_display,
     experience_level, poster_image, cover_image, flyer_images, description,
-    requirements, responsibilities, benefits, contact_type, contact_value,
+    requirements, responsibilities, benefits, contact_type, contact_value, apply_info,
     deadline, status, is_featured, views_count, source_platform, source_label
 ) OVERRIDING SYSTEM VALUE VALUES 
 (
@@ -255,7 +293,7 @@ INSERT INTO public.jobs (
     'Jakarta / Remote',
     'Rp 15.000.000 - Rp 25.000.000 / bln',
     'Senior (5+ Tahun)',
-    '/uploads/sample_uiux.jpg',
+    '',
     '',
     '[]'::jsonb,
     'Synergy Tech sedang mencari Senior UI/UX Designer untuk memimpin strategi desain produk digital enterprise generasi berikutnya. Anda akan merancang antarmuka elegan, prototipe interaktif, dan berkolaborasi erat dengan tim engineering.',
@@ -264,6 +302,7 @@ INSERT INTO public.jobs (
     '["Kerja 100% Remote dengan jam kerja fleksibel", "Asuransi Kesehatan Swasta Kelas 1 & BPJS Ketenagakerjaan", "Tunjangan perangkat kerja MacBook Pro & monitor 4K", "Budget pembelajaran & sertifikasi desain tahunan"]'::jsonb,
     'whatsapp',
     '081234567890',
+    'Kirim CV & Portofolio melalui WhatsApp Rekrutmen Resmi Synergy Tech Global.',
     '2026-12-31',
     'active',
     true,
@@ -280,7 +319,7 @@ INSERT INTO public.jobs (
     'Jakarta Selatan (SCBD)',
     'Rp 18.000.000 - Rp 28.000.000 / bln',
     '3-5 Tahun',
-    '/uploads/sample_fullstack.jpg',
+    '',
     '',
     '[]'::jsonb,
     'Kami mengundang Full Stack Developer berbakat untuk membangun arsitektur sistem enterprise yang cepat, terukur, dan aman. Mengembangkan RESTful API modern dan antarmuka responsif performa tinggi.',
@@ -289,6 +328,7 @@ INSERT INTO public.jobs (
     '["Sistem kerja Hybrid fleksibel (2 hari kantor, 3 hari WFH)", "Gaji kompetitif + THR + Bonus kuartalan berbasis performa", "Makan siang gratis & snack bar sepuasnya di kantor SCBD", "Asuransi kesehatan lengkap termasuk rawat jalan dan keluarga"]'::jsonb,
     'email',
     'careers@techinnovations.com',
+    'Kirim CV terbaru dan tautan GitHub ke email resmi: careers@techinnovations.com',
     '2026-12-31',
     'active',
     true,
@@ -305,7 +345,7 @@ INSERT INTO public.jobs (
     'Bandung, Jawa Barat',
     'Rp 9.000.000 - Rp 15.000.000 / bln',
     '1-3 Tahun',
-    '/uploads/sample_marketing.jpg',
+    '',
     '',
     '[]'::jsonb,
     'Creative Sparks mencari Digital Marketing Specialist yang kreatif dan analitis untuk memimpin kampanye multi-channel, paid ads (Meta & TikTok), serta konten viral berorientasi pertumbuhan bisnis.',
@@ -314,6 +354,7 @@ INSERT INTO public.jobs (
     '["Suasana kerja agensi yang seru, dinamis, tanpa birokrasi kaku", "Tunjangan kuota internet, transportasi, dan gym membership", "Bonus performa pencapaian target campaign klien"]'::jsonb,
     'link',
     'https://creativesparks.io/apply',
+    'Pendaftaran dilakukan secara daring melalui portal resmi https://creativesparks.io/apply',
     '2026-12-15',
     'active',
     false,

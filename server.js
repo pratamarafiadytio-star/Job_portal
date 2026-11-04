@@ -338,27 +338,36 @@ app.get('/api/config', (req, res) => {
 // -------------------------------------------------------------
 // PUBLIC SETTINGS API: GET /api/settings
 // -------------------------------------------------------------
-app.get('/api/settings', (req, res) => {
-  const settings = getSiteSettings();
-  res.json({
-    success: true,
-    data: settings
-  });
+app.get('/api/settings', async (req, res) => {
+  try {
+    const dbSettings = (typeof db.getSettings === 'function') ? await db.getSettings().catch(() => null) : null;
+    const settings = dbSettings || getSiteSettings();
+    res.json({
+      success: true,
+      data: settings
+    });
+  } catch (err) {
+    res.json({ success: true, data: getSiteSettings() });
+  }
 });
 
 // -------------------------------------------------------------
 // ADMIN SETTINGS API: POST /api/settings (Update WhatsApp CV Order, etc.)
 // -------------------------------------------------------------
-app.post('/api/settings', requireAdminAuth, (req, res) => {
+app.post('/api/settings', requireAdminAuth, async (req, res) => {
   try {
-    const { cv_whatsapp, cv_order_message } = req.body;
+    const { cv_whatsapp, cv_order_message } = req.body || {};
     let cleanWa = (cv_whatsapp || '').trim().replace(/[^0-9+]/g, '');
     if (cleanWa.startsWith('+')) cleanWa = cleanWa.slice(1);
+    const cleanMsg = (cv_order_message || '').trim();
 
     const updated = saveSiteSettings({
       cv_whatsapp: cleanWa,
-      cv_order_message: (cv_order_message || '').trim()
+      cv_order_message: cleanMsg
     });
+    if (typeof db.saveSettings === 'function') {
+      await db.saveSettings({ cv_whatsapp: cleanWa, cv_order_message: cleanMsg }).catch(() => {});
+    }
 
     if (!updated) {
       return res.status(500).json({ success: false, message: 'Gagal menyimpan pengaturan ke file.' });
@@ -622,6 +631,7 @@ app.post('/api/jobs', requireAdminAuth, upload.any(), async (req, res) => {
     const wa = (whatsapp || '').trim();
     const em = (email || '').trim();
     const wb = (website_url || website || '').trim();
+    const appInfo = (req.body.apply_info || '').trim();
 
     let finalContactVal = contact_value ? contact_value.trim() : '';
     let contactParsed = {};
@@ -629,6 +639,9 @@ app.post('/api/jobs', requireAdminAuth, upload.any(), async (req, res) => {
       try { contactParsed = JSON.parse(finalContactVal); } catch (e) {}
     } else if (wa || em || wb) {
       contactParsed = { whatsapp: wa, email: em, website: wb };
+    }
+    if (appInfo) {
+      contactParsed.apply_info = appInfo;
     }
     if (flyer_images.length > 0) {
       contactParsed.flyer_images = flyer_images;
@@ -656,6 +669,7 @@ app.post('/api/jobs', requireAdminAuth, upload.any(), async (req, res) => {
       whatsapp: wa,
       email: em,
       website_url: wb,
+      apply_info: appInfo,
       contact_type: contact_type || (wa ? 'whatsapp' : (em ? 'email' : 'link')),
       contact_value: finalContactVal,
       deadline: deadline || '',
@@ -776,6 +790,7 @@ app.put('/api/jobs/:id', requireAdminAuth, upload.any(), async (req, res) => {
     }
     if (cover_image !== undefined) contactParsed.cover_image = cover_image;
     if (flyer_images !== undefined && Array.isArray(flyer_images)) contactParsed.flyer_images = flyer_images;
+    if (req.body.apply_info !== undefined) contactParsed.apply_info = String(req.body.apply_info || '').trim();
     finalContactVal = JSON.stringify(contactParsed);
 
     // Handle scheduled_at and status logic strictly
@@ -817,6 +832,7 @@ app.put('/api/jobs/:id', requireAdminAuth, upload.any(), async (req, res) => {
       whatsapp: wa,
       email: em,
       website_url: wb,
+      apply_info: req.body.apply_info !== undefined ? String(req.body.apply_info || '').trim() : (existing.apply_info || ''),
       contact_type: contact_type || existing.contact_type || (wa ? 'whatsapp' : (em ? 'email' : 'link')),
       contact_value: finalContactVal,
       deadline: deadline !== undefined ? deadline : existing.deadline,
@@ -872,35 +888,6 @@ app.get('/api/admin/stats', requireAdminAuth, async (req, res) => {
     res.json({ success: true, data: stats });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// -------------------------------------------------------------
-// PUBLIC API: GET /api/settings (CV WhatsApp & message)
-// -------------------------------------------------------------
-app.get('/api/settings', async (req, res) => {
-  try {
-    const settings = await db.getSettings();
-    res.json({ success: true, data: settings });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// -------------------------------------------------------------
-// ADMIN PROTECTED API: POST /api/settings (Save CV WhatsApp)
-// -------------------------------------------------------------
-app.post('/api/settings', requireAdminAuth, async (req, res) => {
-  try {
-    const { cv_whatsapp, cv_order_message } = req.body || {};
-    const updated = await db.saveSettings({ cv_whatsapp, cv_order_message });
-    res.json({
-      success: true,
-      message: 'Pengaturan nomor WhatsApp pemesanan CV berhasil disimpan!',
-      data: updated
-    });
-  } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
   }
 });
 
@@ -1393,12 +1380,12 @@ function parseJobHeadline(rawTitle, defaultSource = 'Portal Web Resmi', rawDesc 
 
   const searchTexts = [desc, title];
 
-  // 1. Detect Real Company if comp is generic social platform
-  const isGenericComp = /^(instagram|facebook|twitter|linkedin|web|portal|loker|google|bing|website)/i.test(comp);
+  // 1. Detect Real Company if comp is generic social platform or news portal
+  const isGenericComp = /^(instagram|facebook|twitter|linkedin|web|portal|loker|google|bing|website|kompas|detik|tribun|cnn|liputan6|cnbc|bisnis|antara|suara|bukajobs)/i.test(comp);
   for (const text of searchTexts) {
-    const ptMatch = text.match(/(?:🏢\s*)?((?:PT|CV|Bank|Yayasan|RSUD|RS|Universitas|Politeknik)\s+[^💼📢🕒🕐🎓\n\r,]+?)(?=\s+(?:membuka|buka|posisi|career|recruitment|💼|📢|🕒|🕐|🎓|$))/i);
+    const ptMatch = text.match(/(?:🏢\s*)?((?:PT\.?|CV\.?|Perum|Bank|Yayasan|RSUD|RS|BUMN|Kementerian)\s+[A-Z0-9][A-Za-z0-9\s\.\&\(\)\-]+?)(?=\s+(?:Tbk\s+)?(?:membuka|buka|sedang|kembali|cari|butuhkan|rekrut|posisi|career|recruitment|untuk|lulusan|terbaru|2025|2026|💼|📢|🕒|🕐|🎓|,|\-|$))/i);
     if (ptMatch && ptMatch[1]) {
-      const extractedComp = ptMatch[1].replace(/^[🏢\s]+/, '').replace(/[\.\s]+$/, '').trim();
+      const extractedComp = ptMatch[1].replace(/^[🏢\s]+/, '').replace(/[\.\s,\-]+$/, '').trim();
       if (isGenericComp || (comp.length < 8 && extractedComp.length > comp.length)) {
         comp = extractedComp;
         break;

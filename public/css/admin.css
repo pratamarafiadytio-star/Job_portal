@@ -4512,3 +4512,191 @@ body {
   border-color: #fecaca;
 }
 
+/* ==============================================================
+   ULTRA-MODERN EXECUTIVE ADMIN DASHBOARD & SCOUT ACCURACY PANEL
+   Sleek Glassmorphism, High-Contrast Depth, and Neat Validation UI
+   ============================================================== */
+body {
+  background:
+    radial-gradient(circle at 8% 4%, rgba(37, 99, 235, 0.07) 0%, transparent 38%),
+    radial-gradient(circle at 92% 10%, rgba(99, 102, 241, 0.06) 0%, transparent 40%),
+    radial-gradient(circle at 50% 96%, rgba(16, 185, 129, 0.04) 0%, transparent 45%),
+    #f1f5f9;
+}
+
+.admin-sidebar {
+  background: linear-gradient(180deg, #070b14 0%, #0f172a 55%, #090d16 100%);
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: 8px 0 32px rgba(2, 6, 23, 0.35);
+}
+
+.sidebar-header {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.45) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.menu-item a {
+  border: 1px solid transparent;
+  letter-spacing: -0.01em;
+}
+
+.menu-item a:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  transform: translateX(3px);
+}
+
+.menu-item.active a {
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 55%, #6366f1 100%);
+  color: #ffffff;
+  border-color: rgba(165, 180, 252, 0.35);
+  box-shadow: 0 8px 20px -4px rgba(37, 99, 235, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.admin-header {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(203, 213, 225, 0.75);
+  box-shadow: 0 4px 24px -4px rgba(15, 23, 42, 0.05);
+}
+
+.admin-card-container {
+  background: #ffffff;
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px -6px rgba(15, 23, 42, 0.05), 0 2px 6px rgba(15, 23, 42, 0.02);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.admin-card-container:hover {
+  box-shadow: 0 16px 38px -8px rgba(15, 23, 42, 0.07), 0 4px 10px rgba(15, 23, 42, 0.03);
+}
+
+.card-header-bar {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Scout Loker Accuracy & Validation Panel */
+.official-job-card {
+  background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
+  border: 1.5px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.05);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.official-job-card:hover {
+  transform: translateY(-4px);
+  border-color: #6366f1;
+  box-shadow: 0 14px 28px -6px rgba(79, 70, 229, 0.15), 0 4px 10px rgba(15, 23, 42, 0.04);
+}
+
+.official-accuracy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  letter-spacing: 0.2px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.official-accuracy-badge.high {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #047857;
+  border: 1px solid #6ee7b7;
+}
+
+.official-accuracy-badge.medium {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
+.official-verified-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #059669;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  margin-left: 4px;
+}
+
+.official-accuracy-panel {
+  background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #cbd5e1;
+  border-left: 3.5px solid #10b981;
+  border-radius: 12px;
+  padding: 11px 13px;
+  margin-bottom: 14px;
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+
+.accuracy-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #0f172a;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed #cbd5e1;
+}
+
+.accuracy-panel-header i {
+  color: #059669;
+}
+
+.accuracy-domain-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-family: monospace;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accuracy-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+}
+
+.accuracy-grid-item {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accuracy-grid-item i {
+  color: #10b981;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+

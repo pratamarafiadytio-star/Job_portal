@@ -1385,6 +1385,10 @@
 /* ==============================================================
    PRINT-SPECIFIC STYLES - STRICT 1 SINGLE PAGE GUARANTEE
    ============================================================== */
+#cv-print-only-portal {
+  display: none;
+}
+
 @media print {
   @page {
     size: A4 portrait;
@@ -1401,6 +1405,7 @@
 
   html,
   body {
+    display: block !important;
     background: #ffffff !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -1414,61 +1419,39 @@
     break-after: avoid !important;
   }
 
-  /* Hide everything in admin UI */
-  .admin-sidebar,
-  .admin-header,
-  .admin-top-actions,
-  .sidebar-backdrop,
-  .cv-studio-top-bar,
-  .cv-mobile-view-tabs,
-  .cv-editor-panel,
-  .cv-preview-toolbar,
-  .btn-mobile-preview-trigger,
-  .btn-mobile-back-form,
-  #header-autoload-pill,
-  .autoload-live-banner,
-  .no-print,
-  #admin-login-modal,
-  #admin-confirm-modal,
-  #admin-toast-container,
-  #poster-qrcode-temp,
-  .cv-studio-toast,
-  .admin-section:not(#section-cv-builder) {
+  /* Isolate ONLY the dedicated body-level A4 print portal */
+  body > *:not(#cv-print-only-portal) {
     display: none !important;
   }
 
-  /* Reset layout parent wrappers to eliminate any offset or padding */
-  #admin-dashboard-app,
-  .admin-layout,
-  .admin-main,
-  .admin-body,
-  .admin-content,
-  #section-cv-builder,
-  .cv-studio-root,
-  .cv-preview-area,
-  .cv-canvas-viewport {
+  body > #cv-print-only-portal {
     display: block !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    position: static !important;
     width: 210mm !important;
     height: 297mm !important;
     max-height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: hidden !important;
-    position: static !important;
+    background: #ffffff !important;
+    page-break-before: avoid !important;
     page-break-after: avoid !important;
-    break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-before: avoid !important;
+    break-after: avoid-page !important;
+    break-inside: avoid !important;
   }
 
-  /* Lock the A4 Sheet to 1 single page */
+  /* Lock the A4 Sheet to 1 single page at exact 210mm x 297mm */
+  #cv-print-a4-sheet,
+  .cv-print-sheet-clean,
   .cv-a4-sheet {
-    position: fixed !important;
+    position: relative !important;
     top: 0 !important;
     left: 0 !important;
     transform: none !important;
     box-shadow: none !important;
+    border: none !important;
     margin: 0 !important;
     padding: 0 !important;
     width: 210mm !important;
@@ -1483,7 +1466,6 @@
     break-before: avoid !important;
     break-after: avoid-page !important;
     break-inside: avoid !important;
-    z-index: 999999 !important;
   }
 
   .cv-tpl-1,

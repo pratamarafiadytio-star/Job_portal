@@ -409,11 +409,11 @@ function parseJobHeadline(rawTitle, defaultSource = 'Portal Web Resmi', rawDesc 
   let comp = defaultSource || 'Perusahaan Terverifikasi';
 
   const searchTexts = [desc, title];
-  const isGenericComp = /^(instagram|facebook|twitter|linkedin|web|portal|loker|google|bing|website)/i.test(comp);
+  const isGenericComp = /^(instagram|facebook|twitter|linkedin|web|portal|loker|google|bing|website|kompas|detik|tribun|cnn|liputan6|cnbc|bisnis|antara|suara|bukajobs)/i.test(comp);
   for (const text of searchTexts) {
-    const ptMatch = text.match(/(?:🏢\s*)?((?:PT|CV|Bank|Yayasan|RSUD|RS|Universitas|Politeknik)\s+[^💼📢🕒🕐🎓\n\r,]+?)(?=\s+(?:membuka|buka|posisi|career|recruitment|💼|📢|🕒|🕐|🎓|$))/i);
+    const ptMatch = text.match(/(?:🏢\s*)?((?:PT\.?|CV\.?|Perum|Bank|Yayasan|RSUD|RS|BUMN|Kementerian)\s+[A-Z0-9][A-Za-z0-9\s\.\&\(\)\-]+?)(?=\s+(?:Tbk\s+)?(?:membuka|buka|sedang|kembali|cari|butuhkan|rekrut|posisi|career|recruitment|untuk|lulusan|terbaru|2025|2026|💼|📢|🕒|🕐|🎓|,|\-|$))/i);
     if (ptMatch && ptMatch[1]) {
-      const extractedComp = ptMatch[1].replace(/^[🏢\s]+/, '').replace(/[\.\s]+$/, '').trim();
+      const extractedComp = ptMatch[1].replace(/^[🏢\s]+/, '').replace(/[\.\s,\-]+$/, '').trim();
       if (isGenericComp || (comp.length < 8 && extractedComp.length > comp.length)) {
         comp = extractedComp;
         break;
@@ -1438,8 +1438,8 @@ export async function onRequest(context) {
           'title', 'company_name', 'category', 'job_type', 'location',
           'salary_display', 'experience_level', 'poster_image', 'cover_image',
           'flyer_images', 'description', 'requirements', 'responsibilities',
-          'benefits', 'contact_type', 'contact_value', 'deadline', 'status',
-          'is_featured', 'views_count'
+          'benefits', 'contact_type', 'contact_value', 'apply_info', 'deadline', 'status',
+          'scheduled_at', 'is_featured', 'views_count'
         ];
 
         const updateData = { updated_at: new Date().toISOString() };
